@@ -3,15 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Expense Dashboard</title>
+    <title>Expense Dashboard Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <link rel="stylesheet" href="styles.css">
+    <!-- Separated CSS Files -->
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/dashboard.css">
+    <link rel="stylesheet" href="styles/trends.css">
+    <link rel="stylesheet" href="styles/category-analysis.css">
+    <link rel="stylesheet" href="styles/responsive.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>💰 Expense Dashboard</h1>
+            <h1>💰 Expense Dashboard Pro</h1>
             <p>Upload your CSV files to analyze your spending patterns</p>
             <div class="nav-buttons">
                 <button id="dashboardBtn" class="nav-btn active">Dashboard</button>
@@ -22,12 +28,18 @@
         <div class="upload-section">
             <div class="file-input-wrapper">
                 <input type="file" id="csvFile" accept=".csv" multiple />
-                📁 Choose CSV Files (Multiple allowed)
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <span>Choose CSV Files</span>
             </div>
-            <div class="file-tabs" id="fileTabs" style="display: none; margin-top: 20px;">
-                <div style="margin-bottom: 10px; color: #667eea; font-weight: bold;">Loaded Files:</div>
+            <div class="file-tabs" id="fileTabs" style="display: none;">
+                <div class="file-tabs-label">Loaded Files:</div>
             </div>
             <div class="loading" id="loading">
+                <div class="spinner"></div>
                 <p>Processing your data...</p>
             </div>
         </div>
@@ -89,7 +101,12 @@
             </div>
 
             <div class="details-section">
-                <h3 style="margin-bottom: 20px; color: #333;">Detailed Breakdown</h3>
+                <div class="details-header">
+                    <h3>Detailed Breakdown</h3>
+                    <div class="drag-instructions">
+                        <span>💡 Drag items between categories to reorganize</span>
+                    </div>
+                </div>
                 <div class="category-details" id="categoryDetails"></div>
             </div>
         </div>
@@ -129,9 +146,22 @@
         </div>
     </div>
 
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <h3>Delete Transaction</h3>
+            <p>Are you sure you want to delete this transaction?</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+                <button class="btn-delete" onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+
     <script src="expense-analyzer.js"></script>
     <script src="category-analyzer.js"></script>
     <script src="trends-analyzer.js"></script>
+    <script src="drag-drop-handler.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

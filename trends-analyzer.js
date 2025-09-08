@@ -14,14 +14,14 @@ class TrendsAnalyzer {
 
         const monthlyTrends = this.calculateMonthlyTrends();
         const categoryTrends = this.calculateCategoryTrends();
-        const insights = this.generateInsights(monthlyTrends, categoryTrends);
+        const categoryComparison = this.generateCategoryComparison(monthlyTrends, categoryTrends);
         const summary = this.calculateSummaryStats();
 
         return {
             canAnalyze: true,
             monthlyTrends,
             categoryTrends,
-            insights,
+            categoryComparison,
             summary
         };
     }
@@ -47,6 +47,9 @@ class TrendsAnalyzer {
                 allMonthlyData[month].files.push(index);
                 
                 Object.entries(data.categories).forEach(([category, amount]) => {
+                    if (amount === 0) return;
+                    
+                    // Use the category name as-is from the dashboard's categorization
                     if (!allMonthlyData[month].categories[category]) {
                         allMonthlyData[month].categories[category] = 0;
                     }
@@ -140,73 +143,62 @@ class TrendsAnalyzer {
         };
     }
 
-    generateInsights(monthlyTrends, categoryTrends) {
-        const insights = [];
-
-        // Overall spending trend insight
-        const spendingTrend = monthlyTrends.trend;
-        if (spendingTrend === 'increasing') {
-            insights.push({
-                type: 'warning',
-                title: '📈 Spending Trending Up',
-                message: 'Your overall spending has been increasing over time. Consider reviewing your budget and identifying areas to cut back.'
+    generateCategoryComparison(monthlyTrends, categoryTrends) {
+        const comparisons = [];
+        const months = monthlyTrends.months;
+        
+        if (months.length < 2) return comparisons;
+        
+        const latestMonth = months[months.length - 1];
+        const previousMonth = months[months.length - 2];
+        
+        // Format month names for display
+        const formatMonth = (monthStr) => {
+            const [year, month] = monthStr.split('-');
+            const date = new Date(year, month - 1);
+            return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        };
+        
+        const latestMonthName = formatMonth(latestMonth);
+        const previousMonthName = formatMonth(previousMonth);
+        
+        // Get category data for both months
+        const latestCategories = monthlyTrends.data[latestMonth].categories;
+        const previousCategories = monthlyTrends.data[previousMonth].categories;
+        
+        // Get all unique categories
+        const allCategories = new Set([
+            ...Object.keys(latestCategories),
+            ...Object.keys(previousCategories)
+        ]);
+        
+        // Calculate comparison for each category
+        allCategories.forEach(category => {
+            const currentAmount = Math.round((latestCategories[category] || 0) * 100) / 100;
+            const previousAmount = Math.round((previousCategories[category] || 0) * 100) / 100;
+            const difference = currentAmount - previousAmount;
+            const percentChange = previousAmount > 0 
+                ? ((difference / previousAmount) * 100).toFixed(1)
+                : currentAmount > 0 ? 100 : 0;
+            
+            comparisons.push({
+                category,
+                currentAmount,
+                previousAmount,
+                difference,
+                percentChange,
+                trend: difference > 0 ? 'increased' : difference < 0 ? 'decreased' : 'unchanged'
             });
-        } else if (spendingTrend === 'decreasing') {
-            insights.push({
-                type: 'positive',
-                title: '📉 Great Job Saving!',
-                message: 'Your spending has been decreasing over time. Keep up the good work!'
-            });
-        }
-
-        // Category-specific insights
-        Object.entries(categoryTrends).forEach(([category, data]) => {
-            if (data.trend === 'increasing' && data.current > data.average * 1.5) {
-                insights.push({
-                    type: 'warning',
-                    title: `🔺 ${category} Spending Spike`,
-                    message: `Your ${category} spending has increased significantly. Current: $${data.current.toFixed(2)}, Average: $${data.average.toFixed(2)}`
-                });
-            }
-
-            if (data.volatility > 50) {
-                insights.push({
-                    type: 'info',
-                    title: `📊 Volatile ${category} Spending`,
-                    message: `Your ${category} spending varies quite a bit month to month. Consider budgeting more consistently for this category.`
-                });
-            }
         });
-
-        // Find fastest growing categories
-        const growingCategories = Object.entries(categoryTrends)
-            .filter(([_, data]) => data.trend === 'increasing')
-            .sort(([_, a], [__, b]) => b.current - a.current)
-            .slice(0, 3);
-
-        if (growingCategories.length > 0) {
-            insights.push({
-                type: 'info',
-                title: '🚀 Fastest Growing Categories',
-                message: `Categories with increasing spending: ${growingCategories.map(([cat, _]) => cat).join(', ')}`
-            });
-        }
-
-        // Find most stable categories
-        const stableCategories = Object.entries(categoryTrends)
-            .filter(([_, data]) => data.volatility < 20 && data.current > 50)
-            .sort(([_, a], [__, b]) => a.volatility - b.volatility)
-            .slice(0, 2);
-
-        if (stableCategories.length > 0) {
-            insights.push({
-                type: 'positive',
-                title: '⚖️ Most Consistent Spending',
-                message: `You maintain consistent spending in: ${stableCategories.map(([cat, _]) => cat).join(', ')}`
-            });
-        }
-
-        return insights;
+        
+        // Sort by absolute difference (biggest changes first)
+        comparisons.sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference));
+        
+        return {
+            latestMonth: latestMonthName,
+            previousMonth: previousMonthName,
+            comparisons
+        };
     }
 
     getChartData() {

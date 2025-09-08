@@ -1,0 +1,263 @@
+/* Responsive Design */
+
+/* Tablet Landscape */
+@media (max-width: 1024px) {
+    .container {
+        max-width: 95%;
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+    
+    .category-details {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+}
+
+/* Tablet Portrait */
+@media (max-width: 768px) {
+    body {
+        padding: var(--spacing-md);
+    }
+    
+    .header {
+        padding: var(--spacing-lg);
+    }
+    
+    .header h1 {
+        font-size: 1.75rem;
+    }
+    
+    .nav-buttons {
+        flex-direction: column;
+        width: 100%;
+        max-width: 300px;
+        margin: var(--spacing-lg) auto 0;
+    }
+    
+    .nav-btn {
+        width: 100%;
+    }
+    
+    .charts-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+    
+    .card p {
+        font-size: 1.5rem;
+    }
+    
+    .category-details {
+        grid-template-columns: 1fr;
+    }
+    
+    .category-analysis-header h2 {
+        font-size: 1.5rem;
+        margin-top: 50px;
+    }
+    
+    .category-analysis-header .back-btn {
+        position: static;
+        margin-bottom: var(--spacing-lg);
+    }
+    
+    .category-summary-cards {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+    
+    .spending-analysis-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .returns-analysis {
+        grid-template-columns: 1fr;
+    }
+    
+    .trends-summary {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+    
+    .insights-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .merchant-analysis-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .temporal-analysis-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Mobile Large */
+@media (max-width: 425px) {
+    .header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .header p {
+        font-size: 0.9rem;
+    }
+    
+    .upload-section {
+        padding: var(--spacing-lg);
+    }
+    
+    .file-input-wrapper {
+        font-size: 0.9rem;
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+    
+    .summary-cards {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: var(--spacing-sm);
+    }
+    
+    .card {
+        padding: var(--spacing-md);
+    }
+    
+    .card h3 {
+        font-size: 0.75rem;
+    }
+    
+    .card p {
+        font-size: 1.25rem;
+    }
+    
+    .dashboard,
+    .trends-view,
+    .category-analysis-view {
+        padding: var(--spacing-lg);
+    }
+    
+    .details-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+    
+    .drag-instructions {
+        font-size: 0.8rem;
+    }
+    
+    .category-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-xs);
+    }
+    
+    .category-total {
+        font-size: 1.1rem;
+    }
+    
+    .transaction-content {
+        gap: var(--spacing-sm);
+    }
+    
+    .transaction-name {
+        font-size: 0.85rem;
+    }
+    
+    .transaction-amount {
+        font-size: 0.9rem;
+    }
+    
+    .deep-analysis-btn {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+    }
+    
+    .modal-content {
+        padding: var(--spacing-lg);
+    }
+    
+    .big-number {
+        font-size: 1.25rem;
+    }
+}
+
+/* Mobile Small */
+@media (max-width: 375px) {
+    .summary-cards {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .category-summary-cards {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .trends-summary {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Very Small Screens */
+@media (max-width: 320px) {
+    .header h1 {
+        font-size: 1.25rem;
+    }
+    
+    .summary-cards,
+    .category-summary-cards,
+    .trends-summary {
+        grid-template-columns: 1fr;
+    }
+    
+    .card p {
+        font-size: 1.1rem;
+    }
+    
+    .big-number {
+        font-size: 1.1rem;
+    }
+}
+
+/* Print Styles */
+@media print {
+    body {
+        background: white;
+        padding: 0;
+    }
+    
+    .container {
+        box-shadow: none;
+        border-radius: 0;
+    }
+    
+    .nav-buttons,
+    .upload-section,
+    .deep-analysis-btn,
+    .delete-btn,
+    .drag-handle,
+    .drag-instructions,
+    .back-btn {
+        display: none !important;
+    }
+    
+    .header {
+        background: none;
+        color: var(--dark);
+        border-bottom: 2px solid var(--dark);
+    }
+    
+    .card {
+        background: none;
+        border: 1px solid var(--dark);
+        color: var(--dark);
+    }
+    
+    .category-card {
+        page-break-inside: avoid;
+    }
+}

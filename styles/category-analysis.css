@@ -1,0 +1,302 @@
+/* Category Analysis View */
+.category-analysis-view {
+    padding: var(--spacing-xl);
+    display: none;
+}
+
+.category-analysis-header {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+    position: relative;
+}
+
+.category-analysis-header .back-btn {
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+.category-analysis-header h2 {
+    color: var(--dark);
+    font-size: 1.75rem;
+    margin-bottom: var(--spacing-sm);
+    font-weight: 500;
+}
+
+.category-analysis-header p {
+    color: var(--gray);
+    font-size: 1rem;
+}
+
+/* Category Summary Cards */
+.category-summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+}
+
+.analysis-card {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    color: var(--white);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    text-align: center;
+    box-shadow: var(--shadow-md);
+}
+
+.analysis-card h3 {
+    font-size: 0.875rem;
+    margin-bottom: var(--spacing-sm);
+    font-weight: 500;
+    opacity: 0.95;
+}
+
+.big-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+}
+
+/* Analysis Sections */
+.analysis-section {
+    background: var(--background);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.analysis-section h3 {
+    color: var(--dark);
+    margin-bottom: var(--spacing-lg);
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+/* Insights Section */
+.insights-section {
+    background: var(--background);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+.insights-section h3 {
+    color: var(--dark);
+    margin-bottom: var(--spacing-lg);
+    font-size: 1.1rem;
+}
+
+/* Merchant Analysis Grid */
+.merchant-analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.merchant-section {
+    background: var(--white);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.merchant-section h4 {
+    color: var(--primary);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.95rem;
+}
+
+.merchant-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid var(--light-gray);
+}
+
+.merchant-item:last-child {
+    border-bottom: none;
+}
+
+.merchant-name {
+    font-weight: 500;
+    color: var(--dark);
+    flex: 1;
+    font-size: 0.9rem;
+}
+
+.merchant-stat {
+    color: var(--gray);
+    font-size: 0.85rem;
+}
+
+/* Spending Analysis Grid */
+.spending-analysis-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-lg);
+}
+
+.spending-section {
+    background: var(--white);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.spending-section h4 {
+    color: var(--primary);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.95rem;
+}
+
+.range-item {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-xs) 0;
+    border-bottom: 1px solid var(--light-gray);
+}
+
+.range-item:last-child {
+    border-bottom: none;
+}
+
+.range-label {
+    font-weight: 500;
+    color: var(--dark);
+    font-size: 0.9rem;
+}
+
+.range-count {
+    color: var(--gray);
+    font-size: 0.85rem;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm);
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-sm);
+    background: var(--background);
+    border-radius: var(--radius-sm);
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--gray);
+    margin-bottom: var(--spacing-xs);
+}
+
+.stat-value {
+    font-weight: 600;
+    color: var(--dark);
+    font-size: 0.95rem;
+}
+
+/* Temporal Analysis Grid */
+.temporal-analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.temporal-section {
+    background: var(--white);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+
+.temporal-section h4 {
+    color: var(--primary);
+    margin-bottom: var(--spacing-md);
+    font-size: 0.95rem;
+}
+
+.temporal-stats {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.temporal-stat {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-xs) 0;
+    border-bottom: 1px solid var(--light-gray);
+}
+
+.temporal-stat:last-child {
+    border-bottom: none;
+}
+
+.temporal-stat .label {
+    font-weight: 500;
+    color: var(--dark);
+    font-size: 0.9rem;
+}
+
+.temporal-stat .value {
+    color: var(--gray);
+    font-size: 0.85rem;
+}
+
+.weekday-item {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-xs) 0;
+    border-bottom: 1px solid var(--light-gray);
+}
+
+.weekday-item:last-child {
+    border-bottom: none;
+}
+
+.day-name {
+    font-weight: 500;
+    color: var(--dark);
+    font-size: 0.9rem;
+}
+
+.day-stats {
+    color: var(--gray);
+    font-size: 0.85rem;
+}
+
+/* Returns Analysis */
+.returns-analysis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.returns-stat {
+    background: var(--white);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.returns-stat .label {
+    font-size: 0.85rem;
+    color: var(--gray);
+    margin-bottom: var(--spacing-sm);
+}
+
+.returns-stat .value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--danger);
+}

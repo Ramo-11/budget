@@ -4,7 +4,7 @@ const CATEGORY_CONFIG = {
     'Groceries': ['COSTCO', 'WAL-MART'],
     'Gas': ['BP', 'KROGER FUEL'],
     'Subscriptions': ['GOOGLE', 'Amazon web services', 'CHATGPT', 'APPLE', 'TWITTER', 'X CORP', 'CLAUDE', 'NETFLIX', 'PARAMOUNT', 'CANVA'],
-    'Coffee and Tea': ['NIYYAH', 'MOTW', 'INDIE COFFEE', 'MARIAM', 'YAFA', 'JAVA HOUSE', 'Qahwa', 'JABAL', 'DUNKIN', 'KICK STARRT'],
+    'Coffee and Tea': ['NIYYAH', 'MOTW', 'INDIE COFFEE', 'MARIAM', 'YAFA', 'JAVA HOUSE', 'Qahwa', 'JABAL', 'DUNKIN', 'KICK STARRT', 'Well', 'Cafe'],
     'Food & Drink': ['PITA LAND', 'MAESTRO PIZZA', 'HOMEMADE ICE'],
     'Shopping': ['AMZN', 'Amazon'],
     'Rent': ['WILLOW GLEN EAST'],
@@ -14,7 +14,7 @@ const CATEGORY_CONFIG = {
     'Laundry': ['LAUNDRY'],
     'Haircut': ['GREAT CLIPS', 'Barber'],
     'Soccer': ['OFF THE WALL'],
-    'Car': ['CREW', 'BEST ONE', 'ED MARTIN TOYOTA'],
+    'Car': ['CREW', 'BEST ONE', 'ED MARTIN TOYOTA', 'BMV', 'ALLSTATE', 'MONTWAY'],
     'Phone': ['Visible']
 };
 
@@ -391,33 +391,44 @@ class ExpenseAnalyzer {
 
     // Get monthly data for trends analysis
     getMonthlyData() {
+        return this.recalculateMonthlyData();
+    }
+
+    // Recalculate monthly data after modifications
+    recalculateMonthlyData() {
         const monthlyData = {};
         
-        this.processedData.forEach(row => {
-            const date = new Date(row['Transaction Date'] || row.Date);
-            if (isNaN(date)) return;
-            
-            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-            const amount = Math.abs(parseFloat(row.Amount) || 0);
-            const category = this.categorizeTransaction(row.Description);
-            
-            if (!monthlyData[monthKey]) {
-                monthlyData[monthKey] = {
-                    total: 0,
-                    categories: {},
-                    transactionCount: 0
-                };
-            }
-            
-            monthlyData[monthKey].total += amount;
-            monthlyData[monthKey].transactionCount++;
-            
-            if (!monthlyData[monthKey].categories[category]) {
-                monthlyData[monthKey].categories[category] = 0;
-            }
-            monthlyData[monthKey].categories[category] += amount;
+        // Use categoryDetails as source of truth
+        Object.entries(this.categoryDetails).forEach(([category, transactions]) => {
+            transactions.forEach(transaction => {
+                const date = new Date(transaction.date);
+                if (isNaN(date)) return;
+                
+                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                // Use the actual amount (which may be negative for returns)
+                const amount = transaction.amount;
+                
+                if (!monthlyData[monthKey]) {
+                    monthlyData[monthKey] = {
+                        total: 0,
+                        categories: {},
+                        transactionCount: 0
+                    };
+                }
+                
+                // Add the actual amount (respecting returns as negative)
+                monthlyData[monthKey].total += amount;
+                monthlyData[monthKey].transactionCount++;
+                
+                if (!monthlyData[monthKey].categories[category]) {
+                    monthlyData[monthKey].categories[category] = 0;
+                }
+                monthlyData[monthKey].categories[category] += amount;
+            });
         });
         
+        // Store the recalculated monthly data
+        this.monthlyData = monthlyData;
         return monthlyData;
     }
 }
