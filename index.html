@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expense Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 Expense Dashboard</h1>
+            <p>Upload your CSV files to analyze your spending patterns</p>
+            <div class="nav-buttons">
+                <button id="dashboardBtn" class="nav-btn active">Dashboard</button>
+                <button id="trendsBtn" class="nav-btn">Trends Analysis</button>
+            </div>
+        </div>
+
+        <div class="upload-section">
+            <div class="file-input-wrapper">
+                <input type="file" id="csvFile" accept=".csv" multiple />
+                📁 Choose CSV Files (Multiple allowed)
+            </div>
+            <div class="file-tabs" id="fileTabs" style="display: none; margin-top: 20px;">
+                <div style="margin-bottom: 10px; color: #667eea; font-weight: bold;">Loaded Files:</div>
+            </div>
+            <div class="loading" id="loading">
+                <p>Processing your data...</p>
+            </div>
+        </div>
+
+        <!-- Dashboard View -->
+        <div class="dashboard" id="dashboard">
+            <div class="summary-cards">
+                <div class="card">
+                    <h3>Total Expenses</h3>
+                    <p id="totalExpenses">$0.00</p>
+                </div>
+                <div class="card">
+                    <h3>Date Range</h3>
+                    <p id="dateRange">-</p>
+                </div>
+                <div class="card">
+                    <h3>Transactions</h3>
+                    <p id="transactionCount">0</p>
+                </div>
+                <div class="card">
+                    <h3>Categories</h3>
+                    <p id="categoryCount">0</p>
+                </div>
+                <div class="card">
+                    <h3>Highest Category</h3>
+                    <p id="highestCategory">-</p>
+                </div>
+                <div class="card">
+                    <h3>Lowest Category</h3>
+                    <p id="lowestCategory">-</p>
+                </div>
+                <div class="card">
+                    <h3>Average per Day</h3>
+                    <p id="avgPerDay">$0.00</p>
+                </div>
+                <div class="card">
+                    <h3>Largest Transaction</h3>
+                    <p id="largestTransaction">$0.00</p>
+                </div>
+                <div class="card">
+                    <h3>Most Frequent</h3>
+                    <p id="mostFrequent">-</p>
+                </div>
+                <div class="card">
+                    <h3>Smart Categorized</h3>
+                    <p id="smartCategorized">0</p>
+                </div>
+            </div>
+
+            <div class="charts-container">
+                <div class="chart-wrapper">
+                    <h3>Expense Distribution</h3>
+                    <canvas id="pieChart"></canvas>
+                </div>
+                <div class="chart-wrapper">
+                    <h3>Category Breakdown</h3>
+                    <canvas id="barChart"></canvas>
+                </div>
+            </div>
+
+            <div class="details-section">
+                <h3 style="margin-bottom: 20px; color: #333;">Detailed Breakdown</h3>
+                <div class="category-details" id="categoryDetails"></div>
+            </div>
+        </div>
+
+        <!-- Trends Analysis View -->
+        <div class="trends-view" id="trendsView" style="display: none;">
+            <div class="trends-header">
+                <h2>📈 Trends Analysis</h2>
+                <p>Compare spending patterns across all loaded files</p>
+            </div>
+
+            <div class="trends-summary" id="trendsSummary">
+                <!-- Trends summary cards will be populated here -->
+            </div>
+
+            <div class="trends-charts">
+                <div class="chart-wrapper full-width">
+                    <h3>Spending Trends Over Time</h3>
+                    <canvas id="trendsLineChart"></canvas>
+                </div>
+                
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <h3>Category Trends</h3>
+                        <canvas id="categoryTrendsChart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Monthly Comparison</h3>
+                        <canvas id="monthlyComparisonChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="trends-insights" id="trendsInsights">
+                <!-- AI-generated insights will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="expense-analyzer.js"></script>
+    <script src="category-analyzer.js"></script>
+    <script src="trends-analyzer.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
