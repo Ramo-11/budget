@@ -1,0 +1,443 @@
+/* Responsive Design - Updated for Sahab Budget */
+
+/* Large Desktop (1440px and up) */
+@media (min-width: 1440px) {
+    .container {
+        max-width: 1440px;
+    }
+
+    .summary-cards {
+        grid-template-columns: repeat(5, 1fr);
+    }
+
+    .category-details {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Desktop (1024px to 1439px) */
+@media (max-width: 1439px) {
+    .container {
+        max-width: 95%;
+    }
+
+    .summary-cards {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* Tablet Landscape (768px to 1023px) */
+@media (max-width: 1023px) {
+    body {
+        padding: var(--spacing-md);
+    }
+
+    .header {
+        padding: var(--spacing-lg);
+    }
+
+    .summary-cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .charts-container {
+        grid-template-columns: 1fr;
+    }
+
+    .category-details {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .budget-settings {
+        grid-template-columns: 1fr;
+    }
+
+    .trends-summary {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Tablet Portrait (480px to 767px) */
+@media (max-width: 767px) {
+    body {
+        padding: var(--spacing-sm);
+    }
+
+    /* Header */
+    .header {
+        padding: var(--spacing-md);
+    }
+
+    .header-content {
+        flex-direction: column;
+        gap: var(--spacing-md);
+    }
+
+    .logo-section h1 {
+        font-size: 1.5rem;
+    }
+
+    .company-tag {
+        display: none;
+    }
+
+    .user-section {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .nav-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .nav-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Dashboard */
+    .dashboard,
+    .trends-view,
+    .budget-view {
+        padding: var(--spacing-md);
+    }
+
+    .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-sm);
+    }
+
+    .card h3 {
+        font-size: 0.7rem;
+    }
+
+    .card p {
+        font-size: 1.25rem;
+    }
+
+    .progress-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .category-details {
+        grid-template-columns: 1fr;
+    }
+
+    .details-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    /* Budget */
+    .category-budget-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .template-buttons {
+        grid-template-columns: 1fr;
+    }
+
+    /* Trends */
+    .trends-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .insights-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .comparison-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .forecast-cards {
+        grid-template-columns: 1fr;
+    }
+
+    /* Modals */
+    .modal-content {
+        width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+
+    .settings-tabs {
+        overflow-x: auto;
+        padding: 0 var(--spacing-md);
+    }
+
+    .category-modal {
+        width: 100%;
+        height: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+}
+
+/* Mobile Large (375px to 479px) */
+@media (max-width: 479px) {
+    /* Header */
+    .header h1 {
+        font-size: 1.25rem;
+    }
+
+    .header-subtitle {
+        font-size: 0.875rem;
+    }
+
+    /* Upload */
+    .file-input-wrapper {
+        width: 100%;
+        font-size: 0.875rem;
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    .month-selector {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .month-selector select {
+        width: 100%;
+    }
+
+    /* Cards */
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .card {
+        padding: var(--spacing-md);
+    }
+
+    /* Charts */
+    .chart-wrapper {
+        padding: var(--spacing-md);
+    }
+
+    .chart-wrapper h3 {
+        font-size: 0.9rem;
+    }
+
+    /* Category Cards */
+    .category-card {
+        padding: var(--spacing-md);
+    }
+
+    .category-title h4 {
+        font-size: 0.95rem;
+    }
+
+    .category-total {
+        font-size: 1rem;
+    }
+
+    /* Transactions */
+    .transaction-item {
+        padding: var(--spacing-xs);
+    }
+
+    .transaction-name {
+        font-size: 0.8rem;
+    }
+
+    .transaction-amount {
+        font-size: 0.85rem;
+    }
+
+    /* Budget */
+    .budget-amount {
+        font-size: 1rem;
+    }
+
+    .progress-stats .value {
+        font-size: 1.25rem;
+    }
+
+    /* Trends */
+    .trends-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .comparison-card p {
+        font-size: 1.25rem;
+    }
+
+    /* Forms */
+    .form-input,
+    input,
+    select,
+    textarea {
+        font-size: 0.9rem;
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+
+    /* Buttons */
+    button {
+        font-size: 0.875rem;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        padding: var(--spacing-xs) var(--spacing-md);
+    }
+}
+
+/* Mobile Small (320px to 374px) */
+@media (max-width: 374px) {
+    /* Base */
+    body {
+        padding: 0;
+    }
+
+    .container {
+        border-radius: 0;
+    }
+
+    /* Header */
+    .header {
+        border-radius: 0;
+    }
+
+    .header h1 {
+        font-size: 1.1rem;
+    }
+
+    .user-section {
+        font-size: 0.8rem;
+    }
+
+    /* Navigation */
+    .nav-btn {
+        font-size: 0.8rem;
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+
+    /* Cards */
+    .card h3 {
+        font-size: 0.65rem;
+    }
+
+    .card p {
+        font-size: 1rem;
+    }
+
+    /* All text sizes reduced */
+    .budget-message,
+    .upload-hint,
+    .drag-instructions,
+    .forecast-disclaimer,
+    .error-message {
+        font-size: 0.75rem;
+    }
+}
+
+/* Print Styles */
+@media print {
+    body {
+        background: white;
+        padding: 0;
+    }
+
+    .container {
+        box-shadow: none;
+        border-radius: 0;
+    }
+
+    /* Hide interactive elements */
+    .nav-buttons,
+    .upload-section,
+    .settings-btn,
+    .edit-budget-btn,
+    .btn-edit,
+    .btn-remove,
+    .btn-delete,
+    .drag-instructions,
+    .show-more,
+    button {
+        display: none !important;
+    }
+
+    /* Adjust header */
+    .header {
+        background: none;
+        color: var(--dark);
+        border-bottom: 2px solid var(--dark);
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+
+    .header h1,
+    .header-subtitle,
+    .welcome-text {
+        color: var(--dark);
+    }
+
+    /* Cards */
+    .card {
+        background: none;
+        border: 1px solid var(--dark);
+        color: var(--dark);
+        page-break-inside: avoid;
+    }
+
+    .card h3,
+    .card p {
+        color: var(--dark);
+    }
+
+    /* Category cards */
+    .category-card {
+        page-break-inside: avoid;
+        border: 1px solid var(--dark);
+    }
+
+    /* Charts */
+    .chart-wrapper {
+        page-break-inside: avoid;
+    }
+
+    /* Show all transactions */
+    .category-transactions {
+        max-height: none;
+    }
+
+    /* Ensure colors print */
+    * {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+}
+
+/* Accessibility - High Contrast Mode */
+@media (prefers-contrast: high) {
+    .card {
+        border: 2px solid currentColor;
+    }
+
+    button {
+        border: 2px solid currentColor;
+    }
+
+    input,
+    select,
+    textarea {
+        border: 2px solid currentColor;
+    }
+}
+
+/* Accessibility - Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Dark Mode Support (Future) */
+@media (prefers-color-scheme: dark) {
+    /* Dark mode styles can be added here */
+}

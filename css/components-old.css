@@ -1,5 +1,4 @@
-/* Navigation */
-.nav-buttons {
+Navigation .nav-buttons {
     margin-top: var(--spacing-lg);
     display: flex;
     justify-content: center;
@@ -276,7 +275,9 @@
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Notifications */

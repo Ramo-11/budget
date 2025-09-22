@@ -1,0 +1,343 @@
+/* Trends Layout Styles */
+
+.trends-view {
+    padding: var(--spacing-xl);
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.trends-view.active {
+    display: block;
+}
+
+.trends-header {
+    text-align: center;
+    margin-bottom: var(--spacing-xl);
+}
+
+.trends-header h2 {
+    color: var(--dark);
+    font-size: 1.75rem;
+    margin-bottom: var(--spacing-sm);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+}
+
+.trends-header p {
+    color: var(--gray);
+    font-size: 1rem;
+}
+
+/* Trends Summary */
+.trends-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+}
+
+.trends-summary .card {
+    position: relative;
+    overflow: hidden;
+}
+
+.trends-summary .card p {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+}
+
+/* Trend Indicators */
+.trend-increasing {
+    color: var(--danger);
+}
+
+.trend-decreasing {
+    color: var(--success);
+}
+
+.trend-stable {
+    color: var(--gray);
+}
+
+/* Trends Charts */
+.trends-charts {
+    margin-bottom: var(--spacing-xl);
+}
+
+.trends-charts .chart-wrapper {
+    margin-bottom: var(--spacing-lg);
+}
+
+.trends-charts canvas {
+    max-height: 400px;
+}
+
+/* Insights Grid */
+.trends-insights {
+    background: var(--light);
+    padding: var(--spacing-xl);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.trends-insights h3 {
+    color: var(--dark);
+    margin-bottom: var(--spacing-lg);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-md);
+}
+
+/* Month Comparison */
+.month-comparison {
+    background: var(--white);
+    padding: var(--spacing-xl);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-xl);
+}
+
+.month-comparison h3 {
+    color: var(--dark);
+    margin-bottom: var(--spacing-lg);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.comparison-card {
+    background: var(--light);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    text-align: center;
+}
+
+.comparison-card h4 {
+    font-size: 0.875rem;
+    color: var(--gray);
+    margin-bottom: var(--spacing-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.comparison-card p {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--dark);
+    margin: 0;
+}
+
+.comparison-card p.increase {
+    color: var(--danger);
+}
+
+.comparison-card p.decrease {
+    color: var(--success);
+}
+
+/* Comparison Amounts */
+.comparison-amounts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-sm);
+    text-align: center;
+    padding-top: var(--spacing-md);
+}
+
+.amount-block {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.amount-label {
+    font-size: 0.75rem;
+    color: var(--gray);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.amount-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--dark);
+}
+
+.amount-block.trend-up .amount-value {
+    color: var(--danger);
+}
+
+.amount-block.trend-down .amount-value {
+    color: var(--success);
+}
+
+/* Forecast Section */
+.forecast-section {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+    padding: var(--spacing-xl);
+    border-radius: var(--radius-lg);
+    margin-top: var(--spacing-xl);
+}
+
+.forecast-section h3 {
+    color: var(--dark);
+    margin-bottom: var(--spacing-lg);
+    font-size: 1.25rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.forecast-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.forecast-disclaimer {
+    text-align: center;
+    color: var(--gray);
+    font-size: 0.875rem;
+    font-style: italic;
+    margin-top: var(--spacing-md);
+}
+
+/* Category Deep Dive Modal */
+.trends-category-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.trends-category-modal .modal-content {
+    width: 800px;
+    max-width: 95%;
+}
+
+.category-trend-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-xl);
+}
+
+.category-trend-stats .stat {
+    text-align: center;
+    padding: var(--spacing-md);
+    background: var(--light);
+    border-radius: var(--radius-md);
+}
+
+.category-trend-stats .stat label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--gray);
+    margin-bottom: var(--spacing-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.category-trend-stats .stat value {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--dark);
+}
+
+.month-by-month {
+    margin-top: var(--spacing-xl);
+}
+
+.month-by-month h4 {
+    color: var(--dark);
+    margin-bottom: var(--spacing-md);
+    font-size: 1rem;
+}
+
+.month-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.month-item {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-sm);
+    border-bottom: 1px solid var(--light);
+}
+
+.month-item:hover {
+    background: var(--light);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-2xl) var(--spacing-xl);
+}
+
+.empty-state h3 {
+    color: var(--dark);
+    margin-bottom: var(--spacing-md);
+    font-size: 1.25rem;
+}
+
+.empty-state p {
+    color: var(--gray);
+    margin-bottom: var(--spacing-lg);
+}
+
+.error-message {
+    color: var(--danger);
+    font-size: 0.95rem;
+    margin-top: var(--spacing-sm);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .trends-view {
+        padding: var(--spacing-lg);
+    }
+
+    .trends-summary {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+
+    .insights-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .comparison-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .forecast-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .category-trend-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
