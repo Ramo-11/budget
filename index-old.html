@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Sahab Budget - Smart Expense Tracking</title>
+
+        <!-- External Libraries -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+        <!-- CSS Files -->
+        <link rel="stylesheet" href="css/base.css" />
+        <link rel="stylesheet" href="css/responsive.css" />
+        <link rel="stylesheet" href="css/components/modal-extensions.css" />
+        <link rel="stylesheet" href="css/components/modal.css" />
+        <link rel="stylesheet" href="css/components/cards.css" />
+        <link rel="stylesheet" href="css/components/buttons.css" />
+        <link rel="stylesheet" href="css/components/forms.css" />
+        <link rel="stylesheet" href="css/layouts/header.css" />
+        <link rel="stylesheet" href="css/layouts/dashboard.css" />
+        <link rel="stylesheet" href="css/layouts/budget.css" />
+        <link rel="stylesheet" href="css/layouts/settings.css" />
+        <link rel="stylesheet" href="css/layouts/trends.css" />
+        <link rel="stylesheet" href="css/layouts/category-analysis.css" />
+    </head>
+    <body>
+        <!-- Welcome Modal for First Time Users -->
+        <div id="welcomeModal" class="modal">
+            <div class="modal-content welcome-modal">
+                <div class="modal-header">
+                    <h2>Welcome to Sahab Budget</h2>
+                    <p class="tagline">Your Smart Financial Companion</p>
+                </div>
+                <div class="modal-body">
+                    <div class="welcome-form">
+                        <div class="form-group">
+                            <label for="userName">What's your name?</label>
+                            <input
+                                type="text"
+                                id="userName"
+                                placeholder="Enter your name"
+                                class="form-input"
+                            />
+                        </div>
+                        <div class="form-group">
+                            <label for="monthlyBudget">Default Monthly Budget (Optional)</label>
+                            <input
+                                type="number"
+                                id="monthlyBudget"
+                                placeholder="e.g., 3000"
+                                class="form-input"
+                            />
+                            <small>You can customize category budgets later</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="saveUserProfile()">Get Started</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-content">
+                    <div class="logo-section">
+                        <h1>💰 Sahab Budget</h1>
+                        <span class="company-tag">by Sahab Solutions</span>
+                    </div>
+                    <div class="user-section" id="userSection" style="display: none">
+                        <span class="welcome-text"
+                            >Welcome, <span id="userNameDisplay"></span>!</span
+                        >
+                        <button class="settings-btn" onclick="openSettings()">
+                            <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                            >
+                                <circle cx="12" cy="12" r="3"></circle>
+                                <path
+                                    d="M12 1v6m0 6v6m4.22-13.22l4.24 4.24M1.54 1.54l4.24 4.24M21 12h-6m-6 0H3m13.22 4.22l4.24 4.24M1.54 22.46l4.24-4.24"
+                                ></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <p class="header-subtitle">
+                    Track, analyze, and optimize your expenses with intelligence
+                </p>
+
+                <!-- Navigation -->
+                <div class="nav-buttons">
+                    <button id="dashboardBtn" class="nav-btn active">Dashboard</button>
+                    <button id="budgetBtn" class="nav-btn">Budget Goals</button>
+                    <button id="trendsBtn" class="nav-btn">Trends</button>
+                    <button id="categoriesBtn" class="nav-btn">Categories</button>
+                </div>
+            </div>
+
+            <!-- Upload Section -->
+            <div class="upload-section">
+                <div class="upload-container">
+                    <div class="file-input-wrapper">
+                        <input type="file" id="csvFile" accept=".csv" multiple />
+                        <svg
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>Upload CSV Files</span>
+                    </div>
+                    <p class="upload-hint">
+                        Upload files with any date range - we'll organize them by month
+                        automatically
+                    </p>
+                </div>
+
+                <!-- Month Selector (shows after files are loaded) -->
+                <div class="month-selector" id="monthSelector" style="display: none">
+                    <label>Select Month:</label>
+                    <select id="monthDropdown" onchange="switchToMonth(this.value)">
+                        <!-- Options will be populated dynamically -->
+                    </select>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Processing your data...</p>
+                </div>
+            </div>
+
+            <!-- Dashboard View -->
+            <div class="dashboard view" id="dashboard">
+                <!-- Budget Overview Card (new) -->
+                <div class="budget-overview" id="budgetOverview" style="display: none">
+                    <div class="budget-card">
+                        <div class="budget-header">
+                            <h3>Budget Status for <span id="currentMonthName"></span></h3>
+                            <button class="edit-budget-btn" onclick="editMonthBudget()">
+                                Edit Budget
+                            </button>
+                        </div>
+                        <div class="budget-progress">
+                            <div class="progress-stats">
+                                <div class="stat">
+                                    <span class="label">Budget</span>
+                                    <span class="value" id="monthBudget">$0</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="label">Spent</span>
+                                    <span class="value" id="monthSpent">$0</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="label">Remaining</span>
+                                    <span class="value" id="monthRemaining">$0</span>
+                                </div>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="budgetProgressBar"></div>
+                            </div>
+                            <p class="budget-message" id="budgetMessage"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary cards -->
+                <div class="summary-cards" id="summaryCards"></div>
+
+                <!-- Charts -->
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <h3>Expense Distribution</h3>
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <h3>Category Breakdown</h3>
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Category Details -->
+                <div class="details-section">
+                    <div class="details-header">
+                        <h3>Detailed Breakdown</h3>
+                        <div class="drag-instructions">
+                            <span>💡 Drag items between categories to reorganize</span>
+                        </div>
+                    </div>
+                    <div class="category-details" id="categoryDetails"></div>
+                </div>
+            </div>
+
+            <!-- Budget Goals View -->
+            <div class="budget-view view" id="budgetView" style="display: none">
+                <div class="budget-header">
+                    <h2>📊 Budget Goals</h2>
+                    <p>Set and track your monthly and category-specific budgets</p>
+                </div>
+
+                <div class="budget-settings">
+                    <div class="overall-budget-section">
+                        <h3>Monthly Budget Targets</h3>
+                        <div id="monthlyBudgetList"></div>
+                    </div>
+
+                    <div class="category-budget-section">
+                        <h3>Category Budget Targets</h3>
+                        <div id="categoryBudgetList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trends View -->
+            <div class="trends-view view" id="trendsView" style="display: none">
+                <div class="trends-header">
+                    <h2>📈 Trends Analysis</h2>
+                    <p>Compare spending patterns across all loaded files</p>
+                </div>
+                <div class="trends-summary" id="trendsSummary"></div>
+                <div class="trends-charts">
+                    <canvas id="trendsLineChart"></canvas>
+                    <canvas id="categoryTrendsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Settings Modal -->
+            <div id="settingsModal" class="modal">
+                <div class="modal-content settings-modal">
+                    <div class="modal-header">
+                        <h2>Settings</h2>
+                        <button class="close-btn" onclick="closeSettings()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="settings-tabs">
+                            <button class="tab-btn active" onclick="switchSettingsTab('profile')">
+                                Profile
+                            </button>
+                            <button class="tab-btn" onclick="switchSettingsTab('budget')">
+                                Budget Goals
+                            </button>
+                            <button class="tab-btn" onclick="switchSettingsTab('categories')">
+                                Categories
+                            </button>
+                            <button class="tab-btn" onclick="switchSettingsTab('data')">
+                                Data
+                            </button>
+                        </div>
+
+                        <div class="settings-content">
+                            <div id="profileSettings" class="tab-content active">
+                                <div class="form-group">
+                                    <label>Name</label>
+                                    <input type="text" id="settingsUserName" class="form-input" />
+                                </div>
+                                <div class="form-group">
+                                    <label>Default Monthly Budget</label>
+                                    <input
+                                        type="number"
+                                        id="settingsMonthlyBudget"
+                                        class="form-input"
+                                    />
+                                </div>
+                                <button class="btn-primary" onclick="updateProfile()">
+                                    Save Changes
+                                </button>
+                            </div>
+
+                            <div id="categoriesSettings" class="tab-content">
+                                <h3>Category Keywords</h3>
+                                <p class="settings-hint">
+                                    Define keywords that automatically categorize your transactions
+                                </p>
+                                <div id="categoryConfigEditor"></div>
+                                <button class="btn-secondary" onclick="addNewCategory()">
+                                    + Add Category
+                                </button>
+                                <button class="btn-primary" onclick="saveCategoryConfig()">
+                                    Save Categories
+                                </button>
+                            </div>
+
+                            <div id="dataSettings" class="tab-content">
+                                <h3>Data Management</h3>
+                                <button class="btn-danger" onclick="clearAllData()">
+                                    Clear All Data
+                                </button>
+                                <button class="btn-secondary" onclick="exportData()">
+                                    Export Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- JavaScript Files -->
+        <script src="js/analyzers/category-analyzer.js"></script>
+        <script src="js/analyzers/expense-analyzer.js"></script>
+        <script src="js/analyzers/month-splitter.js"></script>
+        <script src="js/analyzers/month-splitter.js"></script>
+
+        <script src="js/components/category-menu.js"></script>
+        <script src="js/components/chart-manager.js"></script>
+        <script src="js/components/drag-drop-handler.js"></script>
+        <script src="js/components//file-manager.js"></script>
+        <script src="js/components/notification.js"></script>
+
+        <script src="js/config/constants.js"></script>
+        <script src="js/config/defaults.js"></script>
+
+        <script src="js/core/budget-manager.js"></script>
+        <script src="js/core/storage.js"></script>
+        <script src="js/core/user-manager.js"></script>
+
+        <script src="js/ui/budget-view.js"></script>
+        <script src="js/ui/category-view.js"></script>
+        <script src="js/ui/dashboard-view.js"></script>
+        <script src="js/ui/settings-view.js"></script>
+        <script src="js/ui/trends-view.js"></script>
+
+        <script src="js/app.js"></script>
+    </body>
+</html>
