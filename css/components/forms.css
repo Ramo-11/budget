@@ -509,3 +509,154 @@ input[type='number'].budget-input::-webkit-inner-spin-button {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
+
+/* Form Input Styles */
+.form-input,
+input[type='text'],
+input[type='number'],
+input[type='email'],
+select,
+textarea {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 2px solid var(--light);
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    background: var(--white);
+    color: var(--dark);
+}
+
+.form-input:focus,
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.form-input:hover,
+input:hover,
+select:hover,
+textarea:hover {
+    border-color: var(--primary-light);
+}
+
+textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.5;
+}
+
+select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right var(--spacing-sm) center;
+    background-size: 20px;
+    padding-right: calc(var(--spacing-md) + 20px);
+}
+
+/* Categories View Styles */
+.categories-header {
+    text-align: center;
+    padding: var(--spacing-xl);
+}
+
+.categories-header h2 {
+    color: var(--dark);
+    font-size: 1.75rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.category-overview-card {
+    background: var(--white);
+    border: 1px solid var(--light);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+    transition: all 0.3s ease;
+}
+
+.category-overview-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.category-overview-card .category-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.category-overview-card .category-icon {
+    font-size: 2rem;
+}
+
+.category-overview-card h3 {
+    flex: 1;
+    color: var(--dark);
+    font-size: 1.25rem;
+}
+
+.category-overview-card .category-percentage {
+    background: var(--primary-light);
+    color: var(--white);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-full);
+    font-weight: 600;
+}
+
+.category-overview-card .category-stats {
+    display: flex;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-md);
+}
+
+.category-overview-card .stat {
+    flex: 1;
+    text-align: center;
+}
+
+.category-overview-card .stat .label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--gray);
+    margin-bottom: var(--spacing-xs);
+}
+
+.category-overview-card .stat .value {
+    display: block;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--dark);
+}
+
+.category-overview-card .category-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.category-overview-card .category-actions button {
+    flex: 1;
+}
+
+/* Settings Budget Tab */
+.category-budgets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.category-budget-item label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    font-weight: 600;
+    color: var(--dark);
+    font-size: 0.9rem;
+}

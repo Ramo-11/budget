@@ -194,6 +194,9 @@ class SahabBudgetApp {
         switch (view) {
             case 'dashboard':
                 document.getElementById('dashboard').style.display = 'block';
+                if (this.currentMonth) {
+                    this.switchToMonth(this.currentMonth);
+                }
                 break;
             case 'budget':
                 document.getElementById('budgetView').style.display = 'block';
@@ -202,18 +205,106 @@ class SahabBudgetApp {
             case 'trends':
                 if (this.monthlyData.size >= 2) {
                     document.getElementById('trendsView').style.display = 'block';
-                    // trendsView.update(this.monthlyData);
+                    trendsView.update(this.monthlyData);
                 } else {
                     notificationManager.show(
                         'Need at least 2 months of data for trends analysis',
                         'info'
                     );
+                    // Switch back to dashboard
+                    this.switchView('dashboard');
                 }
                 break;
             case 'categories':
-                // Categories view implementation
+                // Show categories management view
+                this.showCategoriesView();
                 break;
         }
+    }
+
+    showCategoriesView() {
+        // Create categories view if it doesn't exist
+        let categoriesView = document.getElementById('categoriesView');
+        if (!categoriesView) {
+            categoriesView = document.createElement('div');
+            categoriesView.id = 'categoriesView';
+            categoriesView.className = 'view';
+            categoriesView.innerHTML = `
+                <div class="categories-header">
+                    <h2>📊 Categories Overview</h2>
+                    <p>Manage and analyze your expense categories</p>
+                </div>
+                <div class="categories-content">
+                    <div class="categories-summary" id="categoriesSummary"></div>
+                    <div class="categories-list" id="categoriesList"></div>
+                </div>
+            `;
+            document.querySelector('.container').appendChild(categoriesView);
+        }
+
+        categoriesView.style.display = 'block';
+        this.updateCategoriesView();
+    }
+
+    updateCategoriesView() {
+        if (!this.currentMonth || !this.monthlyData.has(this.currentMonth)) {
+            document.getElementById('categoriesList').innerHTML =
+                '<div class="empty-state">Please select a month to view categories</div>';
+            return;
+        }
+
+        const monthData = this.monthlyData.get(this.currentMonth);
+        const analyzer = new ExpenseAnalyzer();
+        analyzer.setCategoryConfig(userManager.getCategoryConfig());
+        analyzer.processData(monthData.transactions);
+
+        const categoriesHtml = Object.entries(analyzer.categoryTotals)
+            .filter(([_, total]) => total > 0)
+            .sort((a, b) => b[1] - a[1])
+            .map(([category, total]) => {
+                const config = userManager.getCategoryConfig()[category] || {};
+                const count = analyzer.categoryDetails[category]?.length || 0;
+                const percentage = ((total / analyzer.getTotalExpenses()) * 100).toFixed(1);
+
+                return `
+                    <div class="category-overview-card">
+                        <div class="category-header">
+                            <span class="category-icon">${config.icon || '📦'}</span>
+                            <h3>${category}</h3>
+                            <span class="category-percentage">${percentage}%</span>
+                        </div>
+                        <div class="category-stats">
+                            <div class="stat">
+                                <span class="label">Total</span>
+                                <span class="value">$${total.toFixed(2)}</span>
+                            </div>
+                            <div class="stat">
+                                <span class="label">Transactions</span>
+                                <span class="value">${count}</span>
+                            </div>
+                            <div class="stat">
+                                <span class="label">Average</span>
+                                <span class="value">$${(total / count).toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <div class="category-actions">
+                            <button onclick="categoryView.showCategoryAnalysis('${category}', '${
+                    this.currentMonth
+                }')" 
+                                    class="btn-primary btn-sm">
+                                Analyze
+                            </button>
+                            <button onclick="showAllTransactions('${category}')" 
+                                    class="btn-secondary btn-sm">
+                                View Transactions
+                            </button>
+                        </div>
+                    </div>
+                `;
+            })
+            .join('');
+
+        document.getElementById('categoriesList').innerHTML = categoriesHtml;
     }
 
     saveData() {

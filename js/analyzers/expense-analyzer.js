@@ -116,8 +116,24 @@ class ExpenseAnalyzer {
 
     formatDate(dateStr) {
         if (!dateStr) return '';
+
+        // Handle MM/DD/YYYY format from CSV
+        if (dateStr.includes('/')) {
+            const parts = dateStr.split('/');
+            if (parts.length === 3) {
+                const [month, day, year] = parts;
+                // Return in YYYY-MM-DD format
+                return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            }
+        }
+
+        // Handle other formats
         const date = new Date(dateStr);
-        return date.toISOString().split('T')[0];
+        if (!isNaN(date.getTime())) {
+            return date.toISOString().split('T')[0];
+        }
+
+        return dateStr;
     }
 
     getDateRange() {

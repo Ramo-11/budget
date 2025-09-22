@@ -11,6 +11,7 @@ class SettingsView {
         // Load current settings
         this.loadProfileSettings();
         this.loadCategorySettings();
+        this.loadBudgetSettings();
     }
 
     close() {
@@ -55,6 +56,78 @@ class SettingsView {
 
         html += '</div>';
         container.innerHTML = html;
+    }
+
+    loadBudgetSettings() {
+        const container = document.createElement('div');
+        container.id = 'budgetSettings';
+        container.className = 'tab-content';
+
+        const categories = Object.keys(userManager.getCategoryConfig());
+        const defaultBudget = userManager.getDefaultBudget();
+
+        container.innerHTML = `
+            <h3>Default Monthly Budget</h3>
+            <div class="form-group">
+                <label>Total Monthly Budget</label>
+                <input type="number" id="defaultMonthlyBudget" value="${defaultBudget}" 
+                       class="form-input" placeholder="e.g., 3000">
+                <small>This will be used as default for new months</small>
+            </div>
+            
+            <h3>Category Budget Limits (Optional)</h3>
+            <div class="category-budgets-grid">
+                ${categories
+                    .map((category) => {
+                        const budget = budgetManager.budgets.categories[category] || '';
+                        return `
+                        <div class="category-budget-item">
+                            <label>${category}</label>
+                            <input type="number" 
+                                   id="catBudget_${category.replace(/\s+/g, '_')}"
+                                   value="${budget}"
+                                   placeholder="No limit"
+                                   class="form-input">
+                        </div>
+                    `;
+                    })
+                    .join('')}
+            </div>
+            <button class="btn-primary" onclick="settingsView.saveBudgetSettings()">
+                Save Budget Settings
+            </button>
+        `;
+
+        document.querySelector('.settings-content').appendChild(container);
+    }
+
+    saveBudgetSettings() {
+        const defaultBudget = parseFloat(document.getElementById('defaultMonthlyBudget').value);
+        if (!isNaN(defaultBudget) && defaultBudget > 0) {
+            userManager.updateProfile({ defaultBudget });
+        }
+
+        // Save category budgets
+        const categories = Object.keys(userManager.getCategoryConfig());
+        categories.forEach((category) => {
+            const input = document.getElementById(`catBudget_${category.replace(/\s+/g, '_')}`);
+            if (input) {
+                const value = parseFloat(input.value);
+                if (!isNaN(value) && value > 0) {
+                    budgetManager.setDefaultCategoryBudget(category, value);
+                } else if (input.value === '') {
+                    delete budgetManager.budgets.categories[category];
+                }
+            }
+        });
+
+        budgetManager.saveBudgets();
+        notificationManager.show('Budget settings saved', 'success');
+
+        // Refresh current view if needed
+        if (app.currentMonth) {
+            app.switchToMonth(app.currentMonth);
+        }
     }
 
     updateCategoryName(oldName, newName) {
@@ -151,10 +224,19 @@ function switchSettingsTab(tab) {
     });
 
     // Show selected tab
-    document.getElementById(tab + 'Settings').classList.add('active');
+    const tabContent = document.getElementById(tab + 'Settings');
+    if (tabContent) {
+        tabContent.classList.add('active');
+    }
 
     // Mark button as active
     event.target.classList.add('active');
+
+    // Load budget settings if needed
+    if (tab === 'budget' && !document.getElementById('budgetSettings')) {
+        settingsView.loadBudgetSettings();
+        document.getElementById('budgetSettings').classList.add('active');
+    }
 }
 
 function updateProfile() {

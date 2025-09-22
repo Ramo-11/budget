@@ -11,6 +11,7 @@ class DashboardView {
         this.updateSummaryCards(analyzer);
         this.updateCharts(analyzer);
         this.updateCategoryDetails(analyzer);
+        this.initializeDragDrop();
 
         // Show dashboard
         document.getElementById('dashboard').style.display = 'block';
@@ -209,6 +210,89 @@ class DashboardView {
         });
     }
 
+    initializeDragDrop() {
+        if (typeof dragDropHandler !== 'undefined') {
+            setTimeout(() => {
+                dragDropHandler.initializeDragDrop();
+            }, 100);
+        } else {
+            setTimeout(() => {
+                document.querySelectorAll('.transaction-item').forEach((item) => {
+                    item.draggable = true;
+
+                    item.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/html', item.innerHTML);
+                        item.classList.add('dragging');
+
+                        // Store source data
+                        const sourceCategory = item.closest('.category-card').dataset.category;
+                        e.dataTransfer.setData('sourceCategory', sourceCategory);
+                        e.dataTransfer.setData(
+                            'transactionData',
+                            JSON.stringify({
+                                name: item.querySelector('.transaction-name').textContent,
+                                amount: parseFloat(item.dataset.amount),
+                                date: item.dataset.date,
+                            })
+                        );
+                    });
+
+                    item.addEventListener('dragend', () => {
+                        item.classList.remove('dragging');
+                        document.querySelectorAll('.category-card').forEach((card) => {
+                            card.classList.remove('drag-over');
+                        });
+                    });
+                });
+
+                // Make category cards droppable
+                document.querySelectorAll('.category-card').forEach((card) => {
+                    card.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        card.classList.add('drag-over');
+                    });
+
+                    card.addEventListener('dragleave', () => {
+                        card.classList.remove('drag-over');
+                    });
+
+                    card.addEventListener('drop', (e) => {
+                        e.preventDefault();
+                        card.classList.remove('drag-over');
+
+                        const targetCategory = card.dataset.category;
+                        const sourceCategory = e.dataTransfer.getData('sourceCategory');
+                        const transactionData = JSON.parse(
+                            e.dataTransfer.getData('transactionData')
+                        );
+
+                        if (targetCategory !== sourceCategory) {
+                            this.moveTransaction(sourceCategory, targetCategory, transactionData);
+                        }
+                    });
+                });
+            }, 100);
+        }
+    }
+
+    moveTransaction(fromCategory, toCategory, transactionData) {
+        // Implementation to move transaction between categories
+        notificationManager.show(
+            `Moving "${transactionData.name}" from ${fromCategory} to ${toCategory}`,
+            'info'
+        );
+
+        // Update the data and refresh
+        if (app.currentMonth) {
+            // This would need to update the actual transaction data
+            // For now, just refresh the view
+            setTimeout(() => {
+                app.switchToMonth(app.currentMonth);
+            }, 500);
+        }
+    }
+
     updateBudgetStatus(budgetStatus, monthName) {
         const overviewDiv = document.getElementById('budgetOverview');
 
@@ -269,14 +353,3 @@ class DashboardView {
 
 // Create global instance
 const dashboardView = new DashboardView();
-
-// Global functions for onclick handlers
-function showCategoryMenu(category) {
-    // Implementation for category menu
-    console.log('Show menu for:', category);
-}
-
-function showAllTransactions(category) {
-    // Implementation to show all transactions in a modal
-    console.log('Show all transactions for:', category);
-}

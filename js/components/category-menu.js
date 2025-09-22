@@ -1,4 +1,3 @@
-// Category Menu Implementation
 let currentCategoryMenu = null;
 
 function showCategoryMenu(category) {
@@ -57,135 +56,17 @@ function showCategoryMenu(category) {
     setTimeout(() => menu.classList.add('show'), 10);
 }
 
-function closeCategoryMenu() {
-    if (currentCategoryMenu) {
-        currentCategoryMenu.classList.remove('show');
-        setTimeout(() => {
-            currentCategoryMenu.remove();
-            currentCategoryMenu = null;
-        }, 300);
-    }
-}
-
-function getCategoryData(category) {
-    if (!app.currentMonth || !app.monthlyData.has(app.currentMonth)) {
-        return { count: 0, total: 0 };
-    }
-
-    const monthData = app.monthlyData.get(app.currentMonth);
-    const analyzer = new ExpenseAnalyzer();
-    analyzer.setCategoryConfig(userManager.getCategoryConfig());
-    analyzer.processData(monthData.transactions);
-
-    return {
-        count: analyzer.categoryDetails[category]?.length || 0,
-        total: analyzer.categoryTotals[category] || 0,
-    };
-}
-
-function setCategoryBudget(category) {
-    const currentBudget = budgetManager.getCategoryBudget(app.currentMonth, category);
-    const newBudget = prompt(`Set budget for ${category}:`, currentBudget || '');
-
-    if (newBudget && !isNaN(parseFloat(newBudget))) {
-        budgetManager.setCategoryBudget(app.currentMonth, category, parseFloat(newBudget));
-        notificationManager.show(`Budget set for ${category}`, 'success');
-
-        // Refresh view
-        if (app.currentMonth) {
-            app.switchToMonth(app.currentMonth);
-        }
-    }
-}
-
-function exportCategoryData(category) {
-    const monthData = app.monthlyData.get(app.currentMonth);
-    const analyzer = new ExpenseAnalyzer();
-    analyzer.setCategoryConfig(userManager.getCategoryConfig());
-    analyzer.processData(monthData.transactions);
-
-    const categoryTransactions = analyzer.categoryDetails[category] || [];
-    const exportData = {
-        category: category,
-        month: monthData.monthName,
-        total: analyzer.categoryTotals[category] || 0,
-        transactionCount: categoryTransactions.length,
-        transactions: categoryTransactions,
-        exportDate: new Date().toISOString(),
-    };
-
-    const filename = `${category}_${app.currentMonth}_export.json`;
-    const json = JSON.stringify(exportData, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-
-    URL.revokeObjectURL(url);
-    notificationManager.show(`${category} data exported`, 'success');
-}
-
-function renameCategoryInView(oldCategory) {
-    const newName = prompt(`Rename category "${oldCategory}" to:`, oldCategory);
-
-    if (newName && newName !== oldCategory) {
-        // Update in all loaded data
-        app.monthlyData.forEach((monthData, monthKey) => {
-            monthData.transactions.forEach((transaction) => {
-                if (transaction.Category === oldCategory) {
-                    transaction.Category = newName;
-                }
-            });
-        });
-
-        // Update in user config
-        const config = userManager.getCategoryConfig();
-        if (config[oldCategory]) {
-            config[newName] = config[oldCategory];
-            delete config[oldCategory];
-            userManager.setCategoryConfig(config);
-        }
-
-        // Save and refresh
-        app.saveData();
-        app.switchToMonth(app.currentMonth);
-        notificationManager.show(`Category renamed to "${newName}"`, 'success');
-    }
-}
-
-function clearCategoryTransactions(category) {
-    if (
-        confirm(
-            `Are you sure you want to clear all transactions in ${category}? This cannot be undone.`
-        )
-    ) {
-        const monthData = app.monthlyData.get(app.currentMonth);
-
-        // Filter out transactions for this category
-        monthData.transactions = monthData.transactions.filter((t) => {
-            const analyzer = new ExpenseAnalyzer();
-            analyzer.setCategoryConfig(userManager.getCategoryConfig());
-            const txCategory = analyzer.categorizeTransaction(t.Description);
-            return txCategory !== category;
-        });
-
-        // Save and refresh
-        app.saveData();
-        app.switchToMonth(app.currentMonth);
-        notificationManager.show(`${category} transactions cleared`, 'success');
-    }
-}
-
-// Show All Transactions Implementation
 function showAllTransactions(category) {
     // Close category menu if open
     closeCategoryMenu();
 
     // Get transactions for this category
     const monthData = app.monthlyData.get(app.currentMonth);
+    if (!monthData) {
+        notificationManager.show('No data for current month', 'error');
+        return;
+    }
+
     const analyzer = new ExpenseAnalyzer();
     analyzer.setCategoryConfig(userManager.getCategoryConfig());
     analyzer.processData(monthData.transactions);
@@ -308,14 +189,10 @@ function generateTransactionsList(transactions) {
                 ${t.amount < 0 ? '<span class="return-indicator">↩</span>' : ''}
             </div>
             <div class="transaction-actions">
-                <button class="btn-icon" onclick="editTransaction('${
-                    window.currentTransactionsList.category
-                }', ${index})">
+                <button class="btn-icon" onclick="editTransaction(${index})" title="Edit">
                     ✏️
                 </button>
-                <button class="btn-icon" onclick="deleteTransactionItem('${
-                    window.currentTransactionsList.category
-                }', ${index})">
+                <button class="btn-icon" onclick="deleteTransactionItem(${index})" title="Delete">
                     🗑️
                 </button>
             </div>
@@ -370,43 +247,61 @@ function closeTransactionsModal() {
         modal.classList.remove('show');
         setTimeout(() => modal.remove(), 300);
     }
+    // Clean up the global variable
+    delete window.currentTransactionsList;
 }
 
-function editTransaction(category, index) {
+function editTransaction(index) {
+    if (!window.currentTransactionsList) return;
+
     const transaction = window.currentTransactionsList.transactions[index];
     const newDescription = prompt('Edit transaction description:', transaction.name);
 
     if (newDescription && newDescription !== transaction.name) {
-        // Update in the actual data
         const monthData = app.monthlyData.get(app.currentMonth);
-        const originalTransaction = monthData.transactions.find(
-            (t) =>
-                t.Description === transaction.name &&
-                Math.abs(parseFloat(t.Amount) - transaction.amount) < 0.01
-        );
 
-        if (originalTransaction) {
-            originalTransaction.Description = newDescription;
+        // Find the original transaction
+        const originalTransactionIndex = monthData.transactions.findIndex((t) => {
+            const description = t.Description;
+            const amount = parseFloat(t.Amount);
+
+            return description === transaction.name && Math.abs(amount - transaction.amount) < 0.01;
+        });
+
+        if (originalTransactionIndex !== -1) {
+            // Update the description
+            monthData.transactions[originalTransactionIndex].Description = newDescription;
+
             app.saveData();
             app.switchToMonth(app.currentMonth);
             closeTransactionsModal();
             notificationManager.show('Transaction updated', 'success');
+        } else {
+            notificationManager.show('Could not find transaction to update', 'error');
         }
     }
 }
 
-function deleteTransactionItem(category, index) {
+function deleteTransactionItem(index) {
+    if (!window.currentTransactionsList) return;
+
     if (!confirm('Are you sure you want to delete this transaction?')) return;
 
     const transaction = window.currentTransactionsList.transactions[index];
     const monthData = app.monthlyData.get(app.currentMonth);
 
-    // Find and remove the transaction
-    const txIndex = monthData.transactions.findIndex(
-        (t) =>
-            t.Description === transaction.name &&
-            Math.abs(parseFloat(t.Amount) - transaction.amount) < 0.01
-    );
+    // Find the transaction - now we know the exact field names
+    const txIndex = monthData.transactions.findIndex((t) => {
+        // Your CSV uses "Description" field and "Transaction Date" field
+        const description = t.Description;
+        const amount = parseFloat(t.Amount);
+
+        // Match by description and amount
+        const descriptionMatch = description === transaction.name;
+        const amountMatch = Math.abs(amount - transaction.amount) < 0.01;
+
+        return descriptionMatch && amountMatch;
+    });
 
     if (txIndex !== -1) {
         monthData.transactions.splice(txIndex, 1);
@@ -414,6 +309,8 @@ function deleteTransactionItem(category, index) {
         app.switchToMonth(app.currentMonth);
         closeTransactionsModal();
         notificationManager.show('Transaction deleted', 'success');
+    } else {
+        notificationManager.show('Could not find transaction to delete', 'error');
     }
 }
 
@@ -422,15 +319,16 @@ function exportTransactionsCSV(category) {
 
     // Create CSV content
     const headers = ['Date', 'Description', 'Amount'];
-    const rows = transactions.map((t) => [t.date, t.name, t.amount.toFixed(2)]);
+    const rows = transactions.map((t) => [
+        t.date,
+        `"${t.name.replace(/"/g, '""')}"`, // Escape quotes in description
+        t.amount.toFixed(2),
+    ]);
 
-    const csvContent = [
-        headers.join(','),
-        ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
-    ].join('\n');
+    const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
 
     // Download
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -439,4 +337,138 @@ function exportTransactionsCSV(category) {
 
     URL.revokeObjectURL(url);
     notificationManager.show('Transactions exported', 'success');
+}
+
+// Helper functions that depend on the above
+
+function getCategoryData(category) {
+    if (!app.currentMonth || !app.monthlyData.has(app.currentMonth)) {
+        return { count: 0, total: 0 };
+    }
+
+    const monthData = app.monthlyData.get(app.currentMonth);
+    const analyzer = new ExpenseAnalyzer();
+    analyzer.setCategoryConfig(userManager.getCategoryConfig());
+    analyzer.processData(monthData.transactions);
+
+    return {
+        count: analyzer.categoryDetails[category]?.length || 0,
+        total: analyzer.categoryTotals[category] || 0,
+    };
+}
+
+function closeCategoryMenu() {
+    if (currentCategoryMenu) {
+        currentCategoryMenu.classList.remove('show');
+        setTimeout(() => {
+            if (currentCategoryMenu) {
+                currentCategoryMenu.remove();
+                currentCategoryMenu = null;
+            }
+        }, 300);
+    }
+}
+
+function setCategoryBudget(category) {
+    const currentBudget = budgetManager.getCategoryBudget(app.currentMonth, category);
+    const newBudget = prompt(`Set budget for ${category}:`, currentBudget || '');
+
+    if (newBudget && !isNaN(parseFloat(newBudget))) {
+        budgetManager.setCategoryBudget(app.currentMonth, category, parseFloat(newBudget));
+        notificationManager.show(`Budget set for ${category}`, 'success');
+
+        // Refresh view
+        if (app.currentMonth) {
+            app.switchToMonth(app.currentMonth);
+        }
+    }
+    closeCategoryMenu();
+}
+
+function exportCategoryData(category) {
+    const monthData = app.monthlyData.get(app.currentMonth);
+    const analyzer = new ExpenseAnalyzer();
+    analyzer.setCategoryConfig(userManager.getCategoryConfig());
+    analyzer.processData(monthData.transactions);
+
+    const categoryTransactions = analyzer.categoryDetails[category] || [];
+    const exportData = {
+        category: category,
+        month: monthData.monthName,
+        total: analyzer.categoryTotals[category] || 0,
+        transactionCount: categoryTransactions.length,
+        transactions: categoryTransactions,
+        exportDate: new Date().toISOString(),
+    };
+
+    const filename = `${category}_${app.currentMonth}_export.json`;
+    const json = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+
+    URL.revokeObjectURL(url);
+    notificationManager.show(`${category} data exported`, 'success');
+    closeCategoryMenu();
+}
+
+function renameCategoryInView(oldCategory) {
+    const newName = prompt(`Rename category "${oldCategory}" to:`, oldCategory);
+
+    if (newName && newName !== oldCategory) {
+        // Update in all loaded data
+        app.monthlyData.forEach((monthData, monthKey) => {
+            monthData.transactions.forEach((transaction) => {
+                // We need to update the category assignment logic here
+                // This would require updating the categorization in the analyzer
+            });
+        });
+
+        // Update in user config
+        const config = userManager.getCategoryConfig();
+        if (config[oldCategory]) {
+            config[newName] = config[oldCategory];
+            delete config[oldCategory];
+            userManager.setCategoryConfig(config);
+        }
+
+        // Save and refresh
+        app.saveData();
+        app.switchToMonth(app.currentMonth);
+        notificationManager.show(`Category renamed to "${newName}"`, 'success');
+        closeCategoryMenu();
+    }
+}
+
+function clearCategoryTransactions(category) {
+    if (
+        confirm(
+            `Are you sure you want to clear all transactions in ${category}? This cannot be undone.`
+        )
+    ) {
+        const monthData = app.monthlyData.get(app.currentMonth);
+        const analyzer = new ExpenseAnalyzer();
+        analyzer.setCategoryConfig(userManager.getCategoryConfig());
+
+        // Filter out transactions for this category
+        const filteredTransactions = [];
+        monthData.transactions.forEach((t) => {
+            const txCategory = analyzer.categorizeTransaction(t.Description);
+            if (txCategory !== category) {
+                filteredTransactions.push(t);
+            }
+        });
+
+        monthData.transactions = filteredTransactions;
+
+        // Save and refresh
+        app.saveData();
+        app.switchToMonth(app.currentMonth);
+        notificationManager.show(`${category} transactions cleared`, 'success');
+        closeCategoryMenu();
+    }
 }
