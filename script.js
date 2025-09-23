@@ -30,6 +30,7 @@ function loadSavedData() {
             monthlyData = new Map(data.monthlyData || []);
             categoryConfig = data.categoryConfig || categoryConfig;
             budgets = data.budgets || {};
+            window.transactionOverrides = data.transactionOverrides || {};
             updateMonthSelector();
         }
     } catch (error) {
@@ -44,6 +45,7 @@ function saveData() {
             monthlyData: Array.from(monthlyData.entries()),
             categoryConfig: categoryConfig,
             budgets: budgets,
+            transactionOverrides: window.transactionOverrides || {},
         };
         localStorage.setItem('sahabBudget_data', JSON.stringify(data));
     } catch (error) {
@@ -80,8 +82,8 @@ async function handleFileUpload(event) {
             throw new Error('No valid transactions found in files');
         }
 
-        // Split by month
-        splitByMonth(allTransactions);
+        // Process and detect duplicates
+        const processResult = splitByMonth(allTransactions);
         updateMonthSelector();
 
         const months = Array.from(monthlyData.keys()).sort().reverse();
@@ -90,7 +92,16 @@ async function handleFileUpload(event) {
         }
 
         saveData();
-        showNotification(`Uploaded ${allTransactions.length} transactions`, 'success');
+
+        // Show detailed upload result
+        let message = `Processed ${allTransactions.length} transactions`;
+        if (processResult.duplicates > 0) {
+            message += ` (${processResult.duplicates} duplicates skipped)`;
+        }
+        if (processResult.added > 0) {
+            message += ` - ${processResult.added} new added`;
+        }
+        showNotification(message, 'success');
     } catch (error) {
         console.error('Upload error:', error);
         showNotification('Error processing files: ' + error.message, 'error');
@@ -102,16 +113,18 @@ async function handleFileUpload(event) {
 
 // Split transactions by month
 function splitByMonth(transactions) {
+    let added = 0;
+    let duplicates = 0;
+
     transactions.forEach((transaction) => {
+        // Skip payment thank you transactions
         if (
             (transaction.Description || transaction.description || '')
                 .toUpperCase()
                 .includes('PAYMENT THANK YOU')
         ) {
-            return; // skip this transaction
+            return;
         }
-
-        transaction._id = Math.random().toString(36).substr(2, 9); // <== force it early
 
         const dateField = transaction['Transaction Date'] || transaction.Date || transaction.date;
         if (!dateField) return;
@@ -131,8 +144,134 @@ function splitByMonth(transactions) {
             });
         }
 
-        monthlyData.get(monthKey).transactions.push(transaction);
+        const monthData = monthlyData.get(monthKey);
+
+        // Check for duplicate
+        if (isDuplicateTransaction(transaction, monthData.transactions)) {
+            duplicates++;
+        } else {
+            // Add unique ID
+            transaction._id = Math.random().toString(36).substr(2, 9);
+            monthData.transactions.push(transaction);
+            added++;
+        }
     });
+
+    return { added, duplicates };
+}
+
+// Reprocess all transactions with current category configuration
+function reprocessAllTransactions() {
+    let totalMoved = 0;
+
+    monthlyData.forEach((monthData, monthKey) => {
+        monthData.transactions.forEach((transaction) => {
+            const description = transaction.Description || transaction.description || '';
+            const oldCategory = categorizeTransaction(description, transaction._id);
+
+            // Check if there's an override for this transaction
+            if (
+                window.transactionOverrides &&
+                window.transactionOverrides[monthKey] &&
+                window.transactionOverrides[monthKey][transaction._id]
+            ) {
+                // Skip transactions with manual overrides
+                return;
+            }
+
+            // Re-categorize based on current keywords
+            const newCategory = categorizeTransactionByKeywords(description);
+
+            // If category changed, we'll count it as moved
+            if (oldCategory !== newCategory) {
+                totalMoved++;
+                // Note: The actual category change happens through the categorizeTransaction function
+                // which will now return the new category based on updated keywords
+            }
+        });
+    });
+
+    return totalMoved;
+}
+
+// Helper function to categorize only by keywords (ignoring overrides)
+function categorizeTransactionByKeywords(description) {
+    const upperDesc = description.toUpperCase();
+
+    for (const [category, config] of Object.entries(categoryConfig)) {
+        if (category === 'Others') continue; // Check Others last
+
+        if (config.keywords && config.keywords.length > 0) {
+            for (const keyword of config.keywords) {
+                if (keyword.toUpperCase() === 'WELL') {
+                    console.log(`upperDesc: ${upperDesc}`);
+                }
+                if (upperDesc.includes(keyword.toUpperCase())) {
+                    return category;
+                }
+            }
+        }
+    }
+
+    return 'Others';
+}
+
+// Check if a transaction is a duplicate
+function isDuplicateTransaction(newTransaction, existingTransactions) {
+    const newDate =
+        newTransaction['Transaction Date'] || newTransaction.Date || newTransaction.date;
+    const newDesc = (newTransaction.Description || newTransaction.description || '').trim();
+    const newAmount = parseFloat(newTransaction.Amount) || 0;
+
+    // Check for exact duplicates (same date, description, and amount)
+    return existingTransactions.some((existing) => {
+        const existingDate = existing['Transaction Date'] || existing.Date || existing.date;
+        const existingDesc = (existing.Description || existing.description || '').trim();
+        const existingAmount = parseFloat(existing.Amount) || 0;
+
+        // Compare date strings (to avoid timezone issues)
+        const sameDate = new Date(newDate).toDateString() === new Date(existingDate).toDateString();
+        const sameDesc = newDesc === existingDesc;
+        const sameAmount = Math.abs(newAmount - existingAmount) < 0.01; // Handle floating point
+
+        return sameDate && sameDesc && sameAmount;
+    });
+}
+
+// Find and merge duplicate transactions
+function findAndMergeDuplicates() {
+    let totalDuplicates = 0;
+
+    monthlyData.forEach((monthData, monthKey) => {
+        const uniqueTransactions = [];
+        const seen = new Set();
+
+        monthData.transactions.forEach((transaction) => {
+            const date = transaction['Transaction Date'] || transaction.Date || transaction.date;
+            const desc = (transaction.Description || transaction.description || '').trim();
+            const amount = parseFloat(transaction.Amount) || 0;
+
+            // Create a unique key for this transaction
+            const key = `${new Date(date).toDateString()}_${desc}_${amount.toFixed(2)}`;
+
+            if (!seen.has(key)) {
+                seen.add(key);
+                uniqueTransactions.push(transaction);
+            } else {
+                totalDuplicates++;
+            }
+        });
+
+        monthData.transactions = uniqueTransactions;
+    });
+
+    if (totalDuplicates > 0) {
+        saveData();
+        switchToMonth(currentMonth);
+        showNotification(`Removed ${totalDuplicates} duplicate transactions`, 'success');
+    } else {
+        showNotification('No duplicate transactions found', 'success');
+    }
 }
 
 // Update month selector
@@ -183,7 +322,7 @@ function analyzeTransactions(transactions) {
     transactions.forEach((transaction) => {
         const amount = Math.abs(parseFloat(transaction.Amount) || 0);
         const description = transaction.Description || transaction.description || '';
-        const category = categorizeTransaction(description);
+        const category = categorizeTransaction(description, transaction._id); // Pass the ID
 
         categoryTotals[category] += amount;
         categoryDetails[category].push({
@@ -204,7 +343,17 @@ function analyzeTransactions(transactions) {
 }
 
 // Categorize transaction
-function categorizeTransaction(description) {
+function categorizeTransaction(description, transactionId = null) {
+    // First check if this specific transaction has an override
+    if (
+        transactionId &&
+        window.transactionOverrides &&
+        window.transactionOverrides[currentMonth] &&
+        window.transactionOverrides[currentMonth][transactionId]
+    ) {
+        return window.transactionOverrides[currentMonth][transactionId];
+    }
+
     const upperDesc = description.toUpperCase();
 
     for (const [category, config] of Object.entries(categoryConfig)) {
@@ -212,6 +361,9 @@ function categorizeTransaction(description) {
 
         if (config.keywords && config.keywords.length > 0) {
             for (const keyword of config.keywords) {
+                if (keyword.toUpperCase() === 'WELL') {
+                    console.log(`upperDesc: ${upperDesc}`);
+                }
                 if (upperDesc.includes(keyword.toUpperCase())) {
                     return category;
                 }
@@ -263,65 +415,128 @@ function updateCategoryDetails(analyzer) {
     const container = document.getElementById('categoryDetails');
     container.innerHTML = '';
 
-    Object.entries(analyzer.categoryDetails)
-        .filter(([_, transactions]) => transactions.length > 0)
-        .sort((a, b) => analyzer.categoryTotals[b[0]] - analyzer.categoryTotals[a[0]])
-        .forEach(([category, transactions]) => {
-            const total = analyzer.categoryTotals[category];
-            const config = categoryConfig[category] || { icon: '📦' };
+    // Get all categories sorted alphabetically (Others at the end)
+    const allCategories = Object.keys(categoryConfig).sort((a, b) => {
+        if (a === 'Others') return 1;
+        if (b === 'Others') return -1;
+        return a.localeCompare(b);
+    });
 
-            const card = document.createElement('div');
-            card.className = 'category-card';
-            card.dataset.category = category;
+    allCategories.forEach((category) => {
+        const transactions = analyzer.categoryDetails[category] || [];
+        const total = analyzer.categoryTotals[category] || 0;
+        const config = categoryConfig[category] || { icon: '📦' };
 
-            const displayedTransactions = transactions.slice(0, 5);
-            const remainingCount = transactions.length - 5;
+        // Get budget info for current month
+        const budget = (budgets[currentMonth] && budgets[currentMonth][category]) || 0;
+        const remaining = budget - total;
+        const percentage = budget > 0 ? (total / budget) * 100 : 0;
 
-            card.innerHTML = `
-                <div class="category-header">
-                    <div class="category-title">
-                        <span>${config.icon}</span>
-                        <h4>${category}</h4>
+        const card = document.createElement('div');
+        card.className = 'category-card';
+        card.dataset.category = category;
+
+        const displayedTransactions = transactions.slice(0, 5);
+        const remainingCount = transactions.length - 5;
+
+        let transactionsHTML = '';
+
+        if (transactions.length === 0) {
+            transactionsHTML = `
+                <div style="padding: 20px; text-align: center; color: var(--gray); font-size: 13px;">
+                    No transactions
+                </div>
+            `;
+        } else {
+            transactionsHTML = `
+                ${displayedTransactions
+                    .map(
+                        (t) => `
+                    <div class="transaction-item" 
+                         draggable="true" 
+                         data-transaction-id="${t.id}"
+                         data-category="${category}">
+                        <span class="transaction-name">${t.name}</span>
+                        <span style="display: flex; align-items: center;">
+                            <span class="transaction-amount">$${t.amount.toFixed(2)}</span>
+                            <button class="btn-icon" onclick="deleteTransaction('${category}', '${
+                            t.id
+                        }')">×</button>
+                        </span>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span class="category-total">$${total.toFixed(2)}</span>
-                        <button class="btn-text" onclick="showAllTransactions('${category}')">View all</button>
+                `
+                    )
+                    .join('')}
+                ${
+                    remainingCount > 0
+                        ? `
+                    <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" 
+                            onclick="showAllTransactions('${category}')">
+                        Show ${remainingCount} more
+                    </button>
+                `
+                        : ''
+                }
+            `;
+        }
+
+        // Build budget status HTML
+        let budgetStatusHTML = '';
+        if (budget > 0) {
+            const statusColor = remaining >= 0 ? 'var(--success)' : 'var(--danger)';
+            const progressClass = percentage > 100 ? 'danger' : percentage > 80 ? 'warning' : '';
+
+            budgetStatusHTML = `
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                        <span style="color: var(--gray);">Budget: $${budget.toFixed(2)}</span>
+                        <span style="color: ${statusColor}; font-weight: 600;">
+                            ${remaining >= 0 ? 'Remaining: ' : 'Over by: '}$${Math.abs(
+                remaining
+            ).toFixed(2)}
+                        </span>
+                    </div>
+                    <div class="budget-progress" style="height: 4px; background: var(--light); border-radius: 2px; overflow: hidden;">
+                        <div class="budget-progress-fill ${progressClass}" 
+                             style="width: ${Math.min(
+                                 percentage,
+                                 100
+                             )}%; height: 100%; transition: all 0.3s;
+                                    background: ${
+                                        progressClass === 'danger'
+                                            ? 'var(--danger)'
+                                            : progressClass === 'warning'
+                                            ? 'var(--warning)'
+                                            : 'var(--success)'
+                                    }"></div>
                     </div>
                 </div>
-                <div class="category-transactions">
-                    ${displayedTransactions
-                        .map(
-                            (t) => `
-                        <div class="transaction-item" 
-                             draggable="true" 
-                             data-transaction-id="${t.id}"
-                             data-category="${category}">
-                            <span class="transaction-name">${t.name}</span>
-                            <span style="display: flex; align-items: center;">
-                                <span class="transaction-amount">$${t.amount.toFixed(2)}</span>
-                                <button class="btn-icon" onclick="deleteTransaction('${category}', '${
-                                t.id
-                            }')">×</button>
-                            </span>
-                        </div>
-                    `
-                        )
-                        .join('')}
+            `;
+        }
+
+        card.innerHTML = `
+            <div class="category-header">
+                <div class="category-title">
+                    <span>${config.icon}</span>
+                    <h4>${category}</h4>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="category-total">$${total.toFixed(2)}</span>
                     ${
-                        remainingCount > 0
-                            ? `
-                        <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" 
-                                onclick="showAllTransactions('${category}')">
-                            Show ${remainingCount} more
-                        </button>
-                    `
+                        transactions.length > 0
+                            ? `<button class="btn-text" onclick="showAllTransactions('${category}')">View all</button>`
                             : ''
                     }
                 </div>
-            `;
+            </div>
+            ${budgetStatusHTML}
+            <div class="category-transactions">
+                ${transactionsHTML}
+            </div>
+        `;
 
-            container.appendChild(card);
-        });
+        container.appendChild(card);
+    });
 
     // Initialize drag and drop
     initializeDragDrop();
@@ -380,27 +595,23 @@ function moveTransaction(transactionId, fromCategory, toCategory) {
     const monthData = monthlyData.get(currentMonth);
     if (!monthData) return;
 
-    // Find the transaction
+    // Find the specific transaction
     const transaction = monthData.transactions.find((t) => t._id === transactionId);
     if (!transaction) return;
 
-    // Extract a keyword from the description
-    const description = transaction.Description || transaction.description || '';
-    const words = description.split(/\s+/);
-    const keyword = words[0]?.toUpperCase();
+    // Get the exact description
+    const description = (transaction.Description || transaction.description || '').trim();
 
-    if (keyword) {
-        // Add keyword to new category if not present
-        if (!categoryConfig[toCategory].keywords.includes(keyword)) {
-            categoryConfig[toCategory].keywords.push(keyword);
-        }
-
-        // Remove keyword from old category if present
-        const oldIndex = categoryConfig[fromCategory].keywords.indexOf(keyword);
-        if (oldIndex > -1) {
-            categoryConfig[fromCategory].keywords.splice(oldIndex, 1);
-        }
+    if (!window.transactionOverrides) {
+        window.transactionOverrides = {};
     }
+
+    if (!window.transactionOverrides[currentMonth]) {
+        window.transactionOverrides[currentMonth] = {};
+    }
+
+    // Store this specific transaction's category override
+    window.transactionOverrides[currentMonth][transactionId] = toCategory;
 
     saveData();
     switchToMonth(currentMonth);
@@ -598,9 +809,16 @@ function updateBudgetView(analyzer) {
         budgets[monthKey] = {};
     }
 
-    const categoriesHTML = Object.entries(analyzer.categoryTotals)
-        .filter(([_, total]) => total > 0)
-        .map(([category, actual]) => {
+    // Get all categories sorted alphabetically (Others at the end)
+    const allCategories = Object.keys(categoryConfig).sort((a, b) => {
+        if (a === 'Others') return 1;
+        if (b === 'Others') return -1;
+        return a.localeCompare(b);
+    });
+
+    const categoriesHTML = allCategories
+        .map((category) => {
+            const actual = analyzer.categoryTotals[category] || 0;
             const budget = budgets[monthKey][category] || 0;
             const remaining = budget - actual;
             const percentage = budget > 0 ? (actual / budget) * 100 : 0;
@@ -695,7 +913,14 @@ function updateCategoriesView() {
     const container = document.getElementById('categoriesList');
     if (!container) return;
 
-    const html = Object.entries(categoryConfig)
+    // Sort categories alphabetically, but keep "Others" at the end
+    const sortedCategories = Object.entries(categoryConfig).sort((a, b) => {
+        if (a[0] === 'Others') return 1;
+        if (b[0] === 'Others') return -1;
+        return a[0].localeCompare(b[0]);
+    });
+
+    const html = sortedCategories
         .map(([name, config]) => {
             const nameId = name.replace(/\s+/g, '-');
 
@@ -725,14 +950,10 @@ function updateCategoriesView() {
         })
         .join('');
 
-    container.innerHTML =
-        html +
-        `
-        <button class="btn btn-primary" style="margin-top: 15px;" onclick="saveCategoryConfig()">Save Changes</button>
-    `;
+    container.innerHTML = html;
 }
 
-// Add new category
+// Add new category with keywords
 function addNewCategory() {
     const name = prompt('Enter category name:');
     if (!name || !name.trim()) return;
@@ -744,10 +965,28 @@ function addNewCategory() {
         return;
     }
 
+    // Ask for initial keywords
+    const keywordsInput = prompt('Enter keywords for this category (comma-separated, optional):');
+    const keywords = keywordsInput
+        ? keywordsInput
+              .split(',')
+              .map((k) => k.trim().toUpperCase())
+              .filter((k) => k.length > 0)
+        : [];
+
     categoryConfig[trimmedName] = {
-        keywords: [],
+        keywords: keywords,
         icon: '📦',
     };
+
+    // If keywords were added, reprocess transactions
+    let message = `Category "${trimmedName}" added`;
+    if (keywords.length > 0) {
+        const movedCount = reprocessAllTransactions();
+        if (movedCount > 0) {
+            message += ` and ${movedCount} transactions categorized`;
+        }
+    }
 
     saveData();
 
@@ -759,7 +998,32 @@ function addNewCategory() {
     updateCategoriesView();
     updateSettingsView();
 
-    showNotification(`Category "${trimmedName}" added`, 'success');
+    showNotification(message, 'success');
+}
+
+// Manually trigger recategorization
+function recategorizeAll() {
+    if (
+        !confirm(
+            'This will re-categorize all transactions based on current keywords. Manual drag-drop changes will be preserved. Continue?'
+        )
+    ) {
+        return;
+    }
+
+    const movedCount = reprocessAllTransactions();
+
+    saveData();
+
+    if (currentMonth) {
+        switchToMonth(currentMonth);
+    }
+
+    if (movedCount > 0) {
+        showNotification(`${movedCount} transactions re-categorized`, 'success');
+    } else {
+        showNotification('No transactions needed re-categorization', 'success');
+    }
 }
 
 // Remove category
@@ -816,6 +1080,7 @@ function updateSettingsView() {
 // Save category configuration
 function saveCategoryConfig() {
     let hasChanges = false;
+    const oldConfig = JSON.parse(JSON.stringify(categoryConfig)); // Deep copy for comparison
 
     Object.keys(categoryConfig).forEach((name) => {
         const iconId = `icon-${name.replace(/\s+/g, '-')}`;
@@ -843,20 +1108,35 @@ function saveCategoryConfig() {
     });
 
     if (hasChanges) {
-        saveData();
+        // Clear any transaction overrides that might conflict with new keywords
+        if (
+            confirm(
+                'Update categories and re-categorize all transactions based on new keywords? (Manual overrides will be preserved)'
+            )
+        ) {
+            // Reprocess all transactions
+            const movedCount = reprocessAllTransactions();
 
-        // Refresh current month with new categorization
-        if (currentMonth) {
-            switchToMonth(currentMonth);
-            const monthData = monthlyData.get(currentMonth);
-            if (monthData) {
-                const analyzer = analyzeTransactions(monthData.transactions);
-                updateBudgetView(analyzer);
+            saveData();
+
+            // Refresh current month with new categorization
+            if (currentMonth) {
+                switchToMonth(currentMonth);
+                const monthData = monthlyData.get(currentMonth);
+                if (monthData) {
+                    const analyzer = analyzeTransactions(monthData.transactions);
+                    updateBudgetView(analyzer);
+                }
             }
-        }
 
-        updateCategoriesView();
-        showNotification('Configuration saved', 'success');
+            updateCategoriesView();
+
+            let message = 'Configuration saved';
+            if (movedCount > 0) {
+                message += ` and ${movedCount} transactions re-categorized`;
+            }
+            showNotification(message, 'success');
+        }
     } else {
         showNotification('No changes to save', 'success');
     }
@@ -874,6 +1154,7 @@ function clearAllData() {
 
     if (confirm('Are you absolutely sure? This cannot be undone.')) {
         localStorage.removeItem('sahabBudget_data');
+        window.transactionOverrides = {};
         location.reload();
     }
 }

@@ -1,0 +1,299 @@
+/* Analytics Specific Styles */
+.analytics-controls {
+    padding: 20px;
+    background: var(--light);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.date-range-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.date-range-selector label {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.date-range-selector input[type='month'] {
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.search-box {
+    flex: 1;
+    max-width: 300px;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* Analytics Tabs */
+.analytics-tabs {
+    display: flex;
+    gap: 10px;
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.tab-btn {
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.tab-btn:hover {
+    background: var(--light);
+}
+
+.tab-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* Analytics Views */
+.analytics-view {
+    padding: 20px;
+    display: none;
+}
+
+.analytics-view.active {
+    display: block;
+}
+
+.chart-container {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 20px;
+}
+
+.chart-container h3 {
+    margin-bottom: 15px;
+    font-size: 16px;
+    color: var(--dark);
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.stat-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.stat-card h4 {
+    font-size: 12px;
+    color: var(--gray);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+}
+
+.stat-card .value {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--dark);
+}
+
+.stat-card .change {
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.change.positive {
+    color: var(--success);
+}
+
+.change.negative {
+    color: var(--danger);
+}
+
+/* Merchants */
+.merchants-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.merchant-list {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.merchant-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid var(--light);
+    transition: background 0.2s;
+}
+
+.merchant-item:hover {
+    background: var(--light);
+}
+
+.merchant-info h4 {
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.merchant-info span {
+    font-size: 12px;
+    color: var(--gray);
+}
+
+.merchant-amount {
+    text-align: right;
+}
+
+.merchant-amount .total {
+    font-size: 16px;
+    font-weight: bold;
+    color: var(--dark);
+}
+
+.merchant-amount .count {
+    font-size: 12px;
+    color: var(--gray);
+}
+
+/* Search Results */
+#searchResults {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.search-result-item {
+    display: grid;
+    grid-template-columns: 100px 1fr 150px 100px;
+    gap: 15px;
+    padding: 12px;
+    border-bottom: 1px solid var(--light);
+    align-items: center;
+}
+
+.search-result-item:hover {
+    background: var(--light);
+}
+
+.highlight {
+    background: yellow;
+    padding: 2px;
+    border-radius: 2px;
+}
+
+/* Search Results Table */
+.search-results-table {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.search-results-header {
+    display: grid;
+    grid-template-columns: 100px 1fr 150px 100px;
+    gap: 15px;
+    padding: 12px;
+    background: var(--light);
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    color: var(--gray);
+}
+
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: color 0.2s;
+}
+
+.sortable:hover {
+    color: var(--primary);
+}
+
+.search-result-item {
+    display: grid;
+    grid-template-columns: 100px 1fr 150px 100px;
+    gap: 15px;
+    padding: 12px;
+    border-bottom: 1px solid var(--light);
+    align-items: center;
+    transition: background 0.2s;
+}
+
+.search-result-item:hover {
+    background: var(--light);
+}
+
+.search-result-item > div:nth-child(2) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Duplicate indicator styles for main app */
+.duplicate-indicator {
+    display: inline-block;
+    background: var(--warning);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    margin-left: 8px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .merchants-container {
+        grid-template-columns: 1fr;
+    }
+
+    .analytics-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-box {
+        max-width: 100%;
+    }
+
+    .date-range-selector {
+        flex-wrap: wrap;
+    }
+}
