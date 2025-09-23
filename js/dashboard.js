@@ -363,14 +363,68 @@ function initializeDragDrop() {
 
 // Move transaction between categories
 function moveTransaction(transactionId, fromCategory, toCategory) {
+    // Handle "All Data" view differently
+    if (currentMonth === 'ALL_DATA') {
+        // Find which month contains this transaction
+        let actualMonth = null;
+        let actualTransaction = null;
+
+        for (const [monthKey, monthData] of monthlyData.entries()) {
+            const trans = monthData.transactions.find((t) => t._id === transactionId);
+            if (trans) {
+                actualMonth = monthKey;
+                actualTransaction = trans;
+                break;
+            }
+        }
+
+        if (!actualMonth || !actualTransaction) {
+            showNotification('Transaction not found', 'error');
+            return;
+        }
+
+        // Store the override for the actual month
+        if (!window.transactionOverrides) {
+            window.transactionOverrides = {};
+        }
+        if (!window.transactionOverrides[actualMonth]) {
+            window.transactionOverrides[actualMonth] = {};
+        }
+        window.transactionOverrides[actualMonth][transactionId] = toCategory;
+
+        // Learn from this move - create a merchant rule
+        if (!window.merchantRules) {
+            window.merchantRules = {};
+        }
+
+        const description = (
+            actualTransaction.Description ||
+            actualTransaction.description ||
+            ''
+        ).trim();
+        const merchantName = description
+            .toUpperCase()
+            .split(/[\-#\*]/)[0]
+            .trim();
+
+        if (merchantName) {
+            window.merchantRules[merchantName] = toCategory;
+            console.log(`Learned rule: "${merchantName}" → ${toCategory}`);
+        }
+
+        saveData();
+        switchToMonth('ALL_DATA'); // Refresh the All Data view
+        showNotification(`Moved to ${toCategory} (and will remember for future)`, 'success');
+        return;
+    }
+
+    // Original code for single month view
     const monthData = monthlyData.get(currentMonth);
     if (!monthData) return;
 
-    // Find the specific transaction
     const transaction = monthData.transactions.find((t) => t._id === transactionId);
     if (!transaction) return;
 
-    // Get the exact description
     const description = (transaction.Description || transaction.description || '').trim();
 
     if (!window.transactionOverrides) {
@@ -381,42 +435,59 @@ function moveTransaction(transactionId, fromCategory, toCategory) {
         window.transactionOverrides[currentMonth] = {};
     }
 
-    // Store this specific transaction's category override
     window.transactionOverrides[currentMonth][transactionId] = toCategory;
+
+    // Learn from this move - create a merchant rule
+    if (!window.merchantRules) {
+        window.merchantRules = {};
+    }
+
+    const merchantName = description
+        .toUpperCase()
+        .split(/[\-#\*]/)[0]
+        .trim();
+
+    if (merchantName) {
+        window.merchantRules[merchantName] = toCategory;
+        console.log(`Learned rule: "${merchantName}" → ${toCategory}`);
+    }
 
     saveData();
     switchToMonth(currentMonth);
-    showNotification(`Moved to ${toCategory}`, 'success');
+    showNotification(`Moved to ${toCategory} (and will remember for future)`, 'success');
 }
 
 // Delete transaction
 function deleteTransaction(category, transactionId) {
     if (!confirm('Delete this transaction?')) return;
 
-    const monthData = monthlyData.get(currentMonth);
-    if (!monthData) return;
+    // Handle "All Data" view
+    if (currentMonth === 'ALL_DATA') {
+        let deleted = false;
 
-    console.log('All transactions:', monthData.transactions);
-    console.log('Looking for ID:', transactionId);
+        monthlyData.forEach((monthData, monthKey) => {
+            const index = monthData.transactions.findIndex((t) => t._id === transactionId);
+            if (index > -1) {
+                monthData.transactions.splice(index, 1);
+                deleted = true;
+            }
+        });
 
-    const transaction = monthData.transactions.find((t) => t._id === transactionId);
-    console.log('Matched transaction:', transaction);
-
-    if (!transaction) {
-        showNotification('Transaction not found', 'error');
+        if (deleted) {
+            saveData();
+            switchToMonth('ALL_DATA');
+            showNotification('Transaction deleted', 'success');
+        } else {
+            showNotification('Transaction not found', 'error');
+        }
         return;
     }
 
-    const targetDescription = (transaction.Description || transaction.description || '').trim();
-    const targetAmount = Math.abs(parseFloat(transaction.Amount) || 0);
+    // Original code for single month view
+    const monthData = monthlyData.get(currentMonth);
+    if (!monthData) return;
 
-    const index = monthData.transactions.findIndex((t) => {
-        const desc = (t.Description || t.description || '').trim();
-        const amount = Math.abs(parseFloat(t.Amount) || 0);
-        return desc === targetDescription && Math.abs(amount - targetAmount) < 0.01;
-    });
-
-    console.log('Match index:', index);
+    const index = monthData.transactions.findIndex((t) => t._id === transactionId);
 
     if (index > -1) {
         monthData.transactions.splice(index, 1);
@@ -436,11 +507,22 @@ function deleteTransactionFromModal(category, transactionId) {
 
 // Show all transactions for a category
 function showAllTransactions(category) {
-    const monthData = monthlyData.get(currentMonth);
-    if (!monthData) return;
+    let transactions;
 
-    const analyzer = analyzeTransactions(monthData.transactions);
-    const transactions = analyzer.categoryDetails[category] || [];
+    if (currentMonth === 'ALL_DATA') {
+        // Combine all transactions for this category
+        const allTransactions = [];
+        monthlyData.forEach((monthData) => {
+            allTransactions.push(...monthData.transactions);
+        });
+        const analyzer = analyzeTransactions(allTransactions);
+        transactions = analyzer.categoryDetails[category] || [];
+    } else {
+        const monthData = monthlyData.get(currentMonth);
+        if (!monthData) return;
+        const analyzer = analyzeTransactions(monthData.transactions);
+        transactions = analyzer.categoryDetails[category] || [];
+    }
 
     document.getElementById('modalTitle').textContent = `${category} - All Transactions`;
 

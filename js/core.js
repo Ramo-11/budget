@@ -89,6 +89,7 @@ let categoryConfig = {
 
 let budgets = {};
 let charts = {};
+window.merchantRules = {};
 
 // Load saved data
 function loadSavedData() {
@@ -100,6 +101,7 @@ function loadSavedData() {
             categoryConfig = data.categoryConfig || categoryConfig;
             budgets = data.budgets || {};
             window.transactionOverrides = data.transactionOverrides || {};
+            window.merchantRules = data.merchantRules || {};
             updateMonthSelector();
         }
     } catch (error) {
@@ -115,6 +117,7 @@ function saveData() {
             categoryConfig: categoryConfig,
             budgets: budgets,
             transactionOverrides: window.transactionOverrides || {},
+            merchantRules: window.merchantRules || {}, // ADD THIS LINE
         };
         localStorage.setItem('sahabBudget_data', JSON.stringify(data));
     } catch (error) {
@@ -207,14 +210,21 @@ function categorizeTransaction(description, transactionId = null) {
 
     const upperDesc = description.toUpperCase();
 
+    // NEW: Check merchant rules BEFORE keyword matching
+    if (window.merchantRules) {
+        for (const [merchant, category] of Object.entries(window.merchantRules)) {
+            if (upperDesc.includes(merchant)) {
+                return category;
+            }
+        }
+    }
+
+    // Original keyword matching
     for (const [category, config] of Object.entries(categoryConfig)) {
         if (category === 'Others') continue; // Check Others last
 
         if (config.keywords && config.keywords.length > 0) {
             for (const keyword of config.keywords) {
-                if (keyword.toUpperCase() === 'WELL') {
-                    console.log(`upperDesc: ${upperDesc}`);
-                }
                 if (upperDesc.includes(keyword.toUpperCase())) {
                     return category;
                 }

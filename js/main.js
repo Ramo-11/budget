@@ -2,10 +2,16 @@
 
 // Load saved data on startup
 window.addEventListener('DOMContentLoaded', () => {
+    // Initialize merchantRules if not already done
+    if (!window.merchantRules) {
+        window.merchantRules = {};
+    }
+
     loadSavedData();
     if (monthlyData.size > 0) {
-        const months = Array.from(monthlyData.keys()).sort().reverse();
-        switchToMonth(months[0]);
+        updateMonthSelector();
+        document.getElementById('monthDropdown').value = 'ALL_DATA';
+        switchToMonth('ALL_DATA');
     }
 });
 
@@ -42,10 +48,18 @@ async function handleFileUpload(event) {
         const processResult = splitByMonth(allTransactions);
         updateMonthSelector();
 
-        const months = Array.from(monthlyData.keys()).sort().reverse();
-        if (months.length > 0) {
-            switchToMonth(months[0]);
+        // Always add ALL_DATA as option
+        const dropdown = document.getElementById('monthDropdown');
+        if (![...dropdown.options].some((opt) => opt.value === 'ALL_DATA')) {
+            const opt = document.createElement('option');
+            opt.value = 'ALL_DATA';
+            opt.textContent = 'All Data';
+            dropdown.prepend(opt);
         }
+
+        // Default to ALL_DATA after upload
+        document.getElementById('monthDropdown').value = 'ALL_DATA';
+        switchToMonth('ALL_DATA');
 
         saveData();
 
@@ -75,6 +89,19 @@ function updateMonthSelector() {
     dropdown.innerHTML = '';
     const months = Array.from(monthlyData.keys()).sort().reverse();
 
+    // Add "All Data" option first
+    const allOption = document.createElement('option');
+    allOption.value = 'ALL_DATA';
+    allOption.textContent = '📊 All Months Combined';
+    dropdown.appendChild(allOption);
+
+    // Add separator
+    const separator = document.createElement('option');
+    separator.disabled = true;
+    separator.textContent = '──────────';
+    dropdown.appendChild(separator);
+
+    // Add individual months
     months.forEach((monthKey) => {
         const monthData = monthlyData.get(monthKey);
         const option = document.createElement('option');
@@ -88,7 +115,30 @@ function updateMonthSelector() {
 
 // Switch to month
 function switchToMonth(monthKey) {
-    if (!monthKey || !monthlyData.has(monthKey)) return;
+    if (!monthKey) return;
+
+    // Handle "All Data" option
+    if (monthKey === 'ALL_DATA') {
+        currentMonth = 'ALL_DATA';
+
+        // Combine all transactions
+        const allTransactions = [];
+        monthlyData.forEach((monthData) => {
+            allTransactions.push(...monthData.transactions);
+        });
+
+        const analyzer = analyzeTransactions(allTransactions);
+        updateDashboard(analyzer);
+
+        if (document.getElementById('settingsView').classList.contains('active')) {
+            // Settings view doesn't make sense for "All Data", so switch to dashboard
+            switchView('dashboard');
+        }
+        return;
+    }
+
+    // Regular month handling
+    if (!monthlyData.has(monthKey)) return;
 
     currentMonth = monthKey;
     const monthData = monthlyData.get(monthKey);
@@ -102,6 +152,7 @@ function switchToMonth(monthKey) {
 }
 
 // Switch view
+// Switch view
 function switchView(viewName) {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
@@ -109,14 +160,30 @@ function switchView(viewName) {
     document.getElementById(viewName + 'View').classList.add('active');
     event.target.classList.add('active');
 
-    if (viewName === 'settings' && currentMonth) {
-        const monthData = monthlyData.get(currentMonth);
-        if (monthData) {
-            const analyzer = analyzeTransactions(monthData.transactions);
-            updateBudgetView(analyzer);
-            updateCategoriesView();
-            updateSettingsView();
+    if (viewName === 'settings') {
+        // Can't set budgets for "All Data" - switch to most recent month
+        if (currentMonth === 'ALL_DATA') {
+            const months = Array.from(monthlyData.keys()).sort().reverse();
+            if (months.length > 0) {
+                // Switch dropdown to most recent month
+                document.getElementById('monthDropdown').value = months[0];
+                switchToMonth(months[0]);
+                showNotification(
+                    'Switched to ' + monthlyData.get(months[0]).monthName + ' for budget settings',
+                    'info'
+                );
+            }
+        } else if (currentMonth) {
+            const monthData = monthlyData.get(currentMonth);
+            if (monthData) {
+                const analyzer = analyzeTransactions(monthData.transactions);
+                updateBudgetView(analyzer);
+                updateCategoriesView();
+                updateSettingsView();
+            }
         }
+
+        updateMerchantRulesDisplay();
     }
 }
 
@@ -139,4 +206,42 @@ function showNotification(message, type = 'success') {
     setTimeout(() => {
         notification.remove();
     }, 3000);
+}
+
+// Apply merchant rules to all data when viewing "All Data"
+function applyMerchantRulesToAllData() {
+    if (!window.merchantRules || Object.keys(window.merchantRules).length === 0) return;
+
+    let rulesApplied = 0;
+
+    monthlyData.forEach((monthData, monthKey) => {
+        monthData.transactions.forEach((transaction) => {
+            // Skip if already has an override
+            if (
+                window.transactionOverrides &&
+                window.transactionOverrides[monthKey] &&
+                window.transactionOverrides[monthKey][transaction._id]
+            ) {
+                return;
+            }
+
+            const description = (
+                transaction.Description ||
+                transaction.description ||
+                ''
+            ).toUpperCase();
+
+            // Check if any merchant rule applies
+            for (const [merchant, category] of Object.entries(window.merchantRules)) {
+                if (description.includes(merchant)) {
+                    rulesApplied++;
+                    break;
+                }
+            }
+        });
+    });
+
+    if (rulesApplied > 0) {
+        console.log(`Applied merchant rules to ${rulesApplied} transactions`);
+    }
 }

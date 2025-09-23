@@ -267,6 +267,29 @@
     text-overflow: ellipsis;
 }
 
+/* Enhanced search box styling */
+.search-box input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    outline: none;
+}
+
+/* Pulse animation for search box when search tab is active */
+.search-box input.pulse {
+    animation: pulse-border 2s ease-in-out;
+}
+
+@keyframes pulse-border {
+    0%,
+    100% {
+        border-color: var(--border);
+    }
+    50% {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+    }
+}
+
 /* Duplicate indicator styles for main app */
 .duplicate-indicator {
     display: inline-block;

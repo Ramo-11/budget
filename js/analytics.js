@@ -58,9 +58,35 @@ function switchAnalyticsTab(tab) {
             loadMerchantsView();
             break;
         case 'search':
-            // Search view is updated via search input
+            // Show helpful message and focus search box
+            showSearchPrompt();
+            document.getElementById('transactionSearch').focus();
             break;
     }
+}
+
+// Show search prompt
+function showSearchPrompt() {
+    const container = document.getElementById('searchResults');
+    container.innerHTML = `
+        <div style="text-align: center; padding: 60px 20px; color: var(--gray);">
+            <div style="font-size: 48px; margin-bottom: 20px;">🔍</div>
+            <h3 style="color: var(--dark); margin-bottom: 10px;">Search Your Transactions</h3>
+            <p style="font-size: 14px; margin-bottom: 20px;">
+                Type in the search box above to find transactions by description or amount
+            </p>
+            <div style="background: var(--light); padding: 15px; border-radius: 8px; display: inline-block;">
+                <p style="font-size: 13px; margin: 5px 0;">
+                    <strong>Try searching for:</strong>
+                </p>
+                <p style="font-size: 12px; color: var(--gray); margin: 5px 0;">
+                    • Merchant names (e.g., "Amazon", "Walmart")<br>
+                    • Transaction amounts (e.g., "25.99")<br>
+                    • Keywords (e.g., "food", "gas")
+                </p>
+            </div>
+        </div>
+    `;
 }
 
 // Apply date range filter
@@ -354,7 +380,8 @@ function loadMerchantsView() {
 // Search transactions
 function searchTransactions(query) {
     if (!query || query.trim() === '') {
-        document.getElementById('searchView').classList.remove('active');
+        // Show the search prompt instead of hiding the view
+        showSearchPrompt();
         return;
     }
 

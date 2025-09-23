@@ -277,6 +277,9 @@ function updateSettingsView() {
         .join('');
 
     container.innerHTML = html;
+
+    // ADD THIS: Update merchant rules display
+    updateMerchantRulesDisplay();
 }
 
 // Save category configuration
@@ -341,6 +344,123 @@ function saveCategoryConfig() {
         }
     } else {
         showNotification('No changes to save', 'success');
+    }
+}
+
+// Show merchant rules in settings (optional - call this from settings view)
+function showMerchantRules() {
+    if (!window.merchantRules || Object.keys(window.merchantRules).length === 0) {
+        return '<p style="color: var(--gray); font-size: 13px;">No learned merchant rules yet. Drag transactions to different categories to teach the app.</p>';
+    }
+
+    const rulesHtml = Object.entries(window.merchantRules)
+        .map(
+            ([merchant, category]) => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--light); margin: 5px 0; border-radius: 4px;">
+                <span style="font-size: 13px;">
+                    <strong>${merchant}</strong> → ${category}
+                </span>
+                <button class="btn-icon" onclick="removeMerchantRule('${merchant}')">×</button>
+            </div>
+        `
+        )
+        .join('');
+
+    return `
+        <div>
+            <h4 style="font-size: 14px; margin-bottom: 10px;">Learned Merchant Rules:</h4>
+            ${rulesHtml}
+        </div>
+    `;
+}
+
+// Update merchant rules display
+function updateMerchantRulesDisplay() {
+    const container = document.getElementById('merchantRulesList');
+    if (!container) return;
+
+    // Ensure merchantRules exists
+    if (!window.merchantRules) {
+        window.merchantRules = {};
+    }
+
+    if (Object.keys(window.merchantRules).length === 0) {
+        container.innerHTML =
+            '<p style="color: var(--gray); font-size: 13px;">No learned rules yet. Drag transactions to different categories and the app will learn patterns.</p>';
+        return;
+    }
+
+    const rulesHtml = Object.entries(window.merchantRules)
+        .sort((a, b) => a[0].localeCompare(b[0])) // Sort alphabetically
+        .map(([merchant, category]) => {
+            const icon = categoryConfig[category]?.icon || '📦';
+            return `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--light); margin: 8px 0; border-radius: 4px; border: 1px solid var(--border);">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 13px; color: var(--gray);">If contains:</span>
+                        <strong style="font-size: 13px; color: var(--dark);">"${merchant}"</strong>
+                        <span style="font-size: 13px; color: var(--gray);">→</span>
+                        <span style="font-size: 13px; background: var(--white); padding: 3px 8px; border-radius: 3px; border: 1px solid var(--border);">
+                            ${icon} ${category}
+                        </span>
+                    </div>
+                    <button class="btn-icon" onclick="removeMerchantRule('${merchant.replace(
+                        /'/g,
+                        "\\'"
+                    )}')" title="Remove rule">×</button>
+                </div>
+            `;
+        })
+        .join('');
+
+    container.innerHTML = `
+        <div style="margin-bottom: 10px;">
+            <button class="btn btn-secondary" onclick="clearAllMerchantRules()">Clear All Rules</button>
+        </div>
+        ${rulesHtml}
+    `;
+}
+
+// Remove a merchant rule
+function removeMerchantRule(merchant) {
+    if (confirm(`Remove rule for "${merchant}"?`)) {
+        delete window.merchantRules[merchant];
+        saveData();
+        updateMerchantRulesDisplay();
+
+        // Refresh current view if needed
+        if (currentMonth) {
+            switchToMonth(currentMonth);
+        }
+
+        showNotification('Merchant rule removed', 'success');
+    }
+}
+
+// Clear all merchant rules
+function clearAllMerchantRules() {
+    if (!window.merchantRules || Object.keys(window.merchantRules).length === 0) {
+        showNotification('No rules to clear', 'error');
+        return;
+    }
+
+    if (
+        confirm(
+            `Clear all ${
+                Object.keys(window.merchantRules).length
+            } learned rules? This cannot be undone.`
+        )
+    ) {
+        window.merchantRules = {};
+        saveData();
+        updateMerchantRulesDisplay();
+
+        // Refresh current view
+        if (currentMonth) {
+            switchToMonth(currentMonth);
+        }
+
+        showNotification('All merchant rules cleared', 'success');
     }
 }
 
