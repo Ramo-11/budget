@@ -1,3 +1,5 @@
+// js/analytics.js - Analytics Module
+
 // Analytics Module
 let analyticsData = {
     charts: {},
@@ -686,4 +688,17 @@ function updateMerchantList(merchants) {
     `;
 
     document.getElementById('merchantList').innerHTML = html;
+}
+
+// Download file helper (if not already defined in utils.js)
+function downloadFile(content, fileName, mimeType) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 }
