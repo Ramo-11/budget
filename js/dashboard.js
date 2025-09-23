@@ -261,6 +261,52 @@ function initializeDragDrop() {
     let draggedElement = null;
     let draggedId = null;
     let draggedCategory = null;
+    let animationFrame = null;
+    let lastEvent = null;
+
+    function autoScroll(e) {
+        if (!draggedElement || !e) return;
+
+        const scrollZone = 100; // px from edge
+        const maxSpeed = 15; // px per frame
+
+        const viewportHeight = window.innerHeight;
+
+        // Distance from edges
+        const distTop = e.clientY;
+        const distBottom = viewportHeight - e.clientY;
+
+        let scrollY = 0;
+
+        if (distTop < scrollZone) {
+            scrollY = -((scrollZone - distTop) / scrollZone) * maxSpeed;
+        } else if (distBottom < scrollZone) {
+            scrollY = ((scrollZone - distBottom) / scrollZone) * maxSpeed;
+        }
+
+        if (scrollY !== 0) {
+            window.scrollBy(0, scrollY);
+        }
+
+        // Container scrolling
+        const container = document.querySelector('.container');
+        if (container) {
+            const rect = container.getBoundingClientRect();
+            const distTopContainer = e.clientY - rect.top;
+            const distBottomContainer = rect.bottom - e.clientY;
+
+            if (distTopContainer < scrollZone && container.scrollTop > 0) {
+                container.scrollTop -= ((scrollZone - distTopContainer) / scrollZone) * maxSpeed;
+            } else if (
+                distBottomContainer < scrollZone &&
+                container.scrollTop < container.scrollHeight - container.clientHeight
+            ) {
+                container.scrollTop += ((scrollZone - distBottomContainer) / scrollZone) * maxSpeed;
+            }
+        }
+
+        animationFrame = requestAnimationFrame(() => autoScroll(lastEvent));
+    }
 
     items.forEach((item) => {
         item.addEventListener('dragstart', (e) => {
@@ -269,6 +315,8 @@ function initializeDragDrop() {
             draggedCategory = item.dataset.category;
             item.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
+            lastEvent = e;
+            animationFrame = requestAnimationFrame(() => autoScroll(lastEvent));
         });
 
         item.addEventListener('dragend', () => {
@@ -276,7 +324,19 @@ function initializeDragDrop() {
             draggedElement = null;
             draggedId = null;
             draggedCategory = null;
+            cancelAnimationFrame(animationFrame);
         });
+
+        item.addEventListener('drag', (e) => {
+            if (e.clientY > 0) lastEvent = e;
+        });
+    });
+
+    document.addEventListener('dragover', (e) => {
+        if (draggedElement) {
+            e.preventDefault();
+            lastEvent = e;
+        }
     });
 
     cards.forEach((card) => {

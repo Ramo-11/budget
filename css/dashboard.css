@@ -38,6 +38,9 @@
 }
 
 .chart-wrapper {
+    /* position: relative; */
+    /* height: auto; */
+    /* max-height: 400px; */
     background: var(--white);
     padding: 15px;
     border-radius: 4px;
@@ -197,6 +200,11 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+    .chart-wrapper canvas {
+        max-height: 300px !important;
+        height: auto !important;
+    }
+
     .charts-container {
         grid-template-columns: 1fr;
     }
