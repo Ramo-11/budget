@@ -129,7 +129,8 @@ function switchToMonth(monthKey) {
         const analyzer = analyzeTransactions(allTransactions);
         updateDashboard(analyzer);
 
-        if (document.getElementById('settingsView').classList.contains('active')) {
+        const settingsView = document.getElementById('settingsView');
+        if (settingsView && settingsView.classList.contains('active')) {
             switchView('dashboard');
         }
         return;

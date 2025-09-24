@@ -1,0 +1,297 @@
+/* Guide Tabs */
+.guide-tabs {
+    display: flex;
+    gap: 10px;
+    padding: 20px;
+    background: var(--light);
+    border-bottom: 2px solid var(--border);
+    flex-wrap: wrap;
+}
+
+.guide-tab {
+    padding: 10px 20px;
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.guide-tab:hover {
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.guide-tab.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.guide-content {
+    display: none;
+}
+
+.guide-content.active {
+    display: block;
+}
+
+/* Guide Hero */
+.guide-hero {
+    text-align: center;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    border-radius: 8px;
+    margin-bottom: 30px;
+}
+
+.guide-hero h2 {
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+
+.guide-hero p {
+    font-size: 16px;
+    opacity: 0.95;
+}
+
+/* Guide Steps */
+.guide-steps {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.guide-step {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.guide-step:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateX(5px);
+}
+
+.step-number {
+    width: 50px;
+    height: 50px;
+    background: var(--primary);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.step-content {
+    flex: 1;
+}
+
+.step-content h3 {
+    margin-bottom: 10px;
+    color: var(--dark);
+}
+
+.step-content p {
+    color: var(--gray);
+    margin-bottom: 10px;
+}
+
+.step-tip {
+    background: var(--light);
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    border-left: 3px solid var(--primary);
+}
+
+/* Features Grid */
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.feature-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    transition: all 0.2s;
+}
+
+.feature-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+}
+
+.feature-icon {
+    font-size: 36px;
+    margin-bottom: 15px;
+    display: block;
+}
+
+.feature-card h3 {
+    margin-bottom: 15px;
+    color: var(--dark);
+}
+
+.feature-card ul {
+    list-style: none;
+    padding: 0;
+}
+
+.feature-card li {
+    padding: 5px 0;
+    font-size: 13px;
+    color: var(--gray);
+    padding-left: 20px;
+    position: relative;
+}
+
+.feature-card li:before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--success);
+}
+
+/* Feature Details */
+.feature-details {
+    background: var(--light);
+    padding: 30px;
+    border-radius: 8px;
+}
+
+.feature-detail {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.feature-detail:last-child {
+    border-bottom: none;
+}
+
+.feature-detail h4 {
+    margin-bottom: 10px;
+    color: var(--dark);
+}
+
+.feature-detail p {
+    color: var(--gray);
+    line-height: 1.6;
+}
+
+/* Tips Container */
+.tips-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.tip-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.tip-icon {
+    font-size: 32px;
+    margin-bottom: 15px;
+    display: block;
+}
+
+.tip-card h3 {
+    margin-bottom: 15px;
+    color: var(--dark);
+}
+
+.tip-content {
+    font-size: 14px;
+    color: var(--gray);
+}
+
+.tip-content kbd {
+    background: var(--light);
+    padding: 2px 6px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.tip-content ul {
+    margin-left: 20px;
+}
+
+.tip-content li {
+    margin-bottom: 8px;
+}
+
+/* FAQ Section */
+.faq-section {
+    background: var(--light);
+    padding: 30px;
+    border-radius: 8px;
+}
+
+.faq-section h3 {
+    margin-bottom: 20px;
+    color: var(--dark);
+}
+
+.faq-item {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.faq-item:last-child {
+    border-bottom: none;
+}
+
+.faq-item h4 {
+    color: var(--primary);
+    margin-bottom: 10px;
+    font-size: 15px;
+}
+
+.faq-item p {
+    color: var(--gray);
+    line-height: 1.6;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .guide-tabs {
+        flex-direction: column;
+    }
+
+    .guide-tab {
+        width: 100%;
+    }
+
+    .guide-step {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .tips-container {
+        grid-template-columns: 1fr;
+    }
+}

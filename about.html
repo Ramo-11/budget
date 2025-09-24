@@ -6,6 +6,7 @@
         <title>About - Sahab Budget</title>
         <!-- CSS Files -->
         <link rel="stylesheet" href="css/base.css" />
+        <link rel="stylesheet" href="css/guide.css" />
         <link rel="stylesheet" href="css/about.css" />
         <link rel="icon" href="/images/logo.png" type="image/x-icon" />
     </head>
@@ -28,7 +29,7 @@
                             style="height: 32px; width: auto"
                         />
                         <div>
-                            <h1 style="margin: 0; font-size: 24px">About & Privacy</h1>
+                            <h1 style="margin: 0; font-size: 24px">Help & About</h1>
                             <p
                                 style="
                                     font-size: 11px;
@@ -36,7 +37,7 @@
                                     margin: 2px 0 0 0;
                                 "
                             >
-                                Learn about Sahab Budget and your data privacy
+                                Learn how to use Sahab Budget and understand your privacy
                             </p>
                         </div>
                     </div>
@@ -56,161 +57,439 @@
                 </div>
             </div>
 
+            <!-- Guide Tabs -->
+            <div class="guide-tabs">
+                <button class="guide-tab active" onclick="switchGuideTab('quickstart')">
+                    🚀 Quick Start
+                </button>
+                <button class="guide-tab" onclick="switchGuideTab('features')">
+                    ✨ All Features
+                </button>
+                <button class="guide-tab" onclick="switchGuideTab('tips')">💡 Tips & Tricks</button>
+                <button class="guide-tab" onclick="switchGuideTab('privacy')">🔒 Privacy</button>
+            </div>
+
             <div class="about-container">
-                <!-- Hero Section -->
-                <div class="about-hero">
-                    <h2>Your Financial Data is 100% Private</h2>
-                    <p class="about-subtitle">
-                        Sahab Budget runs entirely in your browser. Your data never leaves your
-                        device.
-                    </p>
-                </div>
-
-                <!-- Privacy Section -->
-                <div class="about-section">
-                    <h3>🔒 Complete Privacy Guarantee</h3>
-                    <div class="privacy-grid">
-                        <div class="privacy-card">
-                            <span class="privacy-icon">💻</span>
-                            <h4>100% Local</h4>
-                            <p>
-                                All processing happens in your browser. No servers, no cloud, no
-                                external connections.
-                            </p>
-                        </div>
-                        <div class="privacy-card">
-                            <span class="privacy-icon">🔐</span>
-                            <h4>Your Data Stays Yours</h4>
-                            <p>
-                                We cannot see, access, or retrieve your financial data - it's
-                                technically impossible.
-                            </p>
-                        </div>
-                        <div class="privacy-card">
-                            <span class="privacy-icon">🚫</span>
-                            <h4>No Analytics or Tracking</h4>
-                            <p>
-                                No Google Analytics, no cookies, no tracking pixels. Complete
-                                privacy.
-                            </p>
-                        </div>
-                        <div class="privacy-card">
-                            <span class="privacy-icon">📱</span>
-                            <h4>Works Offline</h4>
-                            <p>
-                                Once loaded, the app works completely offline. No internet required.
-                            </p>
-                        </div>
+                <!-- Quick Start Tab -->
+                <div class="guide-content active" id="quickstartTab">
+                    <div class="guide-hero">
+                        <h2>Get Started in 5 Minutes</h2>
+                        <p>Follow these simple steps to start tracking your budget</p>
                     </div>
-                </div>
 
-                <!-- How It Works Section -->
-                <div class="about-section">
-                    <h3>📊 How to Use Sahab Budget</h3>
-                    <div class="features-list">
-                        <div class="feature-item">
-                            <span class="feature-number">1</span>
-                            <div>
-                                <h4>Upload Your Bank CSV</h4>
+                    <div class="guide-steps">
+                        <div class="guide-step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h3>Export Your Bank Transactions</h3>
                                 <p>
-                                    Export transactions from your bank as CSV and upload them.
-                                    Multiple files supported.
+                                    Log into your online banking and export transactions as CSV file
                                 </p>
+                                <div class="step-tip">
+                                    <strong>Tip:</strong> Most banks have this option under
+                                    "Download Transactions" or "Export"
+                                </div>
                             </div>
                         </div>
-                        <div class="feature-item">
-                            <span class="feature-number">2</span>
-                            <div>
-                                <h4>Automatic Categorization</h4>
+
+                        <div class="guide-step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h3>Upload CSV Files</h3>
                                 <p>
-                                    Transactions are automatically sorted into categories based on
-                                    keywords.
+                                    Click "Upload CSV Files" on the Dashboard and select your
+                                    exported files
                                 </p>
+                                <div class="step-tip">
+                                    <strong>Tip:</strong> You can upload multiple months at once
+                                </div>
                             </div>
                         </div>
-                        <div class="feature-item">
-                            <span class="feature-number">3</span>
-                            <div>
-                                <h4>Drag & Drop to Reorganize</h4>
+
+                        <div class="guide-step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h3>Review Auto-Categorization</h3>
                                 <p>
-                                    Simply drag transactions between categories to recategorize
-                                    them.
+                                    Your transactions are automatically sorted into categories like
+                                    Groceries, Gas, etc.
                                 </p>
+                                <div class="step-tip">
+                                    <strong>Tip:</strong> Drag and drop transactions to move them
+                                    between categories
+                                </div>
                             </div>
                         </div>
-                        <div class="feature-item">
-                            <span class="feature-number">4</span>
-                            <div>
-                                <h4>Set Budget Goals</h4>
+
+                        <div class="guide-step">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <h3>Set Monthly Budgets</h3>
                                 <p>
-                                    Set monthly budgets for each category and track your progress.
+                                    Go to Settings → Categories & Budgets to set spending limits for
+                                    each category
                                 </p>
+                                <div class="step-tip">
+                                    <strong>Tip:</strong> Start with your average spending and
+                                    adjust over time
+                                </div>
                             </div>
                         </div>
-                        <div class="feature-item">
-                            <span class="feature-number">5</span>
-                            <div>
-                                <h4>Visualize Your Spending</h4>
+
+                        <div class="guide-step">
+                            <div class="step-number">5</div>
+                            <div class="step-content">
+                                <h3>Create a Backup</h3>
                                 <p>
-                                    See your expenses through interactive charts and detailed
-                                    breakdowns.
+                                    Go to Settings → Data Management to download a backup of your
+                                    data
                                 </p>
+                                <div class="step-tip">
+                                    <strong>Important:</strong> Regular backups ensure you never
+                                    lose your data
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Data Persistence Section -->
-                <div class="about-section">
-                    <h3>💾 How Your Data is Stored</h3>
-                    <div class="storage-info">
-                        <p>
-                            <strong>Your data is saved in your browser's localStorage:</strong>
+                <!-- Features Tab -->
+                <div class="guide-content" id="featuresTab">
+                    <div class="guide-hero">
+                        <h2>Complete Feature List</h2>
+                        <p>Everything Sahab Budget can do for you</p>
+                    </div>
+
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">📊</div>
+                            <h3>Dashboard</h3>
+                            <ul>
+                                <li>View monthly spending summary</li>
+                                <li>Interactive pie and bar charts</li>
+                                <li>Category-wise breakdown</li>
+                                <li>Drag & drop recategorization</li>
+                                <li>Quick stats widget</li>
+                                <li>Compare multiple months</li>
+                            </ul>
+                        </div>
+
+                        <div class="feature-card">
+                            <div class="feature-icon">📈</div>
+                            <h3>Analytics</h3>
+                            <ul>
+                                <li>Spending trends over time</li>
+                                <li>Year-over-year comparison</li>
+                                <li>Top merchants analysis</li>
+                                <li>Search transactions</li>
+                                <li>Custom date ranges</li>
+                                <li>Export search results</li>
+                            </ul>
+                        </div>
+
+                        <div class="feature-card">
+                            <div class="feature-icon">⚙️</div>
+                            <h3>Settings</h3>
+                            <ul>
+                                <li>Customize categories</li>
+                                <li>Set monthly budgets</li>
+                                <li>Configure auto-categorization keywords</li>
+                                <li>Manage merchant rules</li>
+                                <li>Backup & restore data</li>
+                                <li>Export to CSV/JSON</li>
+                            </ul>
+                        </div>
+
+                        <div class="feature-card">
+                            <div class="feature-icon">🎯</div>
+                            <h3>Smart Features</h3>
+                            <ul>
+                                <li>Automatic categorization</li>
+                                <li>Duplicate detection</li>
+                                <li>Merchant learning</li>
+                                <li>Budget alerts</li>
+                                <li>All data combined view</li>
+                                <li>Custom date ranges</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="feature-details">
+                        <h3>Feature Details</h3>
+
+                        <div class="feature-detail">
+                            <h4>🔄 Auto-Categorization</h4>
+                            <p>
+                                Transactions are automatically sorted based on keywords you define.
+                                For example, transactions containing "WALMART" go to Groceries.
+                            </p>
+                        </div>
+
+                        <div class="feature-detail">
+                            <h4>🧠 Smart Learning</h4>
+                            <p>
+                                When you drag a transaction to a different category, the app
+                                remembers and applies the same rule to similar future transactions.
+                            </p>
+                        </div>
+
+                        <div class="feature-detail">
+                            <h4>📅 Flexible Date Views</h4>
+                            <p>
+                                View individual months, all data combined, or custom date ranges to
+                                analyze specific periods.
+                            </p>
+                        </div>
+
+                        <div class="feature-detail">
+                            <h4>💾 Complete Data Control</h4>
+                            <p>
+                                Export your data anytime as CSV or JSON. Import previous backups to
+                                restore or merge data.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tips Tab -->
+                <div class="guide-content" id="tipsTab">
+                    <div class="guide-hero">
+                        <h2>Tips & Tricks</h2>
+                        <p>Get the most out of Sahab Budget</p>
+                    </div>
+
+                    <div class="tips-container">
+                        <div class="tip-card">
+                            <div class="tip-icon">⌨️</div>
+                            <h3>Keyboard Shortcuts</h3>
+                            <div class="tip-content">
+                                <p><kbd>Drag + Drop</kbd> - Move transactions between categories</p>
+                                <p>
+                                    <kbd>Click category name</kbd> - View all transactions in that
+                                    category
+                                </p>
+                                <p><kbd>Hover on charts</kbd> - See detailed amounts</p>
+                            </div>
+                        </div>
+
+                        <div class="tip-card">
+                            <div class="tip-icon">🎯</div>
+                            <h3>Best Practices</h3>
+                            <div class="tip-content">
+                                <ul>
+                                    <li>Upload data monthly for consistent tracking</li>
+                                    <li>Review and adjust categories weekly</li>
+                                    <li>Set realistic budgets based on past spending</li>
+                                    <li>Create backups before major changes</li>
+                                    <li>Use custom date ranges for vacation spending</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="tip-card">
+                            <div class="tip-icon">💡</div>
+                            <h3>Pro Tips</h3>
+                            <div class="tip-content">
+                                <ul>
+                                    <li>
+                                        <strong>Bulk categorization:</strong> Add multiple keywords
+                                        separated by commas
+                                    </li>
+                                    <li>
+                                        <strong>Quick compare:</strong> Use "Compare Months" to spot
+                                        spending trends
+                                    </li>
+                                    <li>
+                                        <strong>Find transactions:</strong> Use Search in Analytics
+                                        to find specific purchases
+                                    </li>
+                                    <li>
+                                        <strong>Track subscriptions:</strong> Create a
+                                        "Subscriptions" category with service names as keywords
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="tip-card">
+                            <div class="tip-icon">⚠️</div>
+                            <h3>Common Issues</h3>
+                            <div class="tip-content">
+                                <p>
+                                    <strong>Wrong categorization?</strong><br />Add more specific
+                                    keywords in Settings
+                                </p>
+                                <p>
+                                    <strong>Lost data?</strong><br />Always use the same browser and
+                                    create regular backups
+                                </p>
+                                <p>
+                                    <strong>CSV not working?</strong><br />Ensure it has Date,
+                                    Description, and Amount columns
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="faq-section">
+                        <h3>Frequently Asked Questions</h3>
+
+                        <div class="faq-item">
+                            <h4>Q: What CSV format is supported?</h4>
+                            <p>
+                                A: Any CSV with columns for Date, Description/Merchant, and Amount.
+                                Most bank exports work automatically.
+                            </p>
+                        </div>
+
+                        <div class="faq-item">
+                            <h4>Q: Can I use multiple bank accounts?</h4>
+                            <p>
+                                A: Yes! Upload CSVs from different banks - they'll all be combined
+                                and categorized together.
+                            </p>
+                        </div>
+
+                        <div class="faq-item">
+                            <h4>Q: How do I track cash transactions?</h4>
+                            <p>
+                                A: Create a simple CSV with your cash transactions and upload it
+                                like any bank file.
+                            </p>
+                        </div>
+
+                        <div class="faq-item">
+                            <h4>Q: Is there a mobile app?</h4>
+                            <p>
+                                A: Sahab Budget works in mobile browsers. Save it to your home
+                                screen for app-like access.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Privacy Tab -->
+                <div class="guide-content" id="privacyTab">
+                    <!-- Hero Section -->
+                    <div class="about-hero">
+                        <h2>Your Financial Data is 100% Private</h2>
+                        <p class="about-subtitle">
+                            Sahab Budget runs entirely in your browser. Your data never leaves your
+                            device.
                         </p>
+                    </div>
 
-                        <div class="storage-grid">
-                            <div class="storage-card safe">
-                                <h4>✅ Data Persists When You:</h4>
-                                <ul>
-                                    <li>Close the tab</li>
-                                    <li>Close the browser</li>
-                                    <li>Restart your computer</li>
-                                    <li>Come back days/weeks later</li>
-                                </ul>
+                    <!-- Privacy Section -->
+                    <div class="about-section">
+                        <h3>🔒 Complete Privacy Guarantee</h3>
+                        <div class="privacy-grid">
+                            <div class="privacy-card">
+                                <span class="privacy-icon">💻</span>
+                                <h4>100% Local</h4>
+                                <p>
+                                    All processing happens in your browser. No servers, no cloud, no
+                                    external connections.
+                                </p>
                             </div>
-                            <div class="storage-card warning">
-                                <h4>⚠️ Data is Lost When You:</h4>
-                                <ul>
-                                    <li>Clear browser data/cache</li>
-                                    <li>Use Incognito/Private mode</li>
-                                    <li>Click "Clear All Data" in settings</li>
-                                    <li>Use privacy/cleaning tools</li>
-                                </ul>
+                            <div class="privacy-card">
+                                <span class="privacy-icon">🔐</span>
+                                <h4>Your Data Stays Yours</h4>
+                                <p>
+                                    We cannot see, access, or retrieve your financial data - it's
+                                    technically impossible.
+                                </p>
                             </div>
-                        </div>
-
-                        <div class="tip-box">
-                            <strong>💡 Pro Tip:</strong> Regular backups from the Settings page
-                            ensure you never lose your data. Export your data monthly!
+                            <div class="privacy-card">
+                                <span class="privacy-icon">🚫</span>
+                                <h4>No Analytics or Tracking</h4>
+                                <p>
+                                    No Google Analytics, no cookies, no tracking pixels. Complete
+                                    privacy.
+                                </p>
+                            </div>
+                            <div class="privacy-card">
+                                <span class="privacy-icon">📱</span>
+                                <h4>Works Offline</h4>
+                                <p>
+                                    Once loaded, the app works completely offline. No internet
+                                    required.
+                                </p>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Footer -->
-                <div class="about-footer">
-                    <div class="about-credits">
-                        <h4>Built with ❤️ by Sahab Solutions</h4>
-                        <p>Simple, private, and powerful budget tracking for everyone.</p>
-                        <a
-                            href="https://sahab-solutions.com"
-                            target="_blank"
-                            class="btn btn-primary"
-                        >
-                            Visit Sahab Solutions
-                        </a>
+                    <!-- Data Persistence Section -->
+                    <div class="about-section">
+                        <h3>💾 How Your Data is Stored</h3>
+                        <div class="storage-info">
+                            <p>
+                                <strong>Your data is saved in your browser's localStorage:</strong>
+                            </p>
+
+                            <div class="storage-grid">
+                                <div class="storage-card safe">
+                                    <h4>✅ Data Persists When You:</h4>
+                                    <ul>
+                                        <li>Close the tab</li>
+                                        <li>Close the browser</li>
+                                        <li>Restart your computer</li>
+                                        <li>Come back days/weeks later</li>
+                                    </ul>
+                                </div>
+                                <div class="storage-card warning">
+                                    <h4>⚠️ Data is Lost When You:</h4>
+                                    <ul>
+                                        <li>Clear browser data/cache</li>
+                                        <li>Use Incognito/Private mode</li>
+                                        <li>Click "Clear All Data" in settings</li>
+                                        <li>Use privacy/cleaning tools</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <div class="tip-box">
+                                <strong>💡 Pro Tip:</strong> Regular backups from the Settings page
+                                ensure you never lose your data. Export your data monthly!
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="about-footer">
+                        <div class="about-credits">
+                            <h4>Built with ❤️ by Sahab Solutions</h4>
+                            <p>Simple, private, and powerful budget tracking for everyone.</p>
+                            <a
+                                href="https://sahab-solutions.com"
+                                target="_blank"
+                                class="btn btn-primary"
+                            >
+                                Visit Sahab Solutions
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <script>
+            // Switch guide tabs
+            function switchGuideTab(tab) {
+                // Remove active class from all tabs and contents
+                document
+                    .querySelectorAll('.guide-tab')
+                    .forEach((t) => t.classList.remove('active'));
+                document
+                    .querySelectorAll('.guide-content')
+                    .forEach((c) => c.classList.remove('active'));
+
+                // Add active class to selected tab and content
+                event.target.classList.add('active');
+                document.getElementById(tab + 'Tab').classList.add('active');
+
+                // Scroll to top of content
+                window.scrollTo(0, 0);
+            }
+        </script>
     </body>
 </html>
