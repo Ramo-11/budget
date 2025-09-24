@@ -468,7 +468,7 @@ function moveTransaction(transactionId, fromCategory, toCategory) {
         ).trim();
         const merchantName = description
             .toUpperCase()
-            .split(/[\-#\*]/)[0]
+            .split(/[\s#\*]/)[0]
             .trim();
 
         if (merchantName) {
@@ -508,7 +508,7 @@ function moveTransaction(transactionId, fromCategory, toCategory) {
 
     const merchantName = description
         .toUpperCase()
-        .split(/[\-#\*]/)[0]
+        .split(/[\s#\*]/)[0]
         .trim();
 
     if (merchantName) {
