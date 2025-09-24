@@ -139,37 +139,30 @@
             <div class="view" id="settingsView">
                 <h2>Settings</h2>
 
-                <!-- Budget Goals Section -->
+                <!-- Settings Notice -->
+                <div id="settingsNotice" class="settings-notice" style="display: none"></div>
+
+                <!-- Combined Categories & Budgets Section -->
                 <div class="settings-section">
-                    <h3>Budget Goals</h3>
+                    <h3>Categories & Budgets</h3>
+                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 15px">
+                        Manage your categories, set keywords for auto-categorization, and define
+                        monthly budget goals.
+                    </p>
                     <div class="budget-grid" id="budgetGrid"></div>
                 </div>
 
-                <!-- Categories Section -->
-                <div class="settings-section">
-                    <h3>Categories</h3>
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px">
-                        <button class="btn btn-primary" onclick="addNewCategory()">
-                            Add Category
-                        </button>
-                        <button class="btn btn-primary" onclick="saveCategoryConfig()">
-                            Save Changes
-                        </button>
-                        <button class="btn btn-secondary" onclick="recategorizeAll()">
-                            Recategorize All
-                        </button>
-                    </div>
-                    <div id="categoriesList" style="margin-top: 20px"></div>
-                </div>
-
+                <!-- Merchant Rules Section -->
                 <div class="settings-section">
                     <h3>Learned Merchant Rules</h3>
-                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 15px;">
-                        The app learns from your corrections. When you move transactions, it remembers merchant patterns.
+                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 15px">
+                        The app learns from your corrections. When you move transactions, it
+                        remembers merchant patterns.
                     </p>
                     <div id="merchantRulesList"></div>
                 </div>
 
+                <!-- Clear Data Section -->
                 <div class="settings-section">
                     <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
                 </div>

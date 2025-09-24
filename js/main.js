@@ -152,7 +152,6 @@ function switchToMonth(monthKey) {
 }
 
 // Switch view
-// Switch view
 function switchView(viewName) {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
@@ -168,22 +167,17 @@ function switchView(viewName) {
                 // Switch dropdown to most recent month
                 document.getElementById('monthDropdown').value = months[0];
                 switchToMonth(months[0]);
-                showNotification(
-                    'Switched to ' + monthlyData.get(months[0]).monthName + ' for budget settings',
-                    'info'
-                );
+                // Notice is now shown in updateBudgetView
             }
         } else if (currentMonth) {
             const monthData = monthlyData.get(currentMonth);
             if (monthData) {
                 const analyzer = analyzeTransactions(monthData.transactions);
                 updateBudgetView(analyzer);
-                updateCategoriesView();
-                updateSettingsView();
+                // Remove updateCategoriesView() call - no longer needed
+                updateMerchantRulesDisplay();
             }
         }
-
-        updateMerchantRulesDisplay();
     }
 }
 
