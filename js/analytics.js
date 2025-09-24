@@ -492,9 +492,12 @@ function displaySearchResults(results, searchTerm) {
         return analyticsData.currentSort.direction === 'asc' ? '↑' : '↓';
     };
 
+    const totalAmount = results.reduce((sum, tx) => sum + tx.parsedAmount, 0);
+
     const html = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h3>Found ${results.length} transaction${results.length === 1 ? '' : 's'}</h3>
+            <h3>Found ${results.length} transaction${results.length === 1 ? '' : 's'}
+            totaling $${totalAmount.toFixed(2)}</h3>
             <button class="btn btn-secondary" onclick="exportSearchResults()">Export Results</button>
         </div>
         <div class="search-results-table">

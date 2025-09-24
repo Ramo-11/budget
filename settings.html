@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Settings - Sahab Budget</title>
+        <!-- CSS Files -->
+        <link rel="stylesheet" href="css/base.css" />
+        <link rel="stylesheet" href="css/features.css" />
+        <link rel="stylesheet" href="css/settings.css" />
+        <link rel="stylesheet" href="css/modals.css" />
+        <link rel="icon" href="/images/logo.png" type="image/x-icon" />
+
+        <!-- External Libraries -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    </head>
+    <body>
+        <div class="container">
+            <!-- Header -->
+            <div class="header">
+                <div
+                    style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        width: 100%;
+                    "
+                >
+                    <div style="display: flex; align-items: center; gap: 15px">
+                        <img
+                            src="/images/logo.png"
+                            alt="Sahab Solutions"
+                            style="height: 32px; width: auto"
+                        />
+                        <div>
+                            <h1 style="margin: 0; font-size: 24px">Settings</h1>
+                            <p
+                                style="
+                                    font-size: 11px;
+                                    color: rgba(255, 255, 255, 0.7);
+                                    margin: 2px 0 0 0;
+                                "
+                            >
+                                Configure categories, budgets, and manage your data
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="nav-buttons">
+                        <button class="nav-btn" onclick="window.location.href='index.html'">
+                            Dashboard
+                        </button>
+                        <button class="nav-btn" onclick="window.location.href='analytics.html'">
+                            Analytics
+                        </button>
+                        <button class="nav-btn active">Settings</button>
+                        <button class="nav-btn" onclick="window.location.href='about.html'">
+                            About
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tabs -->
+            <div class="settings-tabs">
+                <button class="settings-tab active" onclick="switchSettingsTab('categories')">
+                    📂 Categories & Budgets
+                </button>
+                <button class="settings-tab" onclick="switchSettingsTab('rules')">
+                    🧠 Merchant Rules
+                </button>
+                <button class="settings-tab" onclick="switchSettingsTab('data')">
+                    💾 Data Management
+                </button>
+            </div>
+
+            <!-- Categories Tab -->
+            <div class="settings-content active" id="categoriesTab">
+                <div class="settings-section">
+                    <div
+                        style="
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            margin-bottom: 20px;
+                        "
+                    >
+                        <div>
+                            <h3>Categories & Monthly Budgets</h3>
+                            <p style="font-size: 13px; color: var(--gray); margin-top: 5px">
+                                Configure categories, keywords for auto-categorization, and budget
+                                limits
+                            </p>
+                        </div>
+                        <div class="month-selector">
+                            <label>Budget Month:</label>
+                            <select
+                                id="settingsMonthDropdown"
+                                onchange="switchSettingsMonth(this.value)"
+                            ></select>
+                        </div>
+                    </div>
+                    <div class="budget-grid" id="budgetGrid"></div>
+                </div>
+            </div>
+
+            <!-- Merchant Rules Tab -->
+            <div class="settings-content" id="rulesTab">
+                <div class="settings-section">
+                    <h3>Learned Merchant Rules</h3>
+                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 20px">
+                        The app learns from your corrections. When you move transactions, it
+                        remembers merchant patterns.
+                    </p>
+                    <div id="merchantRulesList"></div>
+                </div>
+            </div>
+
+            <!-- Data Management Tab -->
+            <div class="settings-content" id="dataTab">
+                <!-- Backup & Restore -->
+                <div class="settings-section">
+                    <h3>🔄 Backup & Restore</h3>
+                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 20px">
+                        Keep your data safe with regular backups
+                    </p>
+                    <div class="data-actions">
+                        <div class="data-action-card">
+                            <div class="data-action-icon">💾</div>
+                            <h4>Create Backup</h4>
+                            <p>Export all your data as a JSON file</p>
+                            <button class="btn btn-primary" onclick="exportToJSON()">
+                                Download Backup
+                            </button>
+                        </div>
+                        <div class="data-action-card">
+                            <div class="data-action-icon">📥</div>
+                            <h4>Restore Backup</h4>
+                            <p>Import a previously saved backup file</p>
+                            <button class="btn btn-secondary" onclick="importJSONBackup()">
+                                Import Backup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Options -->
+                <div class="settings-section">
+                    <h3>📊 Export Data</h3>
+                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 20px">
+                        Export your transactions in different formats
+                    </p>
+                    <div class="export-options">
+                        <button class="btn btn-secondary" onclick="exportToCSV()">
+                            📄 Export Current Month as CSV
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportAllToCSV()">
+                            📑 Export All Data as CSV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Data Storage Info -->
+                <div class="settings-section">
+                    <h3>📈 Storage Statistics</h3>
+                    <div id="storageStats" class="storage-stats"></div>
+                </div>
+
+                <!-- Danger Zone -->
+                <div class="settings-section danger-zone">
+                    <h3>⚠️ Danger Zone</h3>
+                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 20px">
+                        Irreversible actions - proceed with caution
+                    </p>
+                    <button class="btn btn-danger" onclick="clearAllData()">
+                        🗑️ Clear All Data
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Modal -->
+        <div class="modal" id="importModal"></div>
+
+        <!-- JavaScript Files -->
+        <script src="js/import.js"></script>
+        <script src="js/core.js"></script>
+        <script src="js/utils.js"></script>
+        <script src="js/settings.js"></script>
+        <script>
+            // Initialize settings page
+            window.addEventListener('DOMContentLoaded', () => {
+                loadSavedData();
+                updateSettingsMonthSelector();
+                updateStorageStats();
+
+                if (monthlyData.size > 0) {
+                    const months = Array.from(monthlyData.keys()).sort().reverse();
+                    if (months.length > 0) {
+                        switchSettingsMonth(months[0]);
+                    }
+                }
+            });
+
+            // Switch settings tab
+            function switchSettingsTab(tab) {
+                document
+                    .querySelectorAll('.settings-tab')
+                    .forEach((t) => t.classList.remove('active'));
+                document
+                    .querySelectorAll('.settings-content')
+                    .forEach((c) => c.classList.remove('active'));
+
+                event.target.classList.add('active');
+                document.getElementById(tab + 'Tab').classList.add('active');
+
+                if (tab === 'rules') {
+                    updateMerchantRulesDisplay();
+                } else if (tab === 'data') {
+                    updateStorageStats();
+                }
+            }
+
+            // Update storage stats
+            function updateStorageStats() {
+                let transactionCount = 0;
+                let monthCount = monthlyData.size;
+                let categoryCount = Object.keys(categoryConfig).length;
+                let merchantRuleCount = Object.keys(window.merchantRules || {}).length;
+
+                monthlyData.forEach((data) => {
+                    transactionCount += data.transactions.length;
+                });
+
+                const storageSize = new Blob([
+                    JSON.stringify(localStorage.getItem('sahabBudget_data')),
+                ]).size;
+                const storageMB = (storageSize / (1024 * 1024)).toFixed(2);
+
+                document.getElementById('storageStats').innerHTML = `
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">${transactionCount.toLocaleString()}</div>
+                            <div class="stat-label">Total Transactions</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${monthCount}</div>
+                            <div class="stat-label">Months of Data</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${categoryCount}</div>
+                            <div class="stat-label">Categories</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${merchantRuleCount}</div>
+                            <div class="stat-label">Merchant Rules</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${storageMB} MB</div>
+                            <div class="stat-label">Storage Used</div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Update month selector for settings
+            function updateSettingsMonthSelector() {
+                const dropdown = document.getElementById('settingsMonthDropdown');
+                dropdown.innerHTML = '';
+
+                const months = Array.from(monthlyData.keys()).sort().reverse();
+                months.forEach((monthKey) => {
+                    const monthData = monthlyData.get(monthKey);
+                    const option = document.createElement('option');
+                    option.value = monthKey;
+                    option.textContent = monthData.monthName;
+                    dropdown.appendChild(option);
+                });
+            }
+
+            // Switch settings month
+            function switchSettingsMonth(monthKey) {
+                if (!monthlyData.has(monthKey)) return;
+
+                currentMonth = monthKey;
+                const monthData = monthlyData.get(monthKey);
+                const analyzer = analyzeTransactions(monthData.transactions);
+                updateBudgetView(analyzer);
+            }
+
+            // Export all data as CSV
+            function exportAllToCSV() {
+                let csvContent = 'Date,Description,Amount,Category,Month\n';
+
+                monthlyData.forEach((monthData, monthKey) => {
+                    monthData.transactions.forEach((transaction) => {
+                        const date =
+                            transaction['Transaction Date'] || transaction.Date || transaction.date;
+                        const description =
+                            transaction.Description || transaction.description || '';
+                        const amount = parseFloat(transaction.Amount) || 0;
+                        const category = categorizeTransaction(description, transaction._id);
+
+                        const escapedDesc =
+                            description.includes(',') || description.includes('"')
+                                ? `"${description.replace(/"/g, '""')}"`
+                                : description;
+
+                        csvContent += `${date},${escapedDesc},${amount},${category},${monthData.monthName}\n`;
+                    });
+                });
+
+                downloadFile(csvContent, `all_transactions_${Date.now()}.csv`, 'text/csv');
+                showNotification('All data exported successfully', 'success');
+            }
+        </script>
+    </body>
+</html>

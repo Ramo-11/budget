@@ -6,9 +6,8 @@
         <title>Sahab Budget</title>
         <!-- CSS Files -->
         <link rel="stylesheet" href="css/base.css" />
+        <link rel="stylesheet" href="css/features.css" />
         <link rel="stylesheet" href="css/dashboard.css" />
-        <link rel="stylesheet" href="css/settings.css" />
-        <link rel="stylesheet" href="css/about.css" />
         <link rel="stylesheet" href="css/modals.css" />
         <link rel="icon" href="/images/logo.png" type="image/x-icon" />
 
@@ -28,46 +27,42 @@
                         width: 100%;
                     "
                 >
-                    <div
-                        style="display: flex; flex-direction: column; align-items: center; gap: 6px"
-                    >
-                        <h1 style="margin: 0">Sahab Budget</h1>
-
-                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 4px">
-                            <img
-                                src="/images/logo.png"
-                                alt="Sahab Solutions"
-                                style="height: 28px; width: auto"
-                            />
-                            <div style="display: flex; align-items: center; gap: 6px">
-                                <span style="color: rgba(255, 255, 255, 0.8); font-size: 13px"
-                                    >by</span
-                                >
+                    <div style="display: flex; align-items: center; gap: 15px">
+                        <img
+                            src="/images/logo.png"
+                            alt="Sahab Solutions"
+                            style="height: 32px; width: auto"
+                        />
+                        <div>
+                            <h1 style="margin: 0; font-size: 24px">Sahab Budget</h1>
+                            <p
+                                style="
+                                    font-size: 11px;
+                                    color: rgba(255, 255, 255, 0.7);
+                                    margin: 2px 0 0 0;
+                                "
+                            >
+                                by
                                 <a
                                     href="https://sahab-solutions.com"
                                     target="_blank"
-                                    style="
-                                        text-decoration: none;
-                                        display: flex;
-                                        align-items: center;
-                                        gap: 4px;
-                                    "
+                                    style="color: #818cf8; text-decoration: none"
+                                    >Sahab Solutions</a
                                 >
-                                    <span style="color: #818cf8; font-size: 13px; font-weight: 500">
-                                        Sahab Solutions
-                                    </span>
-                                </a>
-                            </div>
+                            </p>
                         </div>
                     </div>
 
                     <div class="nav-buttons">
-                        <button class="nav-btn active" onclick="switchView('dashboard')">
-                            Dashboard
+                        <button class="nav-btn active">Dashboard</button>
+                        <button class="nav-btn" onclick="window.location.href='analytics.html'">
+                            Analytics
                         </button>
-                        <button class="nav-btn" onclick="switchView('settings')">Settings</button>
-                        <button class="nav-btn" onclick="switchView('about')">
-                            About & Privacy
+                        <button class="nav-btn" onclick="window.location.href='settings.html'">
+                            Settings
+                        </button>
+                        <button class="nav-btn" onclick="window.location.href='about.html'">
+                            About
                         </button>
                     </div>
                 </div>
@@ -84,30 +79,32 @@
                             multiple
                             onchange="handleFileUpload(event)"
                         />
-                        <span>Upload CSV Files</span>
+                        <span>📁 Upload CSV Files</span>
                     </div>
 
                     <div class="month-selector" id="monthSelector">
-                        <label>Select Month:</label>
+                        <label>View:</label>
                         <select id="monthDropdown" onchange="switchToMonth(this.value)"></select>
                     </div>
 
-                    <!-- New Export/Analytics buttons -->
-                    <div class="action-buttons" style="margin-left: auto; display: flex; gap: 10px">
-                        <button class="btn btn-secondary" onclick="findAndMergeDuplicates()">
-                            Remove Duplicates
-                        </button>
-                        <button class="btn btn-secondary" onclick="exportToCSV()">
-                            Export CSV
-                        </button>
-                        <button class="btn btn-secondary" onclick="exportToJSON()">
-                            Backup Data
+                    <!-- Quick action buttons -->
+                    <div
+                        class="action-buttons"
+                        style="margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap"
+                    >
+                        <button
+                            class="btn btn-secondary"
+                            onclick="openDateRangeSelector()"
+                            title="View custom date range"
+                        >
+                            📅 Custom Dates
                         </button>
                         <button
-                            class="btn btn-primary"
-                            onclick="window.location.href='analytics.html'"
+                            class="btn btn-secondary"
+                            onclick="openComparison()"
+                            title="Compare two months"
                         >
-                            View Analytics →
+                            📊 Compare Months
                         </button>
                     </div>
                 </div>
@@ -134,197 +131,6 @@
                 <h3 style="margin: 20px 0 10px">Detailed Breakdown</h3>
                 <div class="category-details" id="categoryDetails"></div>
             </div>
-
-            <!-- Settings View -->
-            <div class="view" id="settingsView">
-                <h2>Settings</h2>
-
-                <!-- Combined Categories & Budgets Section -->
-                <div class="settings-section">
-                    <h3>Categories & Budgets</h3>
-                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 15px">
-                        Manage your categories, set keywords for auto-categorization, and define
-                        monthly budget goals.
-                    </p>
-                    <div class="budget-grid" id="budgetGrid"></div>
-                </div>
-
-                <!-- Merchant Rules Section -->
-                <div class="settings-section">
-                    <h3>Learned Merchant Rules</h3>
-                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 15px">
-                        The app learns from your corrections. When you move transactions, it
-                        remembers merchant patterns.
-                    </p>
-                    <div id="merchantRulesList"></div>
-                </div>
-
-                <!-- Clear Data Section -->
-                <div class="settings-section">
-                    <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
-                </div>
-            </div>
-
-            <!-- About View -->
-            <div class="view" id="aboutView">
-                <div class="about-container">
-                    <!-- Hero Section -->
-                    <div class="about-hero">
-                        <h2>Your Financial Data is 100% Private</h2>
-                        <p class="about-subtitle">
-                            Sahab Budget runs entirely in your browser. Your data never leaves your
-                            device.
-                        </p>
-                    </div>
-
-                    <!-- Privacy Section -->
-                    <div class="about-section">
-                        <h3>🔒 Complete Privacy Guarantee</h3>
-                        <div class="privacy-grid">
-                            <div class="privacy-card">
-                                <span class="privacy-icon">💻</span>
-                                <h4>100% Local</h4>
-                                <p>
-                                    All processing happens in your browser. No servers, no cloud, no
-                                    external connections.
-                                </p>
-                            </div>
-                            <div class="privacy-card">
-                                <span class="privacy-icon">🔐</span>
-                                <h4>Your Data Stays Yours</h4>
-                                <p>
-                                    We cannot see, access, or retrieve your financial data - it's
-                                    technically impossible.
-                                </p>
-                            </div>
-                            <div class="privacy-card">
-                                <span class="privacy-icon">🚫</span>
-                                <h4>No Analytics or Tracking</h4>
-                                <p>
-                                    No Google Analytics, no cookies, no tracking pixels. Complete
-                                    privacy.
-                                </p>
-                            </div>
-                            <div class="privacy-card">
-                                <span class="privacy-icon">📱</span>
-                                <h4>Works Offline</h4>
-                                <p>
-                                    Once loaded, the app works completely offline. No internet
-                                    required.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- How It Works Section -->
-                    <div class="about-section">
-                        <h3>📊 How to Use Sahab Budget</h3>
-                        <div class="features-list">
-                            <div class="feature-item">
-                                <span class="feature-number">1</span>
-                                <div>
-                                    <h4>Upload Your Bank CSV</h4>
-                                    <p>
-                                        Export transactions from your bank as CSV and upload them.
-                                        Multiple files supported.
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="feature-item">
-                                <span class="feature-number">2</span>
-                                <div>
-                                    <h4>Automatic Categorization</h4>
-                                    <p>
-                                        Transactions are automatically sorted into categories based
-                                        on keywords.
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="feature-item">
-                                <span class="feature-number">3</span>
-                                <div>
-                                    <h4>Drag & Drop to Reorganize</h4>
-                                    <p>
-                                        Simply drag transactions between categories to recategorize
-                                        them.
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="feature-item">
-                                <span class="feature-number">4</span>
-                                <div>
-                                    <h4>Set Budget Goals</h4>
-                                    <p>
-                                        Set monthly budgets for each category and track your
-                                        progress.
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="feature-item">
-                                <span class="feature-number">5</span>
-                                <div>
-                                    <h4>Visualize Your Spending</h4>
-                                    <p>
-                                        See your expenses through interactive charts and detailed
-                                        breakdowns.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Data Persistence Section -->
-                    <div class="about-section">
-                        <h3>💾 How Your Data is Stored</h3>
-                        <div class="storage-info">
-                            <p>
-                                <strong>Your data is saved in your browser's localStorage:</strong>
-                            </p>
-
-                            <div class="storage-grid">
-                                <div class="storage-card safe">
-                                    <h4>✅ Data Persists When You:</h4>
-                                    <ul>
-                                        <li>Close the tab</li>
-                                        <li>Close the browser</li>
-                                        <li>Restart your computer</li>
-                                        <li>Come back days/weeks later</li>
-                                    </ul>
-                                </div>
-                                <div class="storage-card warning">
-                                    <h4>⚠️ Data is Lost When You:</h4>
-                                    <ul>
-                                        <li>Clear browser data/cache</li>
-                                        <li>Use Incognito/Private mode</li>
-                                        <li>Click "Clear All Data" in settings</li>
-                                        <li>Use privacy/cleaning tools</li>
-                                    </ul>
-                                </div>
-                            </div>
-
-                            <div class="tip-box">
-                                <strong>💡 Pro Tip:</strong> Use the same browser on the same device
-                                to keep your data accessible.
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Footer -->
-                    <div class="about-footer">
-                        <div class="about-credits">
-                            <h4>Built with ❤️ by Sahab Solutions</h4>
-                            <p>Simple, private, and powerful budget tracking for everyone.</p>
-                            <a
-                                href="https://sahab-solutions.com"
-                                target="_blank"
-                                class="btn btn-primary"
-                            >
-                                Visit Sahab Solutions
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- Transactions Modal -->
@@ -332,9 +138,7 @@
             <div class="modal-content" style="width: 800px">
                 <div class="modal-header">
                     <h2 id="modalTitle">Transactions</h2>
-                    <button class="close-btn" onclick="closeModal('transactionsModal')">
-                        &times;
-                    </button>
+                    <button class="close-btn" onclick="closeModal('transactionsModal')">×</button>
                 </div>
                 <div class="modal-body">
                     <div class="transactions-list" id="transactionsList"></div>
@@ -347,11 +151,19 @@
             </div>
         </div>
 
+        <!-- Comparison Modal -->
+        <div class="modal" id="comparisonModal"></div>
+
+        <!-- Date Range Modal -->
+        <div class="modal" id="dateRangeModal"></div>
+
         <!-- JavaScript Files -->
+        <script src="js/comparison.js"></script>
+        <script src="js/daterange.js"></script>
+        <script src="js/widget.js"></script>
         <script src="js/core.js"></script>
         <script src="js/utils.js"></script>
         <script src="js/dashboard.js"></script>
-        <script src="js/settings.js"></script>
         <script src="js/main.js"></script>
     </body>
 </html>

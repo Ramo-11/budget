@@ -546,39 +546,3 @@ function showAllTransactions(category) {
     document.getElementById('transactionsList').innerHTML = listHTML || '<p>No transactions</p>';
     document.getElementById('transactionsModal').classList.add('show');
 }
-
-// Find and merge duplicate transactions
-function findAndMergeDuplicates() {
-    let totalDuplicates = 0;
-
-    monthlyData.forEach((monthData, monthKey) => {
-        const uniqueTransactions = [];
-        const seen = new Set();
-
-        monthData.transactions.forEach((transaction) => {
-            const date = transaction['Transaction Date'] || transaction.Date || transaction.date;
-            const desc = (transaction.Description || transaction.description || '').trim();
-            const amount = parseFloat(transaction.Amount) || 0;
-
-            // Create a unique key for this transaction
-            const key = `${new Date(date).toDateString()}_${desc}_${amount.toFixed(2)}`;
-
-            if (!seen.has(key)) {
-                seen.add(key);
-                uniqueTransactions.push(transaction);
-            } else {
-                totalDuplicates++;
-            }
-        });
-
-        monthData.transactions = uniqueTransactions;
-    });
-
-    if (totalDuplicates > 0) {
-        saveData();
-        switchToMonth(currentMonth);
-        showNotification(`Removed ${totalDuplicates} duplicate transactions`, 'success');
-    } else {
-        showNotification('No duplicate transactions found', 'success');
-    }
-}

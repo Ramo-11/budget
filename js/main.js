@@ -2,7 +2,6 @@
 
 // Load saved data on startup
 window.addEventListener('DOMContentLoaded', () => {
-    // Initialize merchantRules if not already done
     if (!window.merchantRules) {
         window.merchantRules = {};
     }
@@ -13,6 +12,9 @@ window.addEventListener('DOMContentLoaded', () => {
         document.getElementById('monthDropdown').value = 'ALL_DATA';
         switchToMonth('ALL_DATA');
     }
+
+    // Initialize quick stats widget
+    initializeWidget();
 });
 
 // Handle file upload
@@ -120,18 +122,40 @@ function switchToMonth(monthKey) {
     // Handle "All Data" option
     if (monthKey === 'ALL_DATA') {
         currentMonth = 'ALL_DATA';
-
-        // Combine all transactions
         const allTransactions = [];
         monthlyData.forEach((monthData) => {
             allTransactions.push(...monthData.transactions);
         });
-
         const analyzer = analyzeTransactions(allTransactions);
         updateDashboard(analyzer);
 
         if (document.getElementById('settingsView').classList.contains('active')) {
-            // Settings view doesn't make sense for "All Data", so switch to dashboard
+            switchView('dashboard');
+        }
+        return;
+    }
+
+    // Handle Custom Date Range
+    if (monthKey === 'CUSTOM_RANGE' && window.customDateRange) {
+        currentMonth = 'CUSTOM_RANGE';
+
+        const start = new Date(window.customDateRange.start);
+        const end = new Date(window.customDateRange.end);
+
+        const rangeTransactions = [];
+        monthlyData.forEach((data) => {
+            data.transactions.forEach((t) => {
+                const date = new Date(t['Transaction Date'] || t.Date || t.date);
+                if (date >= start && date <= end) {
+                    rangeTransactions.push(t);
+                }
+            });
+        });
+
+        const analyzer = analyzeTransactions(rangeTransactions);
+        updateDashboard(analyzer);
+
+        if (document.getElementById('settingsView').classList.contains('active')) {
             switchView('dashboard');
         }
         return;
@@ -142,7 +166,6 @@ function switchToMonth(monthKey) {
 
     currentMonth = monthKey;
     const monthData = monthlyData.get(monthKey);
-
     const analyzer = analyzeTransactions(monthData.transactions);
     updateDashboard(analyzer);
 
