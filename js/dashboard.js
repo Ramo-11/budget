@@ -61,8 +61,15 @@ function updateCategoryDetails(analyzer) {
         const card = document.createElement('div');
         card.className = 'category-card';
         card.dataset.category = category;
+        card.dataset.expanded = 'false'; // Track expansion state
 
-        const displayedTransactions = transactions.slice(0, 5);
+        // Check if this category is expanded (from localStorage or default)
+        const isExpanded = window.expandedCategories && window.expandedCategories[category];
+        if (isExpanded) {
+            card.dataset.expanded = 'true';
+        }
+
+        const displayedTransactions = isExpanded ? transactions : transactions.slice(0, 5);
         const remainingCount = transactions.length - 5;
 
         let transactionsHTML = '';
@@ -75,30 +82,42 @@ function updateCategoryDetails(analyzer) {
             `;
         } else {
             transactionsHTML = `
-                ${displayedTransactions
-                    .map(
-                        (t) => `
-                    <div class="transaction-item" 
-                         draggable="true" 
-                         data-transaction-id="${t.id}"
-                         data-category="${category}">
-                        <span class="transaction-name">${t.name}</span>
-                        <span style="display: flex; align-items: center;">
-                            <span class="transaction-amount">$${t.amount.toFixed(2)}</span>
-                            <button class="btn-icon" onclick="deleteTransaction('${category}', '${
-                            t.id
-                        }')">×</button>
-                        </span>
-                    </div>
-                `
-                    )
-                    .join('')}
+                <div class="category-transactions-list ${isExpanded ? 'expanded' : ''}">
+                    ${displayedTransactions
+                        .map(
+                            (t) => `
+                        <div class="transaction-item" 
+                             draggable="true" 
+                             data-transaction-id="${t.id}"
+                             data-category="${category}">
+                            <span class="transaction-name" title="${t.name}">${t.name}</span>
+                            <span style="display: flex; align-items: center;">
+                                <span class="transaction-amount">$${t.amount.toFixed(2)}</span>
+                                <button class="btn-icon" onclick="deleteTransaction('${category}', '${
+                                t.id
+                            }')">×</button>
+                            </span>
+                        </div>
+                    `
+                        )
+                        .join('')}
+                </div>
                 ${
-                    remainingCount > 0
+                    remainingCount > 0 && !isExpanded
                         ? `
                     <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" 
-                            onclick="showAllTransactions('${category}')">
+                            onclick="toggleCategoryExpansion('${category}')">
                         Show ${remainingCount} more
+                    </button>
+                `
+                        : ''
+                }
+                ${
+                    isExpanded && transactions.length > 5
+                        ? `
+                    <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" 
+                            onclick="toggleCategoryExpansion('${category}')">
+                        Show less
                     </button>
                 `
                         : ''
@@ -149,8 +168,10 @@ function updateCategoryDetails(analyzer) {
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <span class="category-total">$${total.toFixed(2)}</span>
                     ${
-                        transactions.length > 0
-                            ? `<button class="btn-text" onclick="showAllTransactions('${category}')">View all</button>`
+                        transactions.length > 5
+                            ? `<button class="btn-text" onclick="toggleCategoryExpansion('${category}')">${
+                                  isExpanded ? 'Collapse' : 'Expand'
+                              }</button>`
                             : ''
                     }
                 </div>
@@ -166,6 +187,49 @@ function updateCategoryDetails(analyzer) {
 
     // Initialize drag and drop
     initializeDragDrop();
+}
+
+// Toggle category expansion
+function toggleCategoryExpansion(category) {
+    // Initialize expanded categories tracking if not exists
+    if (!window.expandedCategories) {
+        window.expandedCategories = {};
+    }
+
+    // Toggle the state
+    window.expandedCategories[category] = !window.expandedCategories[category];
+
+    // Refresh the dashboard to show/hide transactions
+    if (currentMonth) {
+        if (currentMonth === 'ALL_DATA') {
+            const allTransactions = [];
+            monthlyData.forEach((monthData) => {
+                allTransactions.push(...monthData.transactions);
+            });
+            const analyzer = analyzeTransactions(allTransactions);
+            updateDashboard(analyzer);
+        } else if (currentMonth === 'CUSTOM_RANGE' && window.customDateRange) {
+            const start = new Date(window.customDateRange.start);
+            const end = new Date(window.customDateRange.end);
+            const rangeTransactions = [];
+            monthlyData.forEach((data) => {
+                data.transactions.forEach((t) => {
+                    const date = new Date(t['Transaction Date'] || t.Date || t.date);
+                    if (date >= start && date <= end) {
+                        rangeTransactions.push(t);
+                    }
+                });
+            });
+            const analyzer = analyzeTransactions(rangeTransactions);
+            updateDashboard(analyzer);
+        } else {
+            const monthData = monthlyData.get(currentMonth);
+            if (monthData) {
+                const analyzer = analyzeTransactions(monthData.transactions);
+                updateDashboard(analyzer);
+            }
+        }
+    }
 }
 
 // Update charts
