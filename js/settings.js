@@ -7,19 +7,6 @@ function updateBudgetView(analyzer) {
 
     const monthKey = currentMonth;
 
-    // Show notice if switched from ALL_DATA
-    const noticeContainer = document.getElementById('settingsNotice');
-    if (noticeContainer) {
-        noticeContainer.style.display = 'block';
-        noticeContainer.innerHTML = `
-            <span class="settings-notice-icon">ℹ️</span>
-            Currently editing: <strong>${monthlyData.get(currentMonth).monthName}</strong>
-            <span style="margin-left: 10px; font-size: 12px; color: var(--gray);">
-                (Budget settings are per-month. Select a different month to edit its budgets)
-            </span>
-        `;
-    }
-
     if (!budgets[monthKey]) {
         budgets[monthKey] = {};
     }
@@ -42,72 +29,64 @@ function updateBudgetView(analyzer) {
             const categoryId = category.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
 
             return `
-                <div class="budget-item expanded">
-                    <div class="budget-item-header">
-                        <div class="category-edit-group">
+                <div class="budget-item compact">
+                    <div class="budget-item-row">
+                        <div class="category-info">
                             <input type="text" 
-                                   class="icon-input" 
+                                   class="icon-input-compact" 
                                    id="icon-${categoryId}" 
                                    value="${config.icon}" 
                                    maxlength="2"
                                    onchange="updateCategoryIcon('${category}', this.value)">
                             <input type="text" 
-                                   class="category-name-input" 
+                                   class="category-name-input-compact" 
                                    id="name-${categoryId}" 
                                    value="${category}" 
                                    ${category === 'Others' ? 'readonly' : ''}
                                    onchange="renameCategory('${category}', this.value)">
                         </div>
-                        ${
-                            category !== 'Others'
-                                ? `<button class="btn-remove" onclick="removeCategory('${category}')" title="Remove category">×</button>`
-                                : ''
-                        }
-                    </div>
-                    
-                    <div class="keywords-section">
-                        <label class="keywords-label">Keywords:</label>
-                        <input type="text" 
-                               class="keywords-input" 
-                               id="keywords-${categoryId}" 
-                               value="${config.keywords.join(', ')}" 
-                               placeholder="Enter keywords separated by commas (e.g., AMAZON, WALMART)"
-                               onchange="updateCategoryKeywords('${category}', this.value)">
-                    </div>
-                    
-                    <div class="budget-divider"></div>
-                    
-                    <div class="budget-stats">
-                        <div class="budget-stat">
-                            <span class="label">Spent:</span>
-                            <span class="value">$${actual.toFixed(2)}</span>
-                        </div>
-                        <div class="budget-stat">
-                            <span class="label">Budget:</span>
-                            <span class="value">${
-                                budget > 0 ? '$' + budget.toFixed(2) : 'Not set'
-                            }</span>
-                        </div>
-                        ${
-                            budget > 0
-                                ? `
-                            <div class="budget-stat">
-                                <span class="label">Remaining:</span>
-                                <span class="value" style="color: ${
-                                    remaining >= 0 ? 'var(--success)' : 'var(--danger)'
-                                }">
-                                    ${remaining >= 0 ? '+' : ''}$${Math.abs(remaining).toFixed(2)}
-                                </span>
+                        
+                        <div class="budget-controls">
+                            <div class="spending-info">
+                                <span class="spent-label">Spent:</span>
+                                <span class="spent-amount">$${actual.toFixed(2)}</span>
+                                ${
+                                    budget > 0
+                                        ? `
+                                    <span class="remaining-amount ${
+                                        remaining >= 0 ? 'positive' : 'negative'
+                                    }">
+                                        (${remaining >= 0 ? '+' : ''}$${Math.abs(remaining).toFixed(
+                                              2
+                                          )})
+                                    </span>
+                                `
+                                        : ''
+                                }
                             </div>
-                        `
-                                : ''
-                        }
+                            
+                            <div class="budget-input-compact">
+                                <input type="number" 
+                                       id="budget-${categoryId}" 
+                                       placeholder="Budget" 
+                                       value="${budget || ''}"
+                                       step="0.01"
+                                       class="budget-field">
+                                <button class="btn-set-budget" onclick="setBudget('${category}')">Set</button>
+                            </div>
+                            
+                            ${
+                                category !== 'Others'
+                                    ? `<button class="btn-remove-compact" onclick="removeCategory('${category}')" title="Remove">×</button>`
+                                    : '<div style="width: 32px;"></div>'
+                            }
+                        </div>
                     </div>
                     
                     ${
                         budget > 0
                             ? `
-                        <div class="budget-progress">
+                        <div class="budget-progress-compact">
                             <div class="budget-progress-fill ${progressClass}" 
                                  style="width: ${Math.min(percentage, 100)}%"></div>
                         </div>
@@ -115,13 +94,13 @@ function updateBudgetView(analyzer) {
                             : ''
                     }
                     
-                    <div class="budget-input-group">
-                        <input type="number" 
-                               id="budget-${categoryId}" 
-                               placeholder="Set monthly budget" 
-                               value="${budget || ''}"
-                               step="0.01">
-                        <button onclick="setBudget('${category}')">Set Budget</button>
+                    <div class="keywords-row">
+                        <input type="text" 
+                               class="keywords-input-compact" 
+                               id="keywords-${categoryId}" 
+                               value="${config.keywords.join(', ')}" 
+                               placeholder="Keywords: e.g., AMAZON, WALMART (comma-separated)"
+                               onchange="updateCategoryKeywords('${category}', this.value)">
                     </div>
                 </div>
             `;
@@ -129,11 +108,16 @@ function updateBudgetView(analyzer) {
         .join('');
 
     container.innerHTML = `
-        <div class="budget-actions">
-            <button class="btn btn-primary" onclick="addNewCategory()">+ Add Category</button>
-            <button class="btn btn-primary" onclick="saveAllCategoryChanges()">Save All Changes</button>
+        <div class="budget-header">
+            <h3>Categories & Budgets - ${monthlyData.get(currentMonth).monthName}</h3>
+            <div class="budget-actions-compact">
+                <button class="btn btn-primary compact" onclick="addNewCategory()">+ Add Category</button>
+                <button class="btn btn-primary compact" onclick="saveAllCategoryChanges()">Save Changes</button>
+            </div>
         </div>
-        ${categoriesHTML}
+        <div class="budget-items-container">
+            ${categoriesHTML}
+        </div>
     `;
 }
 

@@ -301,6 +301,109 @@
     margin-left: 8px;
 }
 
+/* Search Box Enhancements */
+.analytics-controls {
+    padding: 20px;
+    background: var(--light);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.search-box {
+    flex: 1;
+    max-width: 400px;
+    transition: all 0.3s ease;
+}
+
+.search-box.active {
+    max-width: 500px;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 10px 16px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.2s;
+    background: white;
+}
+
+.search-box input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    outline: none;
+}
+
+.search-box input::placeholder {
+    color: #9ca3af;
+}
+
+/* Search Tab Active State */
+.tab-btn.search-active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+/* Animate search box appearance */
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.search-box[style*='display: block'] {
+    animation: slideDown 0.3s ease;
+}
+
+/* Search Results Table Improvements */
+.search-results-header {
+    display: grid;
+    grid-template-columns: 100px 1fr 150px 100px;
+    gap: 15px;
+    padding: 12px;
+    background: linear-gradient(to bottom, var(--light), rgba(249, 250, 251, 0.5));
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+    font-size: 13px;
+    text-transform: uppercase;
+    color: var(--gray);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.sortable {
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: color 0.2s;
+}
+
+.sortable:hover {
+    color: var(--primary);
+}
+
+.sortable span {
+    transition: transform 0.2s;
+}
+
+.sortable:hover span {
+    transform: translateY(-1px);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .merchants-container {

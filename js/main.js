@@ -160,23 +160,37 @@ function switchView(viewName) {
     event.target.classList.add('active');
 
     if (viewName === 'settings') {
-        // Can't set budgets for "All Data" - switch to most recent month
+        // Filter out ALL_DATA option for settings view
+        const dropdown = document.getElementById('monthDropdown');
+        const currentValue = dropdown.value;
+
+        // Temporarily remove ALL_DATA option
+        const allDataOption = dropdown.querySelector('option[value="ALL_DATA"]');
+        if (allDataOption) {
+            allDataOption.style.display = 'none';
+        }
+
+        // If currently on ALL_DATA, switch to most recent month
         if (currentMonth === 'ALL_DATA') {
             const months = Array.from(monthlyData.keys()).sort().reverse();
             if (months.length > 0) {
-                // Switch dropdown to most recent month
-                document.getElementById('monthDropdown').value = months[0];
+                dropdown.value = months[0];
                 switchToMonth(months[0]);
-                // Notice is now shown in updateBudgetView
             }
         } else if (currentMonth) {
             const monthData = monthlyData.get(currentMonth);
             if (monthData) {
                 const analyzer = analyzeTransactions(monthData.transactions);
                 updateBudgetView(analyzer);
-                // Remove updateCategoriesView() call - no longer needed
-                updateMerchantRulesDisplay();
             }
+        }
+        updateMerchantRulesDisplay();
+    } else {
+        // Show ALL_DATA option for other views
+        const dropdown = document.getElementById('monthDropdown');
+        const allDataOption = dropdown.querySelector('option[value="ALL_DATA"]');
+        if (allDataOption) {
+            allDataOption.style.display = '';
         }
     }
 }

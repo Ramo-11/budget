@@ -12,6 +12,12 @@ window.addEventListener('DOMContentLoaded', () => {
     loadDataFromStorage();
     initializeDateRangeSelectors();
     loadTrendsView();
+
+    // Hide search box initially
+    const searchBox = document.querySelector('.search-box');
+    if (searchBox) {
+        searchBox.style.display = 'none';
+    }
 });
 
 // Load data from localStorage
@@ -46,6 +52,12 @@ function switchAnalyticsTab(tab) {
     document.getElementById(tab + 'View').classList.add('active');
     event.target.classList.add('active');
 
+    // Hide/show search box based on tab
+    const searchBox = document.querySelector('.search-box');
+    if (searchBox) {
+        searchBox.style.display = tab === 'search' ? 'block' : 'none';
+    }
+
     // Load the appropriate view
     switch (tab) {
         case 'trends':
@@ -58,7 +70,6 @@ function switchAnalyticsTab(tab) {
             loadMerchantsView();
             break;
         case 'search':
-            // Show helpful message and focus search box
             showSearchPrompt();
             document.getElementById('transactionSearch').focus();
             break;

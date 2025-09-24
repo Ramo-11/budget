@@ -59,14 +59,6 @@
                     <button class="btn btn-primary" onclick="applyDateRange()">Apply</button>
                     <button class="btn btn-secondary" onclick="resetDateRange()">All Time</button>
                 </div>
-                <div class="search-box">
-                    <input
-                        type="text"
-                        id="transactionSearch"
-                        placeholder="Search transactions..."
-                        oninput="searchTransactions(this.value)"
-                    />
-                </div>
             </div>
 
             <!-- Analytics Tabs -->
@@ -80,9 +72,16 @@
                 <button class="tab-btn" onclick="switchAnalyticsTab('merchants')">
                     Merchant Analysis
                 </button>
-                <button class="tab-btn" onclick="switchAnalyticsTab('search')">
-                    Search Results
-                </button>
+                <button class="tab-btn" onclick="switchAnalyticsTab('search')">Search</button>
+
+                <div class="search-box" style="display: none">
+                    <input
+                        type="text"
+                        id="transactionSearch"
+                        placeholder="Search transactions..."
+                        oninput="searchTransactions(this.value)"
+                    />
+                </div>
             </div>
 
             <!-- Trends View -->
