@@ -83,98 +83,6 @@ async function handleFileUpload(event) {
     }
 }
 
-// Update month selector
-function updateMonthSelector() {
-    const selector = document.getElementById('monthSelector');
-    const dropdown = document.getElementById('monthDropdown');
-
-    dropdown.innerHTML = '';
-    const months = Array.from(monthlyData.keys()).sort().reverse();
-
-    // Add "All Data" option first
-    const allOption = document.createElement('option');
-    allOption.value = 'ALL_DATA';
-    allOption.textContent = '📊 All Months Combined';
-    dropdown.appendChild(allOption);
-
-    // Add separator
-    const separator = document.createElement('option');
-    separator.disabled = true;
-    separator.textContent = '──────────';
-    dropdown.appendChild(separator);
-
-    // Add individual months
-    months.forEach((monthKey) => {
-        const monthData = monthlyData.get(monthKey);
-        const option = document.createElement('option');
-        option.value = monthKey;
-        option.textContent = monthData.monthName;
-        dropdown.appendChild(option);
-    });
-
-    selector.style.display = months.length > 0 ? 'block' : 'none';
-}
-
-// Switch to month
-function switchToMonth(monthKey) {
-    if (!monthKey) return;
-
-    // Handle "All Data" option
-    if (monthKey === 'ALL_DATA') {
-        currentMonth = 'ALL_DATA';
-        const allTransactions = [];
-        monthlyData.forEach((monthData) => {
-            allTransactions.push(...monthData.transactions);
-        });
-        const analyzer = analyzeTransactions(allTransactions);
-        updateDashboard(analyzer);
-
-        const settingsView = document.getElementById('settingsView');
-        if (settingsView && settingsView.classList.contains('active')) {
-            switchView('dashboard');
-        }
-        return;
-    }
-
-    // Handle Custom Date Range
-    if (monthKey === 'CUSTOM_RANGE' && window.customDateRange) {
-        currentMonth = 'CUSTOM_RANGE';
-
-        const start = new Date(window.customDateRange.start);
-        const end = new Date(window.customDateRange.end);
-
-        const rangeTransactions = [];
-        monthlyData.forEach((data) => {
-            data.transactions.forEach((t) => {
-                const date = new Date(t['Transaction Date'] || t.Date || t.date);
-                if (date >= start && date <= end) {
-                    rangeTransactions.push(t);
-                }
-            });
-        });
-
-        const analyzer = analyzeTransactions(rangeTransactions);
-        updateDashboard(analyzer);
-
-        if (document.getElementById('settingsView').classList.contains('active')) {
-            switchView('dashboard');
-        }
-        return;
-    }
-
-    // Regular month handling
-    if (!monthlyData.has(monthKey)) return;
-
-    currentMonth = monthKey;
-    const monthData = monthlyData.get(monthKey);
-    const analyzer = analyzeTransactions(monthData.transactions);
-    updateDashboard(analyzer);
-
-    if (document.getElementById('settingsView').classList.contains('active')) {
-        updateBudgetView(analyzer);
-    }
-}
-
 // Switch view
 function switchView(viewName) {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
@@ -217,27 +125,6 @@ function switchView(viewName) {
             allDataOption.style.display = '';
         }
     }
-}
-
-// Close modal
-function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('show');
-}
-
-// Show notification
-function showNotification(message, type = 'success') {
-    // Remove any existing notifications
-    const existing = document.querySelectorAll('.notification');
-    existing.forEach((n) => n.remove());
-
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
 }
 
 // Apply merchant rules to all data when viewing "All Data"

@@ -1,5 +1,125 @@
 // js/settings.js - Settings View Functions
 
+// Initialize settings page
+window.addEventListener('DOMContentLoaded', () => {
+    if (typeof loadSavedData === 'function') {
+        loadSavedData();
+    }
+    updateSettingsMonthSelector();
+    updateStorageStats();
+
+    if (monthlyData.size > 0) {
+        const months = Array.from(monthlyData.keys()).sort().reverse();
+        if (months.length > 0) {
+            switchSettingsMonth(months[0]);
+        }
+    }
+});
+
+// Switch settings tab
+function switchSettingsTab(tab) {
+    document.querySelectorAll('.settings-tab').forEach((t) => t.classList.remove('active'));
+    document.querySelectorAll('.settings-content').forEach((c) => c.classList.remove('active'));
+
+    event.target.classList.add('active');
+    document.getElementById(tab + 'Tab').classList.add('active');
+
+    if (tab === 'rules') {
+        updateMerchantRulesDisplay();
+    } else if (tab === 'data') {
+        updateStorageStats();
+    }
+}
+
+// Update storage stats
+function updateStorageStats() {
+    let transactionCount = 0;
+    let monthCount = monthlyData.size;
+    let categoryCount = Object.keys(categoryConfig).length;
+    let merchantRuleCount = Object.keys(window.merchantRules || {}).length;
+
+    monthlyData.forEach((data) => {
+        transactionCount += data.transactions.length;
+    });
+
+    const storageSize = new Blob([JSON.stringify(localStorage.getItem('sahabBudget_data'))]).size;
+    const storageMB = (storageSize / (1024 * 1024)).toFixed(2);
+
+    document.getElementById('storageStats').innerHTML = `
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">${transactionCount.toLocaleString()}</div>
+                            <div class="stat-label">Total Transactions</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${monthCount}</div>
+                            <div class="stat-label">Months of Data</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${categoryCount}</div>
+                            <div class="stat-label">Categories</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${merchantRuleCount}</div>
+                            <div class="stat-label">Merchant Rules</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">${storageMB} MB</div>
+                            <div class="stat-label">Storage Used</div>
+                        </div>
+                    </div>
+                `;
+}
+
+// Update month selector for settings
+function updateSettingsMonthSelector() {
+    const dropdown = document.getElementById('settingsMonthDropdown');
+    dropdown.innerHTML = '';
+
+    const months = Array.from(monthlyData.keys()).sort().reverse();
+    months.forEach((monthKey) => {
+        const monthData = monthlyData.get(monthKey);
+        const option = document.createElement('option');
+        option.value = monthKey;
+        option.textContent = monthData.monthName;
+        dropdown.appendChild(option);
+    });
+}
+
+// Switch settings month
+function switchSettingsMonth(monthKey) {
+    if (!monthlyData.has(monthKey)) return;
+
+    currentMonth = monthKey;
+    const monthData = monthlyData.get(monthKey);
+    const analyzer = analyzeTransactions(monthData.transactions);
+    updateBudgetView(analyzer);
+}
+
+// Export all data as CSV
+function exportAllToCSV() {
+    let csvContent = 'Date,Description,Amount,Category,Month\n';
+
+    monthlyData.forEach((monthData, monthKey) => {
+        monthData.transactions.forEach((transaction) => {
+            const date = transaction['Transaction Date'] || transaction.Date || transaction.date;
+            const description = transaction.Description || transaction.description || '';
+            const amount = parseFloat(transaction.Amount) || 0;
+            const category = categorizeTransaction(description, transaction._id);
+
+            const escapedDesc =
+                description.includes(',') || description.includes('"')
+                    ? `"${description.replace(/"/g, '""')}"`
+                    : description;
+
+            csvContent += `${date},${escapedDesc},${amount},${category},${monthData.monthName}\n`;
+        });
+    });
+
+    downloadFile(csvContent, `all_transactions_${Date.now()}.csv`, 'text/csv');
+    showNotification('All data exported successfully', 'success');
+}
+
 // Update budget view in settings
 function updateBudgetView(analyzer) {
     const container = document.getElementById('budgetGrid');
@@ -37,13 +157,14 @@ function updateBudgetView(analyzer) {
                                    id="icon-${categoryId}" 
                                    value="${config.icon}" 
                                    maxlength="2"
-                                   onchange="updateCategoryIcon('${category}', this.value)">
+                                   onchange="markUnsavedChanges()"
+                                   title="Click to change icon">
                             <input type="text" 
                                    class="category-name-input-compact" 
                                    id="name-${categoryId}" 
                                    value="${category}" 
                                    ${category === 'Others' ? 'readonly' : ''}
-                                   onchange="renameCategory('${category}', this.value)">
+                                   onchange="renameCategory('${category}', this.value); markUnsavedChanges()">
                         </div>
                         
                         <div class="budget-controls">
@@ -100,7 +221,8 @@ function updateBudgetView(analyzer) {
                                id="keywords-${categoryId}" 
                                value="${config.keywords.join(', ')}" 
                                placeholder="Keywords: e.g., AMAZON, WALMART (comma-separated)"
-                               onchange="updateCategoryKeywords('${category}', this.value)">
+                               onchange="markUnsavedChanges()"
+                               title="Add keywords that will auto-categorize transactions">
                     </div>
                 </div>
             `;
@@ -112,8 +234,13 @@ function updateBudgetView(analyzer) {
             <h3>Categories & Budgets - ${monthlyData.get(currentMonth).monthName}</h3>
             <div class="budget-actions-compact">
                 <button class="btn btn-primary compact" onclick="addNewCategory()">+ Add Category</button>
-                <button class="btn btn-primary compact" onclick="saveAllCategoryChanges()">Save Changes</button>
+                <button class="btn btn-primary compact" id="saveChangesBtn" onclick="saveAllCategoryChanges()">
+                    <span id="saveChangesText">Save Changes</span>
+                </button>
             </div>
+        </div>
+        <div id="unsavedNotice" style="display: none; background: #fef3c7; color: #92400e; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; font-size: 13px;">
+            ⚠️ You have unsaved changes. Click "Save Changes" to apply keyword updates and re-categorize transactions.
         </div>
         <div class="budget-items-container">
             ${categoriesHTML}
@@ -265,6 +392,7 @@ function saveAllCategoryChanges() {
     // Collect all changes from the UI
     const allCategories = Object.keys(categoryConfig);
     let hasChanges = false;
+    let keywordChanges = false;
 
     allCategories.forEach((category) => {
         const categoryId = category.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
@@ -287,37 +415,29 @@ function saveAllCategoryChanges() {
             if (JSON.stringify(newKeywords) !== JSON.stringify(categoryConfig[category].keywords)) {
                 categoryConfig[category].keywords = newKeywords;
                 hasChanges = true;
+                keywordChanges = true;
             }
         }
     });
 
     if (hasChanges) {
-        if (
-            confirm(
-                'Save all changes and re-categorize transactions based on new keywords? (Manual overrides will be preserved)'
-            )
-        ) {
-            const movedCount = reprocessAllTransactions();
-            saveData();
+        saveData();
 
-            // Refresh current view
-            if (currentMonth) {
-                switchToMonth(currentMonth);
-                const monthData = monthlyData.get(currentMonth);
-                if (monthData) {
-                    const analyzer = analyzeTransactions(monthData.transactions);
-                    updateBudgetView(analyzer);
-                }
-            }
-
-            updateMerchantRulesDisplay();
-
-            let message = 'All changes saved';
-            if (movedCount > 0) {
-                message += ` and ${movedCount} transactions re-categorized`;
-            }
-            showNotification(message, 'success');
+        // Refresh current view immediately
+        if (currentMonth && monthlyData.has(currentMonth)) {
+            const monthData = monthlyData.get(currentMonth);
+            const analyzer = analyzeTransactions(monthData.transactions);
+            updateBudgetView(analyzer);
         }
+
+        // Update merchant rules display if on that tab
+        const rulesTab = document.getElementById('rulesTab');
+        if (rulesTab && rulesTab.classList.contains('active')) {
+            updateMerchantRulesDisplay();
+        }
+
+        let message = 'All changes saved successfully';
+        showNotification(message, 'success');
     } else {
         showNotification('No changes to save', 'info');
     }
@@ -351,22 +471,15 @@ function addNewCategory() {
 
     // If keywords were added, reprocess transactions
     let message = `Category "${trimmedName}" added`;
-    if (keywords.length > 0) {
-        const movedCount = reprocessAllTransactions();
-        if (movedCount > 0) {
-            message += ` and ${movedCount} transactions categorized`;
-        }
-    }
 
     saveData();
 
-    // Refresh the current view
-    if (currentMonth) {
-        switchToMonth(currentMonth);
+    // Refresh the budget view immediately
+    if (currentMonth && monthlyData.has(currentMonth)) {
+        const monthData = monthlyData.get(currentMonth);
+        const analyzer = analyzeTransactions(monthData.transactions);
+        updateBudgetView(analyzer);
     }
-
-    updateCategoriesView();
-    updateSettingsView();
 
     showNotification(message, 'success');
 }
@@ -562,4 +675,37 @@ function clearAllData() {
         window.transactionOverrides = {};
         location.reload();
     }
+}
+
+// Mark that there are unsaved changes
+function markUnsavedChanges() {
+    const notice = document.getElementById('unsavedNotice');
+    const saveBtn = document.getElementById('saveChangesBtn');
+
+    if (notice) {
+        notice.style.display = 'block';
+    }
+
+    if (saveBtn) {
+        saveBtn.classList.add('pulse');
+        document.getElementById('saveChangesText').textContent = 'Save Changes*';
+    }
+}
+
+// Show notification function (if not already defined elsewhere)
+if (typeof showNotification === 'undefined') {
+    window.showNotification = function (message, type = 'success') {
+        // Remove any existing notifications
+        const existing = document.querySelectorAll('.notification');
+        existing.forEach((n) => n.remove());
+
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    };
 }
