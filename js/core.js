@@ -102,7 +102,11 @@ function loadSavedData() {
             budgets = data.budgets || {};
             window.transactionOverrides = data.transactionOverrides || {};
             window.merchantRules = data.merchantRules || {};
-            updateMonthSelector();
+
+            // Only update month selector if we're on a page that has it
+            if (document.getElementById('monthDropdown')) {
+                updateMonthSelector();
+            }
         }
     } catch (error) {
         console.error('Error loading saved data:', error);
@@ -392,6 +396,11 @@ function downloadFile(content, fileName, mimeType) {
 function updateMonthSelector() {
     const selector = document.getElementById('monthSelector');
     const dropdown = document.getElementById('monthDropdown');
+
+    // Check if elements exist (they won't on settings page)
+    if (!selector || !dropdown) {
+        return;
+    }
 
     dropdown.innerHTML = '';
     const months = Array.from(monthlyData.keys()).sort().reverse();

@@ -50,6 +50,7 @@ function exportToJSON() {
         categoryConfig: categoryConfig,
         budgets: budgets,
         transactionOverrides: window.transactionOverrides || {},
+        merchantRules: window.merchantRules || {},
         exportDate: new Date().toISOString(),
         version: '1.0',
     };

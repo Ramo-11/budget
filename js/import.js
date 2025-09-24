@@ -1,4 +1,5 @@
 // js/import.js - Import/Export Module
+let pendingImportData = null;
 
 // Import JSON backup
 function importJSONBackup() {
@@ -31,6 +32,9 @@ function importJSONBackup() {
 
 // Show import options modal
 function showImportOptionsModal(importData) {
+    // Store the import data in memory instead of encoding it
+    pendingImportData = importData;
+
     const modal = document.getElementById('importModal');
     const importDate = new Date(importData.exportDate).toLocaleString();
     const monthCount = importData.monthlyData.length;
@@ -88,9 +92,7 @@ function showImportOptionsModal(importData) {
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal('importModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="executeImport('${encodeURIComponent(
-                    JSON.stringify(importData)
-                )}')">
+                <button class="btn btn-primary" onclick="executeImport()">
                     Import
                 </button>
             </div>
@@ -100,9 +102,8 @@ function showImportOptionsModal(importData) {
     modal.classList.add('show');
 }
 
-// Execute the import
-function executeImport(encodedData) {
-    const importData = JSON.parse(decodeURIComponent(encodedData));
+function executeImport() {
+    const importData = pendingImportData;
     const mode = document.querySelector('input[name="importMode"]:checked').value;
 
     try {
@@ -142,15 +143,37 @@ function executeImport(encodedData) {
         }
 
         saveData();
-        updateMonthSelector();
 
-        if (monthlyData.size > 0) {
+        // Update the appropriate month selector based on current page
+        if (typeof updateMonthSelector === 'function') {
+            updateMonthSelector(); // For main dashboard
+        }
+        if (typeof updateSettingsMonthSelector === 'function') {
+            updateSettingsMonthSelector(); // For settings page
+        }
+
+        // If we're on the settings page, update the view
+        if (document.getElementById('settingsMonthDropdown')) {
+            const months = Array.from(monthlyData.keys()).sort().reverse();
+            if (months.length > 0) {
+                document.getElementById('settingsMonthDropdown').value = months[0];
+                switchSettingsMonth(months[0]);
+            }
+            // Update storage stats on settings page
+            if (typeof updateStorageStats === 'function') {
+                updateStorageStats();
+            }
+        } else if (document.getElementById('monthDropdown')) {
+            // We're on the main dashboard
             document.getElementById('monthDropdown').value = 'ALL_DATA';
             switchToMonth('ALL_DATA');
         }
 
         closeModal('importModal');
         showNotification('Backup imported successfully', 'success');
+
+        // Clear the pending data
+        pendingImportData = null;
     } catch (error) {
         showNotification('Import failed: ' + error.message, 'error');
     }

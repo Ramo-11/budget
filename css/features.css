@@ -228,7 +228,7 @@
 .comparison-table th {
     background: var(--light);
     padding: 10px;
-    text-align: left;
+    text-align: center;
     font-size: 13px;
     font-weight: 600;
     color: var(--gray);
@@ -242,12 +242,12 @@
 }
 
 .comparison-table td.amount {
-    text-align: right;
+    text-align: center;
     font-weight: 500;
 }
 
 .comparison-table td.difference {
-    text-align: right;
+    text-align: center;
     font-weight: 600;
 }
 
