@@ -67,11 +67,17 @@ async function handleFileUpload(event) {
 
         // Show detailed upload result
         let message = `Processed ${allTransactions.length} transactions`;
+        if (processResult.rulesApplied > 0) {
+            message += ` (${processResult.rulesApplied} removed by custom rules)`;
+        }
+        if (processResult.skipped > 0) {
+            message += ` (${processResult.skipped} income/credits skipped)`;
+        }
         if (processResult.duplicates > 0) {
             message += ` (${processResult.duplicates} duplicates skipped)`;
         }
         if (processResult.added > 0) {
-            message += ` - ${processResult.added} new added`;
+            message += ` - ${processResult.added} new expenses added`;
         }
         showNotification(message, 'success');
     } catch (error) {

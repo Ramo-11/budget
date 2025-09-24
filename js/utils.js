@@ -19,9 +19,19 @@ function exportToCSV() {
     let csvContent = 'Date,Description,Amount,Category\n';
 
     transactions.forEach((transaction) => {
-        const date = transaction['Transaction Date'] || transaction.Date || transaction.date;
+        const date =
+            transaction['Transaction Date'] ||
+            transaction['Posting Date'] ||
+            transaction['Post Date'] ||
+            transaction.Date ||
+            transaction.date ||
+            transaction['Trans Date'] ||
+            transaction['Trans. Date'] ||
+            transaction['Posted Date'];
         const description = transaction.Description || transaction.description || '';
-        const amount = parseFloat(transaction.Amount) || 0;
+        const amount = parseFloat(
+            transaction.Amount || transaction.Debit || transaction.Credit || 0
+        );
         const category = categorizeTransaction(description, transaction._id);
 
         // Escape commas and quotes in description

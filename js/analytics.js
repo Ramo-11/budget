@@ -333,7 +333,15 @@ function loadMerchantsView() {
             merchantTotals[description].count += 1;
             merchantTotals[description].transactions.push({
                 amount: amount,
-                date: transaction['Transaction Date'] || transaction.Date || transaction.date,
+                date:
+                    transaction['Transaction Date'] ||
+                    transaction['Posting Date'] ||
+                    transaction['Post Date'] ||
+                    transaction.Date ||
+                    transaction.date ||
+                    transaction['Trans Date'] ||
+                    transaction['Trans. Date'] ||
+                    transaction['Posted Date'],
             });
         });
     });
@@ -423,7 +431,14 @@ function searchTransactions(query) {
                     monthName: monthData.monthName,
                     parsedAmount: Math.abs(parseFloat(transaction.Amount) || 0),
                     parsedDate: new Date(
-                        transaction['Transaction Date'] || transaction.Date || transaction.date
+                        transaction['Transaction Date'] ||
+                            transaction['Posting Date'] ||
+                            transaction['Post Date'] ||
+                            transaction.Date ||
+                            transaction.date ||
+                            transaction['Trans Date'] ||
+                            transaction['Trans. Date'] ||
+                            transaction['Posted Date']
                     ),
                 });
             }

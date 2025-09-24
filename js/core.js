@@ -1,12 +1,21 @@
 // js/core.js - Core Data Management and State
 
+let customRules = {
+    delete: [], // Rules for deleting transactions
+    categorize: [], // Future: rules for custom categorization
+};
+
 // Global state
 let currentMonth = null;
 let monthlyData = new Map();
 let categoryConfig = {
-    'Once A Year': {
-        keywords: ['DOMAINS', 'GYM MEMBERSHIP', 'ANNUAL FEE'],
-        icon: '📅',
+    Transfers: {
+        keywords: ['ZELLE', 'ONLINE TRANSFER', 'ACCT_XFER', 'WIRE', 'QUICKPAY', 'VENMO', 'CASHAPP'],
+        icon: '💸',
+    },
+    Banking: {
+        keywords: ['FEE', 'INTEREST', 'OVERDRAFT', 'SERVICE CHARGE', 'ATM'],
+        icon: '🏦',
     },
     Groceries: {
         keywords: ['COSTCO', 'WALMART', 'KROGER', 'WHOLE FOODS', 'TARGET', 'ALDI'],
@@ -102,6 +111,7 @@ function loadSavedData() {
             budgets = data.budgets || {};
             window.transactionOverrides = data.transactionOverrides || {};
             window.merchantRules = data.merchantRules || {};
+            customRules = data.customRules || { delete: [], categorize: [] };
 
             // Only update month selector if we're on a page that has it
             if (document.getElementById('monthDropdown')) {
@@ -121,7 +131,8 @@ function saveData() {
             categoryConfig: categoryConfig,
             budgets: budgets,
             transactionOverrides: window.transactionOverrides || {},
-            merchantRules: window.merchantRules || {}, // ADD THIS LINE
+            merchantRules: window.merchantRules || {},
+            customRules: customRules,
         };
         localStorage.setItem('sahabBudget_data', JSON.stringify(data));
     } catch (error) {
@@ -133,21 +144,82 @@ function saveData() {
 function splitByMonth(transactions) {
     let added = 0;
     let duplicates = 0;
+    let skipped = 0;
+    let rulesApplied = 0;
 
     transactions.forEach((transaction) => {
-        // Skip payment thank you transactions
-        if (
-            (transaction.Description || transaction.description || '')
-                .toUpperCase()
-                .includes('PAYMENT THANK YOU')
-        ) {
+        const description = (
+            transaction.Description ||
+            transaction.description ||
+            ''
+        ).toUpperCase();
+
+        // Check custom delete rules FIRST
+        const activeDeleteRules = (customRules.delete || []).filter((rule) => rule.active);
+        const shouldDeleteByRule = activeDeleteRules.some((rule) => {
+            const pattern = rule.pattern.toUpperCase();
+            if (rule.matchType === 'contains') {
+                return description.includes(pattern);
+            } else if (rule.matchType === 'startsWith') {
+                return description.startsWith(pattern);
+            } else if (rule.matchType === 'endsWith') {
+                return description.endsWith(pattern);
+            } else if (rule.matchType === 'exact') {
+                return description === pattern;
+            }
+            return false;
+        });
+
+        if (shouldDeleteByRule) {
+            rulesApplied++;
             return;
         }
 
-        const dateField = transaction['Transaction Date'] || transaction.Date || transaction.date;
+        // Skip non-expense transactions (income, payments, etc.)
+        const skipPatterns = [
+            'PAYMENT THANK YOU',
+            'PAYROLL',
+            'SALARY',
+            'DIRECT DEP',
+            'DEPOSIT',
+            'ACH_CREDIT',
+            'WIRE_INCOMING',
+            'QUICKPAY_CREDIT',
+            'ZELLE PAYMENT FROM',
+            'ONLINE TRANSFER FROM',
+            'INTEREST PAID',
+            'REFUND',
+            'CASHBACK',
+            'REWARD',
+            'DIVIDEND',
+            'TAX REFUND',
+        ];
+
+        // Check if transaction should be skipped
+        const shouldSkip = skipPatterns.some((pattern) => description.includes(pattern));
+
+        // Also skip positive amounts (credits/income)
+        const amount = parseFloat(
+            transaction.Amount || transaction.Debit || transaction.Credit || 0
+        );
+        if (shouldSkip || amount > 0) {
+            skipped++;
+            return;
+        }
+
+        // Enhanced date field detection - try multiple possible field names
+        const dateField =
+            transaction['Transaction Date'] ||
+            transaction['Posting Date'] ||
+            transaction['Post Date'] ||
+            transaction.Date ||
+            transaction.date ||
+            transaction['Trans Date'] ||
+            transaction['Trans. Date'] ||
+            transaction['Posted Date'];
+
         if (!dateField) return;
 
-        const amount = parseFloat(transaction.Amount) || 0;
         if (amount === 0) return;
 
         const date = new Date(dateField);
@@ -175,21 +247,42 @@ function splitByMonth(transactions) {
         }
     });
 
-    return { added, duplicates };
+    return { added, duplicates, skipped, rulesApplied };
 }
-
 // Check if a transaction is a duplicate
 function isDuplicateTransaction(newTransaction, existingTransactions) {
+    // Enhanced date field detection
     const newDate =
-        newTransaction['Transaction Date'] || newTransaction.Date || newTransaction.date;
+        newTransaction['Transaction Date'] ||
+        newTransaction['Posting Date'] ||
+        newTransaction['Post Date'] ||
+        newTransaction.Date ||
+        newTransaction.date ||
+        newTransaction['Trans Date'] ||
+        newTransaction['Trans. Date'] ||
+        newTransaction['Posted Date'];
+
     const newDesc = (newTransaction.Description || newTransaction.description || '').trim();
-    const newAmount = parseFloat(newTransaction.Amount) || 0;
+    const newAmount = parseFloat(
+        newTransaction.Amount || newTransaction.Debit || newTransaction.Credit || 0
+    );
 
     // Check for exact duplicates (same date, description, and amount)
     return existingTransactions.some((existing) => {
-        const existingDate = existing['Transaction Date'] || existing.Date || existing.date;
+        const existingDate =
+            existing['Transaction Date'] ||
+            existing['Posting Date'] ||
+            existing['Post Date'] ||
+            existing.Date ||
+            existing.date ||
+            existing['Trans Date'] ||
+            existing['Trans. Date'] ||
+            existing['Posted Date'];
+
         const existingDesc = (existing.Description || existing.description || '').trim();
-        const existingAmount = parseFloat(existing.Amount) || 0;
+        const existingAmount = parseFloat(
+            existing.Amount || existing.Debit || existing.Credit || 0
+        );
 
         // Compare date strings (to avoid timezone issues)
         const sameDate = new Date(newDate).toDateString() === new Date(existingDate).toDateString();
@@ -199,7 +292,6 @@ function isDuplicateTransaction(newTransaction, existingTransactions) {
         return sameDate && sameDesc && sameAmount;
     });
 }
-
 // Categorize transaction
 function categorizeTransaction(description, transactionId = null) {
     // First check if this specific transaction has an override
@@ -281,7 +373,15 @@ function analyzeTransactions(transactions) {
         categoryDetails[category].push({
             name: description,
             amount: amount,
-            date: transaction['Transaction Date'] || transaction.Date || transaction.date,
+            date:
+                transaction['Transaction Date'] ||
+                transaction['Posting Date'] ||
+                transaction['Post Date'] ||
+                transaction.Date ||
+                transaction.date ||
+                transaction['Trans Date'] ||
+                transaction['Trans. Date'] ||
+                transaction['Posted Date'],
             id: transaction._id,
             originalData: transaction,
         });

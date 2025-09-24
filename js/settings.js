@@ -28,6 +28,8 @@ function switchSettingsTab(tab) {
         updateMerchantRulesDisplay();
     } else if (tab === 'data') {
         updateStorageStats();
+    } else if (tab === 'customRules') {
+        updateCustomRulesDisplay();
     }
 }
 

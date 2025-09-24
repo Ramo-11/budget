@@ -69,6 +69,9 @@
                 <button class="settings-tab" onclick="switchSettingsTab('rules')">
                     🧠 Merchant Rules
                 </button>
+                <button class="settings-tab" onclick="switchSettingsTab('customRules')">
+                    ⚙️ Custom Rules
+                </button>
                 <button class="settings-tab" onclick="switchSettingsTab('data')">
                     💾 Data Management
                 </button>
@@ -113,6 +116,28 @@
                         remembers merchant patterns.
                     </p>
                     <div id="merchantRulesList"></div>
+                </div>
+            </div>
+
+            <!-- Custom Rules Tab -->
+            <div class="settings-content" id="customRulesTab">
+                <div class="settings-section">
+                    <h3>🗑️ Transaction Deletion Rules</h3>
+                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 20px">
+                        Create rules to automatically skip transactions during import. Rules can be
+                        toggled on/off.
+                    </p>
+
+                    <div style="margin-bottom: 20px">
+                        <button class="btn btn-primary" onclick="addCustomRule()">
+                            + Add New Rule
+                        </button>
+                        <button class="btn btn-secondary" onclick="applyRulesToExisting()">
+                            Apply Rules to Existing Data
+                        </button>
+                    </div>
+
+                    <div id="customRulesList"></div>
                 </div>
             </div>
 
@@ -186,6 +211,7 @@
         <script src="js/import.js"></script>
         <script src="js/core.js"></script>
         <script src="js/utils.js"></script>
+        <script src="js/custom_rules.js"></script>
         <script src="js/settings.js"></script>
     </body>
 </html>
