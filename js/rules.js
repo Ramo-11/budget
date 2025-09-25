@@ -1,6 +1,6 @@
 // js/rules.js - Unified Rules System
 
-let unifiedRules = [];
+window.unifiedRules = window.unifiedRules || [];
 
 // Initialize rules from saved data
 function initializeRules() {
@@ -61,6 +61,8 @@ function loadRules() {
     const data = JSON.parse(localStorage.getItem('sahabBudget_data') || '{}');
     if (data.unifiedRules) {
         unifiedRules = data.unifiedRules;
+    } else if (!unifiedRules || unifiedRules.length === 0) {
+        unifiedRules = [];
     } else {
         initializeRules();
     }
@@ -72,6 +74,8 @@ function createRuleFromDragDrop(description, toCategory) {
         .toUpperCase()
         .split(/[\s#\*]/)[0]
         .trim();
+
+    console.log(`Extracted merchant name: "${merchantName}" from "${description}"`);
 
     if (!merchantName) return null;
 
@@ -96,6 +100,7 @@ function createRuleFromDragDrop(description, toCategory) {
 
     unifiedRules.push(newRule);
     saveRules();
+    saveData();
 
     return newRule;
 }
@@ -588,71 +593,71 @@ function clearAllRules() {
 }
 
 // Export rules
-function exportRules() {
-    if (unifiedRules.length === 0) {
-        showNotification('No rules to export', 'error');
-        return;
-    }
+// function exportRules() {
+//     if (unifiedRules.length === 0) {
+//         showNotification('No rules to export', 'error');
+//         return;
+//     }
 
-    const exportData = {
-        rules: unifiedRules,
-        exportDate: new Date().toISOString(),
-        version: '1.0',
-    };
+//     const exportData = {
+//         rules: unifiedRules,
+//         exportDate: new Date().toISOString(),
+//         version: '1.0',
+//     };
 
-    const jsonContent = JSON.stringify(exportData, null, 2);
-    downloadFile(jsonContent, `rules_export_${Date.now()}.json`, 'application/json');
-    showNotification('Rules exported successfully', 'success');
-}
+//     const jsonContent = JSON.stringify(exportData, null, 2);
+//     downloadFile(jsonContent, `rules_export_${Date.now()}.json`, 'application/json');
+//     showNotification('Rules exported successfully', 'success');
+// }
 
 // Import rules
-function importRules() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
+// function importRules() {
+//     const input = document.createElement('input');
+//     input.type = 'file';
+//     input.accept = '.json';
 
-    input.onchange = async (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
+//     input.onchange = async (event) => {
+//         const file = event.target.files[0];
+//         if (!file) return;
 
-        try {
-            const text = await file.text();
-            const importData = JSON.parse(text);
+//         try {
+//             const text = await file.text();
+//             const importData = JSON.parse(text);
 
-            if (!importData.rules || !Array.isArray(importData.rules)) {
-                throw new Error('Invalid rules file format');
-            }
+//             if (!importData.rules || !Array.isArray(importData.rules)) {
+//                 throw new Error('Invalid rules file format');
+//             }
 
-            const importCount = importData.rules.length;
+//             const importCount = importData.rules.length;
 
-            if (confirm(`Import ${importCount} rule(s)? This will merge with existing rules.`)) {
-                // Merge with existing rules, avoiding duplicates
-                importData.rules.forEach((importedRule) => {
-                    const exists = unifiedRules.some(
-                        (r) =>
-                            r.pattern === importedRule.pattern &&
-                            r.type === importedRule.type &&
-                            r.action === importedRule.action
-                    );
+//             if (confirm(`Import ${importCount} rule(s)? This will merge with existing rules.`)) {
+//                 // Merge with existing rules, avoiding duplicates
+//                 importData.rules.forEach((importedRule) => {
+//                     const exists = unifiedRules.some(
+//                         (r) =>
+//                             r.pattern === importedRule.pattern &&
+//                             r.type === importedRule.type &&
+//                             r.action === importedRule.action
+//                     );
 
-                    if (!exists) {
-                        // Generate new ID to avoid conflicts
-                        importedRule.id = generateRuleId();
-                        unifiedRules.push(importedRule);
-                    }
-                });
+//                     if (!exists) {
+//                         // Generate new ID to avoid conflicts
+//                         importedRule.id = generateRuleId();
+//                         unifiedRules.push(importedRule);
+//                     }
+//                 });
 
-                saveRules();
-                updateRulesDisplay();
-                showNotification(`Rules imported successfully`, 'success');
-            }
-        } catch (error) {
-            showNotification('Error reading rules file: ' + error.message, 'error');
-        }
-    };
+//                 saveRules();
+//                 updateRulesDisplay();
+//                 showNotification(`Rules imported successfully`, 'success');
+//             }
+//         } catch (error) {
+//             showNotification('Error reading rules file: ' + error.message, 'error');
+//         }
+//     };
 
-    input.click();
-}
+//     input.click();
+// }
 
 // Initialize on load
 if (typeof window.rulesInitialized === 'undefined') {

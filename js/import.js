@@ -113,7 +113,7 @@ function executeImport() {
             categoryConfig = importData.categoryConfig || categoryConfig;
             budgets = importData.budgets || {};
             window.transactionOverrides = importData.transactionOverrides || {};
-            window.merchantRules = importData.merchantRules || {};
+            window.unifiedRules = importData.unifiedRules || [];
         } else {
             // Merge data
             const existingData = new Map(monthlyData);
@@ -139,7 +139,26 @@ function executeImport() {
             Object.assign(categoryConfig, importData.categoryConfig || {});
             Object.assign(budgets, importData.budgets || {});
             Object.assign(window.transactionOverrides, importData.transactionOverrides || {});
-            Object.assign(window.merchantRules, importData.merchantRules || {});
+
+            if (importData.unifiedRules && Array.isArray(importData.unifiedRules)) {
+                if (!window.unifiedRules) {
+                    window.unifiedRules = [];
+                }
+                // Add imported rules, avoiding duplicates based on pattern and action
+                importData.unifiedRules.forEach((importedRule) => {
+                    const exists = window.unifiedRules.some(
+                        (r) =>
+                            r.pattern === importedRule.pattern &&
+                            r.type === importedRule.type &&
+                            r.action === importedRule.action
+                    );
+                    if (!exists) {
+                        // Generate new ID to avoid conflicts
+                        importedRule.id = 'rule_' + Math.random().toString(36).substr(2, 9);
+                        window.unifiedRules.push(importedRule);
+                    }
+                });
+            }
         }
 
         saveData();

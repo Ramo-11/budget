@@ -447,29 +447,43 @@ function moveTransaction(transactionId, fromCategory, toCategory) {
             return;
         }
 
-        // Store the override for the actual month
+        // Initialize overrides if needed
         if (!window.transactionOverrides) {
             window.transactionOverrides = {};
         }
         if (!window.transactionOverrides[actualMonth]) {
             window.transactionOverrides[actualMonth] = {};
         }
+
+        // Set the override
         window.transactionOverrides[actualMonth][transactionId] = toCategory;
 
-        if (typeof loadRules === 'function') loadRules();
+        // Load existing rules first
+        if (typeof loadRules === 'function') {
+            loadRules();
+        }
 
         // Create a unified rule from this move
         if (typeof createRuleFromDragDrop === 'function') {
-            const description =
-                actualTransaction.Description || actualTransaction.description || '';
+            const description = (
+                actualTransaction.Description ||
+                actualTransaction.description ||
+                ''
+            ).trim();
             const rule = createRuleFromDragDrop(description, toCategory);
             if (rule) {
                 console.log(`Created automatic rule: "${rule.pattern}" → ${toCategory}`);
             }
         }
 
+        // Save BOTH the data and rules
         saveData();
-        switchToMonth('ALL_DATA'); // Refresh the All Data view
+
+        // Force a complete refresh
+        setTimeout(() => {
+            switchToMonth('ALL_DATA');
+        }, 100);
+
         showNotification(
             `Moved to ${toCategory} (rule created for similar transactions)`,
             'success'
