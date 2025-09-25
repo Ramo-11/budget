@@ -10,6 +10,7 @@
         <link rel="stylesheet" href="css/dashboard.css" />
         <link rel="stylesheet" href="css/budgetview.css" />
         <link rel="stylesheet" href="css/modals.css" />
+        <link rel="stylesheet" href="css/getting-started.css" />
         <link rel="icon" href="/images/logo.png" type="image/x-icon" />
 
         <!-- External Libraries -->
@@ -65,7 +66,68 @@
                         <button class="nav-btn" onclick="window.location.href='about.html'">
                             About
                         </button>
+                        <button class="help-btn" onclick="showHelp()" title="Help & Tutorial">
+                            ❓
+                        </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Getting Started Section -->
+            <div class="getting-started-section" id="gettingStartedSection">
+                <div class="getting-started-content">
+                    <div class="getting-started-header">
+                        <h2>🎯 Welcome to Sahab Budget!</h2>
+                        <p>New here? Watch our quick tutorial or try with sample data</p>
+                    </div>
+
+                    <div class="getting-started-grid">
+                        <div class="tutorial-card">
+                            <h3>📹 Watch Tutorial</h3>
+                            <p>Learn how to use Sahab Budget in just 3 minutes</p>
+                            <div class="video-wrapper" id="videoWrapper">
+                                <iframe
+                                    src="https://www.youtube.com/embed/YOUR_VIDEO_ID"
+                                    frameborder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowfullscreen
+                                >
+                                </iframe>
+                            </div>
+                        </div>
+
+                        <div class="sample-data-card">
+                            <h3>🧪 Try Sample Data</h3>
+                            <p>Explore all features risk-free with demo transactions</p>
+                            <button class="btn btn-primary" onclick="loadSampleData()">
+                                Load Sample Data
+                            </button>
+                            <div
+                                class="sample-mode-indicator"
+                                id="sampleModeIndicator"
+                                style="display: none"
+                            >
+                                <span>✨ Sample Mode Active</span>
+                                <button class="btn btn-secondary btn-sm" onclick="exitSampleMode()">
+                                    Exit Sample Mode
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn-text collapse-btn" onclick="toggleGettingStarted()">
+                        Hide Getting Started ↑
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sample Mode Banner -->
+            <div class="sample-mode-banner" id="sampleModeBanner" style="display: none">
+                <div class="banner-content">
+                    <span>🧪 You're viewing sample data - feel free to explore all features!</span>
+                    <button class="btn btn-secondary btn-sm" onclick="exitSampleMode()">
+                        Exit Sample Mode
+                    </button>
                 </div>
             </div>
 
@@ -175,5 +237,6 @@
         <script src="js/dashboard.js"></script>
         <script src="js/budgetView.js"></script>
         <script src="js/main.js"></script>
+        <script src="js/getting-started.js"></script>
     </body>
 </html>

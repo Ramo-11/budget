@@ -8,6 +8,7 @@
         <link rel="stylesheet" href="css/base.css" />
         <link rel="stylesheet" href="css/guide.css" />
         <link rel="stylesheet" href="css/about.css" />
+        <link rel="stylesheet" href="css/getting-started.css" />
         <link rel="icon" href="/images/logo.png" type="image/x-icon" />
     </head>
     <body>
@@ -53,7 +54,20 @@
                             Settings
                         </button>
                         <button class="nav-btn active">About</button>
+                        <button class="help-btn" onclick="showHelp()" title="Help & Tutorial">
+                            ❓
+                        </button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Sample Mode Banner -->
+            <div class="sample-mode-banner" id="sampleModeBanner" style="display: none">
+                <div class="banner-content">
+                    <span>🧪 You're viewing sample data - feel free to explore all features!</span>
+                    <button class="btn btn-secondary btn-sm" onclick="exitSampleMode()">
+                        Exit Sample Mode
+                    </button>
                 </div>
             </div>
 
@@ -491,5 +505,6 @@
                 window.scrollTo(0, 0);
             }
         </script>
+        <script src="js/getting-started.js"></script>
     </body>
 </html>

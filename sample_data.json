@@ -1,0 +1,879 @@
+{
+    "version": "1.0",
+    "exportDate": "2024-12-15T10:00:00.000Z",
+    "monthlyData": [
+        [
+            "2024-10",
+            {
+                "monthName": "October 2024",
+                "transactions": [
+                    {
+                        "_id": "oct1",
+                        "Transaction Date": "2024-10-01",
+                        "Description": "WALMART SUPERCENTER #2341",
+                        "Amount": -156.89
+                    },
+                    {
+                        "_id": "oct2",
+                        "Transaction Date": "2024-10-02",
+                        "Description": "SHELL GAS STATION 4432",
+                        "Amount": -52.45
+                    },
+                    {
+                        "_id": "oct3",
+                        "Transaction Date": "2024-10-03",
+                        "Description": "STARBUCKS COFFEE #1123",
+                        "Amount": -6.75
+                    },
+                    {
+                        "_id": "oct4",
+                        "Transaction Date": "2024-10-04",
+                        "Description": "AMAZON.COM MERCHANDISE",
+                        "Amount": -89.99
+                    },
+                    {
+                        "_id": "oct5",
+                        "Transaction Date": "2024-10-05",
+                        "Description": "CHIPOTLE MEXICAN GRILL",
+                        "Amount": -12.85
+                    },
+                    {
+                        "_id": "oct6",
+                        "Transaction Date": "2024-10-06",
+                        "Description": "NETFLIX SUBSCRIPTION",
+                        "Amount": -15.99
+                    },
+                    {
+                        "_id": "oct7",
+                        "Transaction Date": "2024-10-07",
+                        "Description": "KROGER GROCERY #445",
+                        "Amount": -98.76
+                    },
+                    {
+                        "_id": "oct8",
+                        "Transaction Date": "2024-10-08",
+                        "Description": "BP GAS PUMP 12",
+                        "Amount": -48.9
+                    },
+                    {
+                        "_id": "oct9",
+                        "Transaction Date": "2024-10-09",
+                        "Description": "TARGET STORE #1289",
+                        "Amount": -234.56
+                    },
+                    {
+                        "_id": "oct10",
+                        "Transaction Date": "2024-10-10",
+                        "Description": "UBER RIDE PAYMENT",
+                        "Amount": -18.45
+                    },
+                    {
+                        "_id": "oct11",
+                        "Transaction Date": "2024-10-11",
+                        "Description": "MCDONALD'S #4556",
+                        "Amount": -8.99
+                    },
+                    {
+                        "_id": "oct12",
+                        "Transaction Date": "2024-10-12",
+                        "Description": "SPOTIFY PREMIUM",
+                        "Amount": -9.99
+                    },
+                    {
+                        "_id": "oct13",
+                        "Transaction Date": "2024-10-13",
+                        "Description": "WHOLE FOODS MARKET",
+                        "Amount": -178.43
+                    },
+                    {
+                        "_id": "oct14",
+                        "Transaction Date": "2024-10-14",
+                        "Description": "EXXON MOBIL 7789",
+                        "Amount": -55.67
+                    },
+                    {
+                        "_id": "oct15",
+                        "Transaction Date": "2024-10-15",
+                        "Description": "RENT PAYMENT OCTOBER",
+                        "Amount": -1500.0
+                    },
+                    {
+                        "_id": "oct16",
+                        "Transaction Date": "2024-10-16",
+                        "Description": "STATE FARM INSURANCE",
+                        "Amount": -145.89
+                    },
+                    {
+                        "_id": "oct17",
+                        "Transaction Date": "2024-10-17",
+                        "Description": "COMCAST INTERNET",
+                        "Amount": -79.99
+                    },
+                    {
+                        "_id": "oct18",
+                        "Transaction Date": "2024-10-18",
+                        "Description": "PANERA BREAD #667",
+                        "Amount": -14.56
+                    },
+                    {
+                        "_id": "oct19",
+                        "Transaction Date": "2024-10-19",
+                        "Description": "BEST BUY ELECTRONICS",
+                        "Amount": -456.78
+                    },
+                    {
+                        "_id": "oct20",
+                        "Transaction Date": "2024-10-20",
+                        "Description": "COSTCO WAREHOUSE",
+                        "Amount": -267.89
+                    },
+                    {
+                        "_id": "oct21",
+                        "Transaction Date": "2024-10-21",
+                        "Description": "DUNKIN DONUTS #234",
+                        "Amount": -5.45
+                    },
+                    {
+                        "_id": "oct22",
+                        "Transaction Date": "2024-10-22",
+                        "Description": "TOYOTA FINANCIAL SERVICES",
+                        "Amount": -389.0
+                    },
+                    {
+                        "_id": "oct23",
+                        "Transaction Date": "2024-10-23",
+                        "Description": "CVS PHARMACY #8876",
+                        "Amount": -45.67
+                    },
+                    {
+                        "_id": "oct24",
+                        "Transaction Date": "2024-10-24",
+                        "Description": "PARKING METER 5567",
+                        "Amount": -8.0
+                    },
+                    {
+                        "_id": "oct25",
+                        "Transaction Date": "2024-10-25",
+                        "Description": "SUPERCUTS HAIRCUT",
+                        "Amount": -25.0
+                    },
+                    {
+                        "_id": "oct26",
+                        "Transaction Date": "2024-10-26",
+                        "Description": "AMC THEATRES",
+                        "Amount": -32.5
+                    },
+                    {
+                        "_id": "oct27",
+                        "Transaction Date": "2024-10-27",
+                        "Description": "ADOBE CREATIVE CLOUD",
+                        "Amount": -54.99
+                    },
+                    {
+                        "_id": "oct28",
+                        "Transaction Date": "2024-10-28",
+                        "Description": "VERIZON WIRELESS",
+                        "Amount": -85.0
+                    },
+                    {
+                        "_id": "oct29",
+                        "Transaction Date": "2024-10-29",
+                        "Description": "TRADER JOE'S #556",
+                        "Amount": -67.89
+                    },
+                    {
+                        "_id": "oct30",
+                        "Transaction Date": "2024-10-30",
+                        "Description": "CHEVRON GAS 3345",
+                        "Amount": -61.23
+                    }
+                ]
+            }
+        ],
+        [
+            "2024-11",
+            {
+                "monthName": "November 2024",
+                "transactions": [
+                    {
+                        "_id": "nov1",
+                        "Transaction Date": "2024-11-01",
+                        "Description": "WALMART GROCERY PICKUP",
+                        "Amount": -189.45
+                    },
+                    {
+                        "_id": "nov2",
+                        "Transaction Date": "2024-11-02",
+                        "Description": "SHELL FUEL PURCHASE",
+                        "Amount": -49.89
+                    },
+                    {
+                        "_id": "nov3",
+                        "Transaction Date": "2024-11-03",
+                        "Description": "STARBUCKS STORE #445",
+                        "Amount": -7.25
+                    },
+                    {
+                        "_id": "nov4",
+                        "Transaction Date": "2024-11-04",
+                        "Description": "AMAZON PRIME",
+                        "Amount": -14.99
+                    },
+                    {
+                        "_id": "nov5",
+                        "Transaction Date": "2024-11-05",
+                        "Description": "SUBWAY SANDWICH",
+                        "Amount": -9.87
+                    },
+                    {
+                        "_id": "nov6",
+                        "Transaction Date": "2024-11-06",
+                        "Description": "NETFLIX MONTHLY",
+                        "Amount": -15.99
+                    },
+                    {
+                        "_id": "nov7",
+                        "Transaction Date": "2024-11-07",
+                        "Description": "ALDI GROCERY STORE",
+                        "Amount": -76.54
+                    },
+                    {
+                        "_id": "nov8",
+                        "Transaction Date": "2024-11-08",
+                        "Description": "EXXON STATION",
+                        "Amount": -53.21
+                    },
+                    {
+                        "_id": "nov9",
+                        "Transaction Date": "2024-11-09",
+                        "Description": "TARGET.COM",
+                        "Amount": -145.67
+                    },
+                    {
+                        "_id": "nov10",
+                        "Transaction Date": "2024-11-10",
+                        "Description": "LYFT RIDE",
+                        "Amount": -22.34
+                    },
+                    {
+                        "_id": "nov11",
+                        "Transaction Date": "2024-11-11",
+                        "Description": "TACO BELL #889",
+                        "Amount": -7.65
+                    },
+                    {
+                        "_id": "nov12",
+                        "Transaction Date": "2024-11-12",
+                        "Description": "SPOTIFY SUBSCRIPTION",
+                        "Amount": -9.99
+                    },
+                    {
+                        "_id": "nov13",
+                        "Transaction Date": "2024-11-13",
+                        "Description": "KROGER FUEL CENTER",
+                        "Amount": -44.56
+                    },
+                    {
+                        "_id": "nov14",
+                        "Transaction Date": "2024-11-14",
+                        "Description": "WALGREENS #4456",
+                        "Amount": -23.45
+                    },
+                    {
+                        "_id": "nov15",
+                        "Transaction Date": "2024-11-15",
+                        "Description": "RENT PAYMENT NOVEMBER",
+                        "Amount": -1500.0
+                    },
+                    {
+                        "_id": "nov16",
+                        "Transaction Date": "2024-11-16",
+                        "Description": "ALLSTATE INSURANCE",
+                        "Amount": -132.45
+                    },
+                    {
+                        "_id": "nov17",
+                        "Transaction Date": "2024-11-17",
+                        "Description": "AT&T INTERNET BILL",
+                        "Amount": -65.0
+                    },
+                    {
+                        "_id": "nov18",
+                        "Transaction Date": "2024-11-18",
+                        "Description": "OLIVE GARDEN",
+                        "Amount": -45.67
+                    },
+                    {
+                        "_id": "nov19",
+                        "Transaction Date": "2024-11-19",
+                        "Description": "HOME DEPOT #234",
+                        "Amount": -234.56
+                    },
+                    {
+                        "_id": "nov20",
+                        "Transaction Date": "2024-11-20",
+                        "Description": "COSTCO GAS",
+                        "Amount": -38.9
+                    },
+                    {
+                        "_id": "nov21",
+                        "Transaction Date": "2024-11-21",
+                        "Description": "TIM HORTONS COFFEE",
+                        "Amount": -4.56
+                    },
+                    {
+                        "_id": "nov22",
+                        "Transaction Date": "2024-11-22",
+                        "Description": "HONDA FINANCIAL",
+                        "Amount": -425.0
+                    },
+                    {
+                        "_id": "nov23",
+                        "Transaction Date": "2024-11-23",
+                        "Description": "BLACK FRIDAY BEST BUY",
+                        "Amount": -789.99
+                    },
+                    {
+                        "_id": "nov24",
+                        "Transaction Date": "2024-11-24",
+                        "Description": "PARKING GARAGE DOWNTOWN",
+                        "Amount": -15.0
+                    },
+                    {
+                        "_id": "nov25",
+                        "Transaction Date": "2024-11-25",
+                        "Description": "GREAT CLIPS",
+                        "Amount": -18.0
+                    },
+                    {
+                        "_id": "nov26",
+                        "Transaction Date": "2024-11-26",
+                        "Description": "HULU SUBSCRIPTION",
+                        "Amount": -12.99
+                    },
+                    {
+                        "_id": "nov27",
+                        "Transaction Date": "2024-11-27",
+                        "Description": "MICROSOFT 365",
+                        "Amount": -9.99
+                    },
+                    {
+                        "_id": "nov28",
+                        "Transaction Date": "2024-11-28",
+                        "Description": "T-MOBILE",
+                        "Amount": -90.0
+                    },
+                    {
+                        "_id": "nov29",
+                        "Transaction Date": "2024-11-29",
+                        "Description": "SAFEWAY #778",
+                        "Amount": -145.67
+                    },
+                    {
+                        "_id": "nov30",
+                        "Transaction Date": "2024-11-30",
+                        "Description": "BP GAS STATION",
+                        "Amount": -56.78
+                    }
+                ]
+            }
+        ],
+        [
+            "2024-12",
+            {
+                "monthName": "December 2024",
+                "transactions": [
+                    {
+                        "_id": "dec1",
+                        "Transaction Date": "2024-12-01",
+                        "Description": "WALMART SUPERCENTER",
+                        "Amount": -267.89
+                    },
+                    {
+                        "_id": "dec2",
+                        "Transaction Date": "2024-12-02",
+                        "Description": "CHEVRON STATION #556",
+                        "Amount": -62.34
+                    },
+                    {
+                        "_id": "dec3",
+                        "Transaction Date": "2024-12-03",
+                        "Description": "PEET'S COFFEE",
+                        "Amount": -8.95
+                    },
+                    {
+                        "_id": "dec4",
+                        "Transaction Date": "2024-12-04",
+                        "Description": "AMAZON MARKETPLACE",
+                        "Amount": -234.56
+                    },
+                    {
+                        "_id": "dec5",
+                        "Transaction Date": "2024-12-05",
+                        "Description": "FIVE GUYS BURGERS",
+                        "Amount": -18.76
+                    },
+                    {
+                        "_id": "dec6",
+                        "Transaction Date": "2024-12-06",
+                        "Description": "DISNEY PLUS",
+                        "Amount": -7.99
+                    },
+                    {
+                        "_id": "dec7",
+                        "Transaction Date": "2024-12-07",
+                        "Description": "WHOLE FOODS",
+                        "Amount": -198.76
+                    },
+                    {
+                        "_id": "dec8",
+                        "Transaction Date": "2024-12-08",
+                        "Description": "MARATHON GAS",
+                        "Amount": -45.67
+                    },
+                    {
+                        "_id": "dec9",
+                        "Transaction Date": "2024-12-09",
+                        "Description": "IKEA FURNITURE",
+                        "Amount": -456.78
+                    },
+                    {
+                        "_id": "dec10",
+                        "Transaction Date": "2024-12-10",
+                        "Description": "UBER EATS ORDER",
+                        "Amount": -34.56
+                    },
+                    {
+                        "_id": "dec11",
+                        "Transaction Date": "2024-12-11",
+                        "Description": "WENDY'S #334",
+                        "Amount": -9.87
+                    },
+                    {
+                        "_id": "dec12",
+                        "Transaction Date": "2024-12-12",
+                        "Description": "APPLE MUSIC",
+                        "Amount": -9.99
+                    },
+                    {
+                        "_id": "dec13",
+                        "Transaction Date": "2024-12-13",
+                        "Description": "TRADER JOE'S",
+                        "Amount": -89.45
+                    },
+                    {
+                        "_id": "dec14",
+                        "Transaction Date": "2024-12-14",
+                        "Description": "SHELL STATION #889",
+                        "Amount": -58.9
+                    },
+                    {
+                        "_id": "dec15",
+                        "Transaction Date": "2024-12-15",
+                        "Description": "RENT PAYMENT DECEMBER",
+                        "Amount": -1500.0
+                    },
+                    {
+                        "_id": "dec16",
+                        "Transaction Date": "2024-12-16",
+                        "Description": "GEICO AUTO INSURANCE",
+                        "Amount": -156.78
+                    },
+                    {
+                        "_id": "dec17",
+                        "Transaction Date": "2024-12-17",
+                        "Description": "SPECTRUM INTERNET",
+                        "Amount": -74.99
+                    },
+                    {
+                        "_id": "dec18",
+                        "Transaction Date": "2024-12-18",
+                        "Description": "CHICK-FIL-A #223",
+                        "Amount": -11.45
+                    },
+                    {
+                        "_id": "dec19",
+                        "Transaction Date": "2024-12-19",
+                        "Description": "LOWES HOME IMPROVEMENT",
+                        "Amount": -345.67
+                    },
+                    {
+                        "_id": "dec20",
+                        "Transaction Date": "2024-12-20",
+                        "Description": "COSTCO WHOLESALE",
+                        "Amount": -289.9
+                    },
+                    {
+                        "_id": "dec21",
+                        "Transaction Date": "2024-12-21",
+                        "Description": "CARIBOU COFFEE",
+                        "Amount": -6.78
+                    },
+                    {
+                        "_id": "dec22",
+                        "Transaction Date": "2024-12-22",
+                        "Description": "NISSAN MOTOR FINANCE",
+                        "Amount": -398.0
+                    },
+                    {
+                        "_id": "dec23",
+                        "Transaction Date": "2024-12-23",
+                        "Description": "CHRISTMAS GIFTS TARGET",
+                        "Amount": -567.89
+                    },
+                    {
+                        "_id": "dec24",
+                        "Transaction Date": "2024-12-24",
+                        "Description": "PARKING METER",
+                        "Amount": -12.0
+                    },
+                    {
+                        "_id": "dec25",
+                        "Transaction Date": "2024-12-25",
+                        "Description": "SPORT CLIPS",
+                        "Amount": -30.0
+                    },
+                    {
+                        "_id": "dec26",
+                        "Transaction Date": "2024-12-26",
+                        "Description": "PARAMOUNT PLUS",
+                        "Amount": -9.99
+                    },
+                    {
+                        "_id": "dec27",
+                        "Transaction Date": "2024-12-27",
+                        "Description": "CANVA PRO SUBSCRIPTION",
+                        "Amount": -12.99
+                    },
+                    {
+                        "_id": "dec28",
+                        "Transaction Date": "2024-12-28",
+                        "Description": "VISIBLE WIRELESS",
+                        "Amount": -40.0
+                    },
+                    {
+                        "_id": "dec29",
+                        "Transaction Date": "2024-12-29",
+                        "Description": "PUBLIX SUPERMARKET",
+                        "Amount": -156.78
+                    },
+                    {
+                        "_id": "dec30",
+                        "Transaction Date": "2024-12-30",
+                        "Description": "MOBIL GAS STATION",
+                        "Amount": -54.32
+                    }
+                ]
+            }
+        ]
+    ],
+    "categoryConfig": {
+        "Transfers": {
+            "keywords": [
+                "ZELLE",
+                "ONLINE TRANSFER",
+                "ACCT_XFER",
+                "WIRE",
+                "QUICKPAY",
+                "VENMO",
+                "CASHAPP"
+            ],
+            "icon": "💸"
+        },
+        "Banking": {
+            "keywords": ["FEE", "INTEREST", "OVERDRAFT", "SERVICE CHARGE", "ATM"],
+            "icon": "🏦"
+        },
+        "Groceries": {
+            "keywords": [
+                "COSTCO",
+                "WALMART",
+                "KROGER",
+                "WHOLE FOODS",
+                "TARGET",
+                "ALDI",
+                "TRADER JOE",
+                "SAFEWAY",
+                "PUBLIX"
+            ],
+            "icon": "🛒"
+        },
+        "Gas": {
+            "keywords": ["BP", "SHELL", "EXXON", "FUEL", "GAS", "CHEVRON", "MOBIL", "MARATHON"],
+            "icon": "⛽"
+        },
+        "Subscriptions": {
+            "keywords": [
+                "GOOGLE",
+                "AWS",
+                "CHATGPT",
+                "APPLE",
+                "SPOTIFY",
+                "NETFLIX",
+                "DISNEY",
+                "PARAMOUNT",
+                "HULU",
+                "CANVA",
+                "MICROSOFT",
+                "ADOBE"
+            ],
+            "icon": "🔄"
+        },
+        "Coffee and Tea": {
+            "keywords": [
+                "CAFE",
+                "COFFEE",
+                "ESPRESSO",
+                "TEA HOUSE",
+                "JAVA",
+                "STARBUCKS",
+                "DUNKIN",
+                "PEET",
+                "TIM HORTONS",
+                "CARIBOU"
+            ],
+            "icon": "☕"
+        },
+        "Food & Drink": {
+            "keywords": [
+                "RESTAURANT",
+                "PIZZA",
+                "BURGER",
+                "GRILL",
+                "TACO",
+                "SUSHI",
+                "DINER",
+                "CHIPOTLE",
+                "MCDONALD",
+                "SUBWAY",
+                "WENDY",
+                "CHICK-FIL",
+                "OLIVE GARDEN",
+                "PANERA"
+            ],
+            "icon": "🍽️"
+        },
+        "Shopping": {
+            "keywords": [
+                "AMAZON",
+                "AMZN",
+                "TARGET",
+                "WALMART",
+                "BEST BUY",
+                "IKEA",
+                "HOME DEPOT",
+                "LOWES"
+            ],
+            "icon": "🛍️"
+        },
+        "Rent": { "keywords": ["RENT", "APARTMENT", "HOUSING"], "icon": "🏠" },
+        "Insurance": { "keywords": ["INSURANCE", "STATE FARM", "ALLSTATE", "GEICO"], "icon": "🛡️" },
+        "Internet": {
+            "keywords": ["INTERNET", "COMCAST", "XFINITY", "SPECTRUM", "AT&T"],
+            "icon": "🌐"
+        },
+        "Parking": { "keywords": ["PARKING", "GARAGE", "METER"], "icon": "🅿️" },
+        "Laundry": { "keywords": ["LAUNDRY", "DRY CLEAN"], "icon": "🧺" },
+        "Haircut": {
+            "keywords": ["BARBER", "HAIRCUT", "SALON", "SUPERCUTS", "GREAT CLIPS", "SPORT CLIPS"],
+            "icon": "💇"
+        },
+        "Car": {
+            "keywords": [
+                "AUTO",
+                "CAR WASH",
+                "OIL",
+                "TIRE",
+                "MECHANIC",
+                "TOYOTA",
+                "HONDA",
+                "NISSAN",
+                "MOTOR FINANCE"
+            ],
+            "icon": "🚙"
+        },
+        "Phone": {
+            "keywords": ["PHONE", "MOBILE", "WIRELESS", "VERIZON", "AT&T", "VISIBLE", "T-MOBILE"],
+            "icon": "📱"
+        },
+        "Entertainment": {
+            "keywords": ["MOVIE", "CINEMA", "MUSIC", "CONCERT", "GAME", "HBO", "AMC THEATRE"],
+            "icon": "🎬"
+        },
+        "Transportation": { "keywords": ["UBER", "LYFT", "RIDE"], "icon": "🚗" },
+        "Healthcare": { "keywords": ["CVS", "WALGREENS", "PHARMACY"], "icon": "⚕️" },
+        "Others": { "keywords": [], "icon": "📦" }
+    },
+    "budgets": {
+        "2024-10": {
+            "Groceries": 600,
+            "Gas": 250,
+            "Food & Drink": 400,
+            "Shopping": 500,
+            "Entertainment": 150,
+            "Subscriptions": 150,
+            "Coffee and Tea": 80,
+            "Rent": 1500,
+            "Insurance": 200,
+            "Internet": 80,
+            "Car": 400,
+            "Phone": 90
+        },
+        "2024-11": {
+            "Groceries": 700,
+            "Gas": 250,
+            "Food & Drink": 350,
+            "Shopping": 800,
+            "Entertainment": 150,
+            "Subscriptions": 150,
+            "Coffee and Tea": 60,
+            "Rent": 1500,
+            "Insurance": 200,
+            "Internet": 70,
+            "Car": 450,
+            "Phone": 90
+        },
+        "2024-12": {
+            "Groceries": 650,
+            "Gas": 300,
+            "Food & Drink": 450,
+            "Shopping": 1000,
+            "Entertainment": 200,
+            "Subscriptions": 150,
+            "Coffee and Tea": 100,
+            "Rent": 1500,
+            "Insurance": 200,
+            "Internet": 80,
+            "Car": 400,
+            "Phone": 50
+        }
+    },
+    "transactionOverrides": {
+        "2024-11": {
+            "nov23": "Shopping"
+        },
+        "2024-12": {
+            "dec9": "Shopping",
+            "dec23": "Shopping"
+        }
+    },
+    "unifiedRules": [
+        {
+            "id": "rule_auto_1",
+            "name": "Auto: WALMART → Groceries",
+            "type": "categorize",
+            "pattern": "WALMART",
+            "matchType": "contains",
+            "action": "Groceries",
+            "isAutomatic": true,
+            "description": "cool rule",
+            "active": true,
+            "createdAt": "2024-10-15T10:00:00.000Z"
+        },
+        {
+            "id": "rule_auto_2",
+            "name": "Auto: STARBUCKS → Coffee and Tea",
+            "type": "categorize",
+            "pattern": "STARBUCKS",
+            "matchType": "contains",
+            "action": "Coffee and Tea",
+            "isAutomatic": true,
+            "active": true,
+            "createdAt": "2024-10-16T10:00:00.000Z"
+        },
+        {
+            "id": "rule_auto_3",
+            "name": "Auto: UBER → Transportation",
+            "type": "categorize",
+            "pattern": "UBER",
+            "matchType": "contains",
+            "action": "Transportation",
+            "isAutomatic": true,
+            "active": true,
+            "createdAt": "2024-10-18T10:00:00.000Z"
+        },
+        {
+            "id": "rule_custom_1",
+            "name": "CVS to Healthcare",
+            "type": "categorize",
+            "pattern": "CVS",
+            "matchType": "contains",
+            "action": "Healthcare",
+            "description": "All CVS purchases should be in Healthcare",
+            "isAutomatic": false,
+            "active": true,
+            "createdAt": "2024-11-01T10:00:00.000Z"
+        },
+        {
+            "id": "rule_custom_2",
+            "name": "Walgreens to Healthcare",
+            "type": "categorize",
+            "pattern": "WALGREENS",
+            "matchType": "contains",
+            "action": "Healthcare",
+            "description": "Pharmacy purchases",
+            "isAutomatic": false,
+            "active": true,
+            "createdAt": "2024-11-01T10:00:00.000Z"
+        },
+        {
+            "id": "rule_delete_1",
+            "name": "Remove Bank Fees",
+            "type": "delete",
+            "pattern": "BANK FEE",
+            "matchType": "contains",
+            "action": null,
+            "description": "Delete all bank fee transactions",
+            "isAutomatic": false,
+            "active": true,
+            "createdAt": "2024-10-20T10:00:00.000Z"
+        },
+        {
+            "id": "rule_delete_2",
+            "name": "Remove Internal Transfers",
+            "type": "delete",
+            "pattern": "TRANSFER TO SAVINGS",
+            "matchType": "contains",
+            "action": null,
+            "description": "Remove internal account transfers",
+            "isAutomatic": false,
+            "active": true,
+            "createdAt": "2024-10-21T10:00:00.000Z"
+        },
+        {
+            "id": "rule_custom_3",
+            "name": "Holiday Shopping",
+            "type": "categorize",
+            "pattern": "CHRISTMAS",
+            "matchType": "contains",
+            "action": "Shopping",
+            "description": "All Christmas purchases to Shopping category",
+            "isAutomatic": false,
+            "active": true,
+            "createdAt": "2024-12-01T10:00:00.000Z"
+        },
+        {
+            "id": "rule_auto_4",
+            "name": "Auto: COSTCO → Groceries",
+            "type": "categorize",
+            "pattern": "COSTCO",
+            "matchType": "contains",
+            "action": "Groceries",
+            "isAutomatic": true,
+            "active": true,
+            "createdAt": "2024-10-22T10:00:00.000Z"
+        },
+        {
+            "id": "rule_regex_1",
+            "name": "Fast Food Detection",
+            "type": "categorize",
+            "pattern": "(MCDONALD|BURGER|TACO|WENDY)",
+            "matchType": "regex",
+            "action": "Food & Drink",
+            "description": "Categorize all fast food chains",
+            "isAutomatic": false,
+            "active": true,
+            "createdAt": "2024-11-05T10:00:00.000Z"
+        }
+    ]
+}
