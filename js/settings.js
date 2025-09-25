@@ -25,11 +25,15 @@ function switchSettingsTab(tab) {
     document.getElementById(tab + 'Tab').classList.add('active');
 
     if (tab === 'rules') {
-        updateMerchantRulesDisplay();
+        // Load and display unified rules
+        if (typeof loadRules === 'function') {
+            loadRules();
+        }
+        if (typeof updateRulesDisplay === 'function') {
+            updateRulesDisplay();
+        }
     } else if (tab === 'data') {
         updateStorageStats();
-    } else if (tab === 'customRules') {
-        updateCustomRulesDisplay();
     }
 }
 
@@ -38,7 +42,12 @@ function updateStorageStats() {
     let transactionCount = 0;
     let monthCount = monthlyData.size;
     let categoryCount = Object.keys(categoryConfig).length;
-    let merchantRuleCount = Object.keys(window.merchantRules || {}).length;
+    let rulesCount = 0;
+
+    // Count unified rules if available
+    if (window.unifiedRules && Array.isArray(window.unifiedRules)) {
+        rulesCount = window.unifiedRules.length;
+    }
 
     monthlyData.forEach((data) => {
         transactionCount += data.transactions.length;
@@ -48,29 +57,29 @@ function updateStorageStats() {
     const storageMB = (storageSize / (1024 * 1024)).toFixed(2);
 
     document.getElementById('storageStats').innerHTML = `
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="stat-value">${transactionCount.toLocaleString()}</div>
-                            <div class="stat-label">Total Transactions</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${monthCount}</div>
-                            <div class="stat-label">Months of Data</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${categoryCount}</div>
-                            <div class="stat-label">Categories</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${merchantRuleCount}</div>
-                            <div class="stat-label">Merchant Rules</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${storageMB} MB</div>
-                            <div class="stat-label">Storage Used</div>
-                        </div>
-                    </div>
-                `;
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-value">${transactionCount.toLocaleString()}</div>
+                <div class="stat-label">Total Transactions</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${monthCount}</div>
+                <div class="stat-label">Months of Data</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${categoryCount}</div>
+                <div class="stat-label">Categories</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${rulesCount}</div>
+                <div class="stat-label">Rules</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${storageMB} MB</div>
+                <div class="stat-label">Storage Used</div>
+            </div>
+        </div>
+    `;
 }
 
 // Update month selector for settings

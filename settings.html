@@ -66,12 +66,7 @@
                 <button class="settings-tab active" onclick="switchSettingsTab('categories')">
                     📂 Categories & Budgets
                 </button>
-                <button class="settings-tab" onclick="switchSettingsTab('rules')">
-                    🧠 Merchant Rules
-                </button>
-                <button class="settings-tab" onclick="switchSettingsTab('customRules')">
-                    ⚙️ Custom Rules
-                </button>
+                <button class="settings-tab" onclick="switchSettingsTab('rules')">🤖 Rules</button>
                 <button class="settings-tab" onclick="switchSettingsTab('data')">
                     💾 Data Management
                 </button>
@@ -107,37 +102,34 @@
                 </div>
             </div>
 
-            <!-- Merchant Rules Tab -->
+            <!-- Rules Tab -->
             <div class="settings-content" id="rulesTab">
                 <div class="settings-section">
-                    <h3>Learned Merchant Rules</h3>
+                    <h3>Transaction Rules</h3>
                     <p style="font-size: 13px; color: var(--gray); margin-bottom: 20px">
-                        The app learns from your corrections. When you move transactions, it
-                        remembers merchant patterns.
-                    </p>
-                    <div id="merchantRulesList"></div>
-                </div>
-            </div>
-
-            <!-- Custom Rules Tab -->
-            <div class="settings-content" id="customRulesTab">
-                <div class="settings-section">
-                    <h3>🗑️ Transaction Deletion Rules</h3>
-                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 20px">
-                        Create rules to automatically skip transactions during import. Rules can be
-                        toggled on/off.
+                        Automatic and custom rules to categorize or delete transactions. Rules
+                        marked with "AUTO" are created when you drag and drop transactions.
                     </p>
 
-                    <div style="margin-bottom: 20px">
-                        <button class="btn btn-primary" onclick="addCustomRule()">
-                            + Add New Rule
+                    <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap">
+                        <button class="btn btn-primary" onclick="showRuleModal()">
+                            + Create Custom Rule
                         </button>
-                        <button class="btn btn-secondary" onclick="applyRulesToExisting()">
+                        <button class="btn btn-secondary" onclick="applyRulesToExistingData()">
                             Apply Rules to Existing Data
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportRules()">
+                            Export Rules
+                        </button>
+                        <button class="btn btn-secondary" onclick="importRules()">
+                            Import Rules
+                        </button>
+                        <button class="btn btn-danger" onclick="clearAllRules()">
+                            Clear All Rules
                         </button>
                     </div>
 
-                    <div id="customRulesList"></div>
+                    <div id="rulesList"></div>
                 </div>
             </div>
 
@@ -211,7 +203,7 @@
         <script src="js/import.js"></script>
         <script src="js/core.js"></script>
         <script src="js/utils.js"></script>
-        <script src="js/custom_rules.js"></script>
+        <script src="js/rules.js"></script>
         <script src="js/settings.js"></script>
     </body>
 </html>

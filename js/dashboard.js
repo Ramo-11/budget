@@ -456,29 +456,24 @@ function moveTransaction(transactionId, fromCategory, toCategory) {
         }
         window.transactionOverrides[actualMonth][transactionId] = toCategory;
 
-        // Learn from this move - create a merchant rule
-        if (!window.merchantRules) {
-            window.merchantRules = {};
-        }
+        if (typeof loadRules === 'function') loadRules();
 
-        const description = (
-            actualTransaction.Description ||
-            actualTransaction.description ||
-            ''
-        ).trim();
-        const merchantName = description
-            .toUpperCase()
-            .split(/[\s#\*]/)[0]
-            .trim();
-
-        if (merchantName) {
-            window.merchantRules[merchantName] = toCategory;
-            console.log(`Learned rule: "${merchantName}" → ${toCategory}`);
+        // Create a unified rule from this move
+        if (typeof createRuleFromDragDrop === 'function') {
+            const description =
+                actualTransaction.Description || actualTransaction.description || '';
+            const rule = createRuleFromDragDrop(description, toCategory);
+            if (rule) {
+                console.log(`Created automatic rule: "${rule.pattern}" → ${toCategory}`);
+            }
         }
 
         saveData();
         switchToMonth('ALL_DATA'); // Refresh the All Data view
-        showNotification(`Moved to ${toCategory} (and will remember for future)`, 'success');
+        showNotification(
+            `Moved to ${toCategory} (rule created for similar transactions)`,
+            'success'
+        );
         return;
     }
 
@@ -501,24 +496,17 @@ function moveTransaction(transactionId, fromCategory, toCategory) {
 
     window.transactionOverrides[currentMonth][transactionId] = toCategory;
 
-    // Learn from this move - create a merchant rule
-    if (!window.merchantRules) {
-        window.merchantRules = {};
-    }
-
-    const merchantName = description
-        .toUpperCase()
-        .split(/[\s#\*]/)[0]
-        .trim();
-
-    if (merchantName) {
-        window.merchantRules[merchantName] = toCategory;
-        console.log(`Learned rule: "${merchantName}" → ${toCategory}`);
+    // Create a unified rule from this move
+    if (typeof createRuleFromDragDrop === 'function') {
+        const rule = createRuleFromDragDrop(description, toCategory);
+        if (rule) {
+            console.log(`Created automatic rule: "${rule.pattern}" → ${toCategory}`);
+        }
     }
 
     saveData();
     switchToMonth(currentMonth);
-    showNotification(`Moved to ${toCategory} (and will remember for future)`, 'success');
+    showNotification(`Moved to ${toCategory} (rule created for similar transactions)`, 'success');
 }
 
 // Delete transaction

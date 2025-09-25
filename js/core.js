@@ -110,8 +110,15 @@ function loadSavedData() {
             categoryConfig = data.categoryConfig || categoryConfig;
             budgets = data.budgets || {};
             window.transactionOverrides = data.transactionOverrides || {};
-            window.merchantRules = data.merchantRules || {};
-            customRules = data.customRules || { delete: [], categorize: [] };
+            window.unifiedRules = data.unifiedRules || [];
+
+            // Initialize rules system if available
+            if (
+                typeof initializeRules === 'function' &&
+                (!window.unifiedRules || window.unifiedRules.length === 0)
+            ) {
+                initializeRules();
+            }
 
             // Only update month selector if we're on a page that has it
             if (document.getElementById('monthDropdown')) {
@@ -131,8 +138,7 @@ function saveData() {
             categoryConfig: categoryConfig,
             budgets: budgets,
             transactionOverrides: window.transactionOverrides || {},
-            merchantRules: window.merchantRules || {},
-            customRules: customRules,
+            unifiedRules: window.unifiedRules || [],
         };
         localStorage.setItem('sahabBudget_data', JSON.stringify(data));
     } catch (error) {
@@ -147,6 +153,11 @@ function splitByMonth(transactions) {
     let skipped = 0;
     let rulesApplied = 0;
 
+    // Load unified rules if available
+    if (typeof loadRules === 'function') {
+        loadRules();
+    }
+
     transactions.forEach((transaction) => {
         const description = (
             transaction.Description ||
@@ -154,25 +165,13 @@ function splitByMonth(transactions) {
             ''
         ).toUpperCase();
 
-        // Check custom delete rules FIRST
-        const activeDeleteRules = (customRules.delete || []).filter((rule) => rule.active);
-        const shouldDeleteByRule = activeDeleteRules.some((rule) => {
-            const pattern = rule.pattern.toUpperCase();
-            if (rule.matchType === 'contains') {
-                return description.includes(pattern);
-            } else if (rule.matchType === 'startsWith') {
-                return description.startsWith(pattern);
-            } else if (rule.matchType === 'endsWith') {
-                return description.endsWith(pattern);
-            } else if (rule.matchType === 'exact') {
-                return description === pattern;
+        // Apply unified rules
+        if (typeof applyRulesToTransaction === 'function' && window.unifiedRules) {
+            const result = applyRulesToTransaction(transaction);
+            if (result && result.action === 'delete') {
+                rulesApplied++;
+                return;
             }
-            return false;
-        });
-
-        if (shouldDeleteByRule) {
-            rulesApplied++;
-            return;
         }
 
         // Skip non-expense transactions (income, payments, etc.)
@@ -249,6 +248,7 @@ function splitByMonth(transactions) {
 
     return { added, duplicates, skipped, rulesApplied };
 }
+
 // Check if a transaction is a duplicate
 function isDuplicateTransaction(newTransaction, existingTransactions) {
     // Enhanced date field detection
@@ -304,16 +304,16 @@ function categorizeTransaction(description, transactionId = null) {
         return window.transactionOverrides[currentMonth][transactionId];
     }
 
-    const upperDesc = description.toUpperCase();
-
-    // NEW: Check merchant rules BEFORE keyword matching
-    if (window.merchantRules) {
-        for (const [merchant, category] of Object.entries(window.merchantRules)) {
-            if (upperDesc.includes(merchant)) {
-                return category;
-            }
+    // Check unified rules
+    if (typeof applyRulesToTransaction === 'function' && window.unifiedRules) {
+        const mockTransaction = { Description: description, description: description };
+        const result = applyRulesToTransaction(mockTransaction);
+        if (result && result.action === 'categorize') {
+            return result.value;
         }
     }
+
+    const upperDesc = description.toUpperCase();
 
     // Original keyword matching
     for (const [category, config] of Object.entries(categoryConfig)) {
