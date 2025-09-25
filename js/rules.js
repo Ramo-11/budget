@@ -79,13 +79,47 @@ function createRuleFromDragDrop(description, toCategory) {
 
     if (!merchantName) return null;
 
-    // Check if rule already exists
+    // Check if rule already exists for this pattern
     const existingRule = unifiedRules.find(
-        (r) => r.pattern === merchantName && r.type === 'categorize' && r.action === toCategory
+        (r) => r.pattern === merchantName && r.type === 'categorize' && r.active
     );
 
-    if (existingRule) return existingRule;
+    if (existingRule) {
+        // Rule exists but for different category
+        if (existingRule.action !== toCategory) {
+            // Ask user if they want to override
+            const message = `A rule already exists: "${merchantName}" → ${existingRule.action}\n\nDo you want to change it to: "${merchantName}" → ${toCategory}?`;
 
+            if (confirm(message)) {
+                // Update the existing rule
+                existingRule.action = toCategory;
+                existingRule.name = `Auto: "${merchantName}" → ${toCategory}`;
+                existingRule.updatedAt = new Date().toISOString();
+
+                saveRules();
+                saveData();
+
+                showNotification(
+                    `Rule updated: "${merchantName}" now moves to ${toCategory}`,
+                    'success'
+                );
+                return existingRule;
+            } else {
+                // User declined to override
+                showNotification(
+                    'Rule not changed. Transaction moved for this instance only.',
+                    'info'
+                );
+                return null;
+            }
+        } else {
+            // Rule already exists for same category - no need to create
+            console.log(`Rule already exists: "${merchantName}" → ${toCategory}`);
+            return existingRule;
+        }
+    }
+
+    // No existing rule found, create new one
     const newRule = {
         id: generateRuleId(),
         name: `Auto: "${merchantName}" → ${toCategory}`,
@@ -102,6 +136,7 @@ function createRuleFromDragDrop(description, toCategory) {
     saveRules();
     saveData();
 
+    showNotification(`New rule created: "${merchantName}" → ${toCategory}`, 'success');
     return newRule;
 }
 

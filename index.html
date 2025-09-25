@@ -8,6 +8,7 @@
         <link rel="stylesheet" href="css/base.css" />
         <link rel="stylesheet" href="css/features.css" />
         <link rel="stylesheet" href="css/dashboard.css" />
+        <link rel="stylesheet" href="css/budgetview.css" />
         <link rel="stylesheet" href="css/modals.css" />
         <link rel="icon" href="/images/logo.png" type="image/x-icon" />
 
@@ -94,6 +95,13 @@
                     >
                         <button
                             class="btn btn-secondary"
+                            onclick="openBudgetGoals()"
+                            title="View budget goals"
+                        >
+                            🎯 Budget Goals
+                        </button>
+                        <button
+                            class="btn btn-secondary"
                             onclick="openDateRangeSelector()"
                             title="View custom date range"
                         >
@@ -165,6 +173,7 @@
         <script src="js/rules.js"></script>
         <script src="js/utils.js"></script>
         <script src="js/dashboard.js"></script>
+        <script src="js/budgetView.js"></script>
         <script src="js/main.js"></script>
     </body>
 </html>

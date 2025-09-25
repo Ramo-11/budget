@@ -151,11 +151,7 @@ function updateBudgetView(analyzer) {
 
     const categoriesHTML = allCategories
         .map((category) => {
-            const actual = analyzer.categoryTotals[category] || 0;
             const budget = budgets[monthKey][category] || 0;
-            const remaining = budget - actual;
-            const percentage = budget > 0 ? (actual / budget) * 100 : 0;
-            const progressClass = percentage > 100 ? 'danger' : percentage > 80 ? 'warning' : '';
             const config = categoryConfig[category] || { icon: '📦', keywords: [] };
             const categoryId = category.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
 
@@ -179,32 +175,14 @@ function updateBudgetView(analyzer) {
                         </div>
                         
                         <div class="budget-controls">
-                            <div class="spending-info">
-                                <span class="spent-label">Spent:</span>
-                                <span class="spent-amount">$${actual.toFixed(2)}</span>
-                                ${
-                                    budget > 0
-                                        ? `
-                                    <span class="remaining-amount ${
-                                        remaining >= 0 ? 'positive' : 'negative'
-                                    }">
-                                        (${remaining >= 0 ? '+' : ''}$${Math.abs(remaining).toFixed(
-                                              2
-                                          )})
-                                    </span>
-                                `
-                                        : ''
-                                }
-                            </div>
-                            
                             <div class="budget-input-compact">
                                 <input type="number" 
                                        id="budget-${categoryId}" 
-                                       placeholder="Budget" 
+                                       placeholder="No budget" 
                                        value="${budget || ''}"
                                        step="0.01"
                                        class="budget-field">
-                                <button class="btn-set-budget" onclick="setBudget('${category}')">Set</button>
+                                <button class="btn-set-budget" onclick="setBudgetWithOptions('${category}')">Set</button>
                             </div>
                             
                             ${
@@ -214,17 +192,6 @@ function updateBudgetView(analyzer) {
                             }
                         </div>
                     </div>
-                    
-                    ${
-                        budget > 0
-                            ? `
-                        <div class="budget-progress-compact">
-                            <div class="budget-progress-fill ${progressClass}" 
-                                 style="width: ${Math.min(percentage, 100)}%"></div>
-                        </div>
-                    `
-                            : ''
-                    }
                     
                     <div class="keywords-row">
                         <input type="text" 
@@ -242,9 +209,10 @@ function updateBudgetView(analyzer) {
 
     container.innerHTML = `
         <div class="budget-header">
-            <h3>Categories & Budgets - ${monthlyData.get(currentMonth).monthName}</h3>
+            <h3>Categories & Monthly Budgets - ${monthlyData.get(currentMonth).monthName}</h3>
             <div class="budget-actions-compact">
                 <button class="btn btn-primary compact" onclick="addNewCategory()">+ Add Category</button>
+                <button class="btn btn-primary compact" onclick="applyBudgetToAllMonths()">Apply to All Months</button>
                 <button class="btn btn-primary compact" id="saveChangesBtn" onclick="saveAllCategoryChanges()">
                     <span id="saveChangesText">Save Changes</span>
                 </button>
@@ -259,31 +227,175 @@ function updateBudgetView(analyzer) {
     `;
 }
 
-// Set budget
-function setBudget(category) {
-    const inputId = `budget-${category.replace(/\s+/g, '-')}`;
+// Set budget with options (single month or all months)
+function setBudgetWithOptions(category) {
+    const inputId = `budget-${category.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}`;
     const input = document.getElementById(inputId);
     if (!input) return;
 
     const value = parseFloat(input.value);
 
-    if (!isNaN(value) && value > 0) {
-        if (!budgets[currentMonth]) {
-            budgets[currentMonth] = {};
-        }
-        budgets[currentMonth][category] = value;
-        saveData();
-
-        const monthData = monthlyData.get(currentMonth);
-        if (monthData) {
-            const analyzer = analyzeTransactions(monthData.transactions);
-            updateBudgetView(analyzer);
-        }
-
-        showNotification(`Budget set for ${category}`, 'success');
-    } else {
+    if (isNaN(value) || value < 0) {
         showNotification('Please enter a valid budget amount', 'error');
+        return;
     }
+
+    // Get all months sorted
+    const months = Array.from(monthlyData.keys()).sort().reverse();
+    const currentMonthName = monthlyData.get(currentMonth).monthName;
+
+    // Create month options
+    const monthOptions = months
+        .map((monthKey) => {
+            const monthName = monthlyData.get(monthKey).monthName;
+            const isCurrentMonth = monthKey === currentMonth;
+            return `
+            <button class="btn ${isCurrentMonth ? 'btn-primary' : 'btn-secondary'}" 
+                    style="width: 100%; text-align: left; margin-bottom: 8px;" 
+                    onclick="applyBudgetToMonth('${category}', ${value}, '${monthKey}'); this.closest('.modal').remove();">
+                ${monthName} ${isCurrentMonth ? '(Current)' : ''}
+            </button>
+        `;
+        })
+        .join('');
+
+    // Ask user if they want to apply to all months or specific month
+    const modal = document.createElement('div');
+    modal.className = 'modal show';
+    modal.innerHTML = `
+        <div class="modal-content" style="width: 450px;">
+            <div class="modal-header">
+                <h2>Set Budget for ${category}</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px;">Budget amount: <strong>$${value.toFixed(
+                    2
+                )}</strong></p>
+                <p style="margin-bottom: 20px; font-weight: 600;">Apply to which month(s)?</p>
+                
+                <div style="margin-bottom: 20px;">
+                    <button class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 15px; font-weight: 600;" 
+                            onclick="applyBudgetToAllMonthsForCategory('${category}', ${value}); this.closest('.modal').remove();">
+                        🌐 Apply to ALL Months
+                    </button>
+                </div>
+                
+                <div style="border-top: 1px solid var(--border); padding-top: 15px; margin-bottom: 10px;">
+                    <p style="margin-bottom: 10px; font-size: 14px; color: var(--gray);">Or choose a specific month:</p>
+                    <div style="max-height: 300px; overflow-y: auto;">
+                        ${monthOptions}
+                    </div>
+                </div>
+                
+                <div style="border-top: 1px solid var(--border); padding-top: 15px;">
+                    <button class="btn btn-secondary" style="width: 100%;" onclick="this.closest('.modal').remove();">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Apply budget to a single month
+function applyBudgetToMonth(category, value, monthKey) {
+    if (!budgets[monthKey]) {
+        budgets[monthKey] = {};
+    }
+
+    if (value === 0 || value === '') {
+        delete budgets[monthKey][category];
+        showNotification(
+            `Budget removed for ${category} in ${monthlyData.get(monthKey).monthName}`,
+            'success'
+        );
+    } else {
+        budgets[monthKey][category] = value;
+        showNotification(
+            `Budget set for ${category} in ${monthlyData.get(monthKey).monthName}`,
+            'success'
+        );
+    }
+
+    saveData();
+
+    // Refresh the view
+    const monthData = monthlyData.get(currentMonth);
+    if (monthData) {
+        const analyzer = analyzeTransactions(monthData.transactions);
+        updateBudgetView(analyzer);
+    }
+}
+
+// Apply budget to all months for a specific category
+function applyBudgetToAllMonthsForCategory(category, value) {
+    const months = Array.from(monthlyData.keys());
+
+    months.forEach((monthKey) => {
+        if (!budgets[monthKey]) {
+            budgets[monthKey] = {};
+        }
+
+        if (value === 0 || value === '') {
+            delete budgets[monthKey][category];
+        } else {
+            budgets[monthKey][category] = value;
+        }
+    });
+
+    saveData();
+
+    showNotification(
+        value > 0
+            ? `Budget of $${value.toFixed(2)} set for ${category} in all months`
+            : `Budget removed for ${category} in all months`,
+        'success'
+    );
+
+    // Refresh the view
+    const monthData = monthlyData.get(currentMonth);
+    if (monthData) {
+        const analyzer = analyzeTransactions(monthData.transactions);
+        updateBudgetView(analyzer);
+    }
+}
+
+// Apply current month's budget to all months
+function applyBudgetToAllMonths() {
+    const currentBudgets = budgets[currentMonth] || {};
+
+    if (Object.keys(currentBudgets).length === 0) {
+        showNotification('No budgets set for current month', 'error');
+        return;
+    }
+
+    if (
+        !confirm(
+            `Apply all budget goals from ${
+                monthlyData.get(currentMonth).monthName
+            } to all other months?`
+        )
+    ) {
+        return;
+    }
+
+    const months = Array.from(monthlyData.keys());
+
+    months.forEach((monthKey) => {
+        if (monthKey !== currentMonth) {
+            budgets[monthKey] = { ...currentBudgets };
+        }
+    });
+
+    saveData();
+    showNotification('Budget goals applied to all months', 'success');
+}
+
+// Set budget
+function setBudget(category) {
+    setBudgetWithOptions(category);
 }
 
 // Update categories view in settings
