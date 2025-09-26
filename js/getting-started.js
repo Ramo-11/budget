@@ -183,13 +183,13 @@ function showHelp() {
                 <div class="help-option-card" onclick="${
                     isOnDashboard ? 'showGettingStarted()' : 'goToDashboardGettingStarted()'
                 }; this.closest('.help-modal').remove();">
-                    <h3>📹 Watch Tutorial</h3>
+                    <h3>Watch Tutorial</h3>
                     <p>Learn the basics in our quick video guide</p>
                     <button class="btn btn-primary">Watch Now</button>
                 </div>
                 
                 <div class="help-option-card" onclick="loadSampleData(); this.closest('.help-modal').remove();">
-                    <h3>🧪 Try Sample Data</h3>
+                    <h3>Try Sample Data</h3>
                     <p>Explore features with demo transactions</p>
                     <button class="btn btn-primary">Load Sample</button>
                 </div>
