@@ -464,6 +464,7 @@ function moveTransaction(transactionId, fromCategory, toCategory) {
         }
 
         // Create a unified rule from this move
+        let ruleCreated = false;
         if (typeof createRuleFromDragDrop === 'function') {
             const description = (
                 actualTransaction.Description ||
@@ -473,6 +474,7 @@ function moveTransaction(transactionId, fromCategory, toCategory) {
             const rule = createRuleFromDragDrop(description, toCategory);
             if (rule) {
                 console.log(`Created automatic rule: "${rule.pattern}" → ${toCategory}`);
+                ruleCreated = true;
             }
         }
 
@@ -483,6 +485,13 @@ function moveTransaction(transactionId, fromCategory, toCategory) {
         setTimeout(() => {
             switchToMonth('ALL_DATA');
         }, 100);
+
+        // Show appropriate notification based on whether rule was created
+        if (!ruleCreated) {
+            // Notification already shown by createRuleFromDragDrop when user cancels
+            // Don't show another notification
+            return;
+        }
 
         showNotification(
             `Moved to ${toCategory} (rule created for similar transactions)`,
@@ -511,15 +520,25 @@ function moveTransaction(transactionId, fromCategory, toCategory) {
     window.transactionOverrides[currentMonth][transactionId] = toCategory;
 
     // Create a unified rule from this move
+    let ruleCreated = false;
     if (typeof createRuleFromDragDrop === 'function') {
         const rule = createRuleFromDragDrop(description, toCategory);
         if (rule) {
             console.log(`Created automatic rule: "${rule.pattern}" → ${toCategory}`);
+            ruleCreated = true;
         }
     }
 
     saveData();
     switchToMonth(currentMonth);
+
+    // Show appropriate notification based on whether rule was created
+    if (!ruleCreated) {
+        // Notification already shown by createRuleFromDragDrop when user cancels
+        // Don't show another notification
+        return;
+    }
+
     showNotification(`Moved to ${toCategory} (rule created for similar transactions)`, 'success');
 }
 

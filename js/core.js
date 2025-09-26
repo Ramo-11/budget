@@ -340,9 +340,6 @@ function categorizeTransactionByKeywords(description) {
 
         if (config.keywords && config.keywords.length > 0) {
             for (const keyword of config.keywords) {
-                if (keyword.toUpperCase() === 'WELL') {
-                    console.log(`upperDesc: ${upperDesc}`);
-                }
                 if (upperDesc.includes(keyword.toUpperCase())) {
                     return category;
                 }

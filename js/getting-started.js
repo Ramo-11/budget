@@ -99,75 +99,65 @@ async function loadSampleData() {
 
 // Exit sample mode
 function exitSampleMode() {
-    if (!isInSampleMode) {
+    // Check both the flag and localStorage
+    if (!isInSampleMode && localStorage.getItem('sahabBudget_sampleMode') !== 'true') {
         showNotification('Not currently in sample mode', 'info');
         return;
     }
 
-    if (!confirm('Exit sample mode and restore your original data?')) {
+    if (
+        !confirm(
+            'Exit sample mode and clear all data? This will remove the sample data completely.'
+        )
+    ) {
         return;
     }
 
-    // Clear sample data
-    monthlyData.clear();
-    budgets = {};
-    window.transactionOverrides = {};
-    window.unifiedRules = [];
-
-    // Restore backup if exists
-    if (backupData) {
-        monthlyData = new Map(backupData.monthlyData);
-        budgets = backupData.budgets;
-        categoryConfig = backupData.categoryConfig;
-        window.transactionOverrides = backupData.transactionOverrides;
-        window.unifiedRules = backupData.unifiedRules;
-        backupData = null;
-    }
-
-    // Save restored data
-    saveData();
-
-    // Update UI
-    isInSampleMode = false;
+    // Clear everything
+    localStorage.removeItem('sahabBudget_data');
     localStorage.removeItem('sahabBudget_sampleMode');
+    localStorage.removeItem('sahabBudget_hideGettingStarted');
 
-    // Hide sample mode indicators
-    const sampleIndicator = document.getElementById('sampleModeIndicator');
-    const sampleBanner = document.getElementById('sampleModeBanner');
+    // Reset all in-memory data
+    if (typeof monthlyData !== 'undefined') monthlyData.clear();
+    if (typeof budgets !== 'undefined') budgets = {};
+    if (typeof window.transactionOverrides !== 'undefined') window.transactionOverrides = {};
+    if (typeof window.unifiedRules !== 'undefined') window.unifiedRules = [];
 
-    if (sampleIndicator) sampleIndicator.style.display = 'none';
-    if (sampleBanner) sampleBanner.style.display = 'none';
+    isInSampleMode = false;
 
-    // Update appropriate month selector
-    if (document.getElementById('monthDropdown')) {
-        updateMonthSelector();
-        if (monthlyData.size > 0) {
-            document.getElementById('monthDropdown').value = 'ALL_DATA';
-            switchToMonth('ALL_DATA');
-        }
-    } else if (document.getElementById('settingsMonthDropdown')) {
-        updateSettingsMonthSelector();
-        const months = Array.from(monthlyData.keys()).sort().reverse();
-        if (months.length > 0) {
-            document.getElementById('settingsMonthDropdown').value = months[0];
-            switchSettingsMonth(months[0]);
-        }
-    }
-
-    showNotification('Sample mode exited. Your original data has been restored.', 'success');
+    // Reload the page to reset everything
+    location.reload();
 }
 
+// Show getting started section - UPDATE THIS
+function showGettingStarted() {
+    const section = document.getElementById('gettingStartedSection');
+
+    // Only proceed if the element exists (we're on dashboard)
+    if (!section) {
+        // If not on dashboard, redirect
+        goToDashboardGettingStarted();
+        return;
+    }
+
+    section.classList.remove('collapsed');
+    localStorage.removeItem('sahabBudget_hideGettingStarted');
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 // Toggle getting started section
 function toggleGettingStarted() {
     const section = document.getElementById('gettingStartedSection');
+    if (!section) return;
+
     section.classList.toggle('collapsed');
 
-    const btn = section.querySelector('.collapse-btn');
+    // Save the state to localStorage
     if (section.classList.contains('collapsed')) {
-        btn.textContent = 'Show Getting Started ↓';
         localStorage.setItem('sahabBudget_hideGettingStarted', 'true');
     } else {
-        btn.textContent = 'Hide Getting Started ↑';
         localStorage.removeItem('sahabBudget_hideGettingStarted');
     }
 }
@@ -177,7 +167,6 @@ function showHelp() {
     const modal = document.createElement('div');
     modal.className = 'help-modal';
 
-    // Check if we're on the dashboard
     const isOnDashboard =
         window.location.pathname.includes('index.html') ||
         window.location.pathname === '/' ||
@@ -191,7 +180,9 @@ function showHelp() {
             </div>
             
             <div class="help-options">
-                <div class="help-option-card" onclick="watchTutorial(); this.closest('.help-modal').remove();">
+                <div class="help-option-card" onclick="${
+                    isOnDashboard ? 'showGettingStarted()' : 'goToDashboardGettingStarted()'
+                }; this.closest('.help-modal').remove();">
                     <h3>📹 Watch Tutorial</h3>
                     <p>Learn the basics in our quick video guide</p>
                     <button class="btn btn-primary">Watch Now</button>
@@ -209,19 +200,17 @@ function showHelp() {
                     <button class="btn btn-secondary">View Guide</button>
                 </div>
                 
-                <div class="help-option-card" onclick="${
-                    isOnDashboard ? 'showGettingStarted()' : 'goToDashboardGettingStarted()'
-                }; this.closest('.help-modal').remove();">
-                    <h3>🎯 Getting Started</h3>
-                    <p>${
-                        isOnDashboard
-                            ? 'Show the getting started section'
-                            : 'Go to dashboard for getting started'
-                    }</p>
-                    <button class="btn btn-secondary">${
-                        isOnDashboard ? 'Show' : 'Go to Dashboard'
-                    }</button>
-                </div>
+                ${
+                    localStorage.getItem('sahabBudget_sampleMode') === 'true'
+                        ? `
+                    <div class="help-option-card" onclick="exitSampleMode(); this.closest('.help-modal').remove();">
+                        <h3>🚪 Exit Sample Mode</h3>
+                        <p>Clear sample data and start fresh</p>
+                        <button class="btn btn-danger">Exit Sample Mode</button>
+                    </div>
+                `
+                        : ''
+                }
             </div>
         </div>
     `;
@@ -283,27 +272,12 @@ function showGettingStarted() {
 
 // Check for saved preferences on load
 window.addEventListener('DOMContentLoaded', () => {
-    // Check if we should show getting started (from navigation)
-    if (localStorage.getItem('sahabBudget_showGettingStarted') === 'true') {
-        localStorage.removeItem('sahabBudget_showGettingStarted');
-        const section = document.getElementById('gettingStartedSection');
-        if (section) {
-            showGettingStarted();
-        }
-    }
-
-    // Check if we should show tutorial (from navigation)
-    if (localStorage.getItem('sahabBudget_showTutorial') === 'true') {
-        localStorage.removeItem('sahabBudget_showTutorial');
-        const section = document.getElementById('gettingStartedSection');
-        if (section) {
-            showGettingStarted();
-            setTimeout(() => {
-                const videoWrapper = document.getElementById('videoWrapper');
-                if (videoWrapper) {
-                    videoWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, 500);
+    // Check if in sample mode from localStorage
+    if (localStorage.getItem('sahabBudget_sampleMode') === 'true') {
+        isInSampleMode = true;
+        const sampleBanner = document.getElementById('sampleModeBanner');
+        if (sampleBanner) {
+            sampleBanner.style.display = 'block';
         }
     }
 
@@ -312,18 +286,32 @@ window.addEventListener('DOMContentLoaded', () => {
         const section = document.getElementById('gettingStartedSection');
         if (section) {
             section.classList.add('collapsed');
-            const btn = section.querySelector('.collapse-btn');
-            if (btn) {
-                btn.textContent = 'Show Getting Started ↓';
-            }
         }
     }
 
-    // Check if in sample mode and show banner
-    if (localStorage.getItem('sahabBudget_sampleMode') === 'true') {
-        const banner = document.getElementById('sampleModeBanner');
-        if (banner) {
-            banner.style.display = 'block';
+    // Check if we should show getting started (from navigation)
+    if (localStorage.getItem('sahabBudget_showGettingStarted') === 'true') {
+        localStorage.removeItem('sahabBudget_showGettingStarted');
+        const section = document.getElementById('gettingStartedSection');
+        if (section) {
+            section.classList.remove('collapsed');
+            localStorage.removeItem('sahabBudget_hideGettingStarted');
+        }
+    }
+
+    // Check if we should show tutorial (from navigation)
+    if (localStorage.getItem('sahabBudget_showTutorial') === 'true') {
+        localStorage.removeItem('sahabBudget_showTutorial');
+        const section = document.getElementById('gettingStartedSection');
+        if (section) {
+            section.classList.remove('collapsed');
+            localStorage.removeItem('sahabBudget_hideGettingStarted');
+            setTimeout(() => {
+                const videoWrapper = document.getElementById('videoWrapper');
+                if (videoWrapper) {
+                    videoWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 500);
         }
     }
 });

@@ -141,6 +141,30 @@
     font-weight: 500;
 }
 
+/* Collapsed state improvements */
+.getting-started-section.collapsed {
+    display: none;
+}
+
+/* Make the hide button more prominent */
+.getting-started-header {
+    position: relative;
+}
+
+.getting-started-header button {
+    transition: all 0.2s;
+}
+
+.getting-started-header button:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    transform: scale(1.05);
+}
+
+/* Remove the old collapse button */
+.collapse-btn {
+    display: none !important;
+}
+
 /* Help Button */
 .help-btn {
     background: rgba(255, 255, 255, 0.1);

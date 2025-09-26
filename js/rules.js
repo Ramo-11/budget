@@ -75,8 +75,6 @@ function createRuleFromDragDrop(description, toCategory) {
         .split(/[\s#\*]/)[0]
         .trim();
 
-    console.log(`Extracted merchant name: "${merchantName}" from "${description}"`);
-
     if (!merchantName) return null;
 
     // Check if rule already exists for this pattern
@@ -105,16 +103,17 @@ function createRuleFromDragDrop(description, toCategory) {
                 );
                 return existingRule;
             } else {
-                // User declined to override
+                // User declined to override - transaction still moved but rule not changed
                 showNotification(
-                    'Rule not changed. Transaction moved for this instance only.',
+                    `Transaction moved to ${toCategory} (existing rule for "${merchantName}" not changed)`,
                     'info'
                 );
                 return null;
             }
         } else {
-            // Rule already exists for same category - no need to create
+            // Rule already exists for same category - transaction moved with existing rule
             console.log(`Rule already exists: "${merchantName}" → ${toCategory}`);
+            showNotification(`Moved to ${toCategory} (using existing rule)`, 'success');
             return existingRule;
         }
     }
