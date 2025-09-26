@@ -784,7 +784,7 @@ function clearAllMerchantRules() {
 }
 
 // Clear all data
-function toggleGettingStarted() {
+function clearAllData() {
     if (
         !confirm(
             'This will delete all data including transactions, budgets, and categories. Continue?'
