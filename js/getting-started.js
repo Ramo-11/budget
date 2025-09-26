@@ -195,7 +195,7 @@ function showHelp() {
                 </div>
                 
                 <div class="help-option-card" onclick="window.location.href='about.html'; this.closest('.help-modal').remove();">
-                    <h3>📚 User Guide</h3>
+                    <h3>User Guide</h3>
                     <p>Detailed instructions and tips</p>
                     <button class="btn btn-secondary">View Guide</button>
                 </div>
