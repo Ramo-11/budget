@@ -21,19 +21,20 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #f3f4f6;
+    background: #ffffff;
     min-height: 100vh;
-    padding: 20px;
+    padding: 0;
     line-height: 1.6;
 }
 
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
+    max-width: 100%;
+    margin: 0;
     background: var(--white);
-    border-radius: 8px;
+    border-radius: 0;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: none;
+    min-height: 100vh;
 }
 
 /* Header */
@@ -194,6 +195,15 @@ body {
     color: var(--danger);
 }
 
+.btn-warning {
+    background: var(--warning);
+    color: var(--white);
+}
+
+.btn-warning:hover {
+    background: #dc8a04;
+}
+
 /* Loading */
 .loading {
     display: none;
@@ -251,7 +261,30 @@ body {
 
 /* Responsive */
 @media (max-width: 768px) {
+    .header {
+        padding: 15px 10px;
+    }
+
+    .header > div {
+        flex-direction: column;
+        gap: 15px;
+    }
+
     .nav-buttons {
-        flex-wrap: wrap;
+        width: 100%;
+        display: grid;
+        /* flex-wrap: wrap; */
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .nav-btn {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    .help-btn {
+        grid-column: span 3;
+        width: 100%;
     }
 }

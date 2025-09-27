@@ -212,7 +212,6 @@ function updateBudgetView(analyzer) {
             <h3>Categories & Monthly Budgets - ${monthlyData.get(currentMonth).monthName}</h3>
             <div class="budget-actions-compact">
                 <button class="btn btn-primary compact" onclick="addNewCategory()">+ Add Category</button>
-                <button class="btn btn-primary compact" onclick="applyBudgetToAllMonths()">Apply to All Months</button>
                 <button class="btn btn-primary compact" id="saveChangesBtn" onclick="saveAllCategoryChanges()">
                     <span id="saveChangesText">Save Changes</span>
                 </button>
@@ -568,42 +567,358 @@ function saveAllCategoryChanges() {
 
 // Add new category with keywords
 function addNewCategory() {
-    const name = prompt('Enter category name:');
-    if (!name || !name.trim()) return;
+    const iconOptions = [
+        '📦',
+        '🛒',
+        '🍕',
+        '☕',
+        '🚗',
+        '⛽',
+        '🏠',
+        '💡',
+        '📱',
+        '💻',
+        '👕',
+        '👟',
+        '🎬',
+        '🎮',
+        '📚',
+        '✈️',
+        '🏥',
+        '💊',
+        '🎓',
+        '🏦',
+        '💳',
+        '🎁',
+        '🔧',
+        '🏪',
+        '🍔',
+        '🥗',
+        '🍺',
+        '🎵',
+        '📺',
+        '🏋️',
+        '💄',
+        '🧴',
+        '🐕',
+        '🌱',
+        '🎨',
+        '⚽',
+        '🏖️',
+        '🚕',
+        '🚇',
+        '🅿️',
+        '✂️',
+        '👔',
+        '💍',
+        '🏨',
+        '🎭',
+        '🎪',
+        '🏛️',
+        '⛪',
+        '🕹️',
+        '📷',
+    ];
 
-    const trimmedName = name.trim();
+    const modal = document.createElement('div');
+    modal.className = 'modal show';
+    modal.innerHTML = `
+        <div class="modal-content" style="width: 500px;">
+            <div class="modal-header">
+                <h2>Add New Category</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Category Name:</label>
+                    <input type="text" id="newCategoryName" 
+                           style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 4px;"
+                           placeholder="e.g., Entertainment">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Choose Icon:</label>
+                    <div style="display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; padding: 10px; background: var(--light); border-radius: 4px; max-height: 200px; overflow-y: auto;">
+                        ${iconOptions
+                            .map(
+                                (icon, index) => `
+                            <button type="button" 
+                                    class="icon-option ${index === 0 ? 'selected' : ''}" 
+                                    onclick="selectCategoryIcon(this, '${icon}')"
+                                    style="padding: 10px; border: 2px solid ${
+                                        index === 0 ? 'var(--primary)' : 'transparent'
+                                    }; 
+                                           background: white; border-radius: 4px; cursor: pointer; font-size: 20px;
+                                           transition: all 0.2s;">
+                                ${icon}
+                            </button>
+                        `
+                            )
+                            .join('')}
+                    </div>
+                    <input type="hidden" id="selectedIcon" value="${iconOptions[0]}">
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Keywords (comma-separated):</label>
+                    <input type="text" id="newCategoryKeywords" 
+                           style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 4px;"
+                           placeholder="e.g., NETFLIX, SPOTIFY, CINEMA">
+                    <small style="color: var(--gray); font-size: 12px;">Keywords will auto-categorize matching transactions</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveNewCategory()">Create Category</button>
+            </div>
+        </div>
+    `;
 
-    if (categoryConfig[trimmedName]) {
+    document.body.appendChild(modal);
+    document.getElementById('newCategoryName').focus();
+}
+
+function selectCategoryIcon(button, icon) {
+    // Remove selected class from all icons
+    document.querySelectorAll('.icon-option').forEach((btn) => {
+        btn.style.border = '2px solid transparent';
+        btn.classList.remove('selected');
+    });
+
+    // Add selected class to clicked icon
+    button.style.border = '2px solid var(--primary)';
+    button.classList.add('selected');
+    document.getElementById('selectedIcon').value = icon;
+}
+
+function saveNewCategory() {
+    const name = document.getElementById('newCategoryName').value.trim();
+    const icon = document.getElementById('selectedIcon').value;
+    const keywordsInput = document.getElementById('newCategoryKeywords').value;
+
+    if (!name) {
+        showNotification('Please enter a category name', 'error');
+        return;
+    }
+
+    if (categoryConfig[name]) {
         showNotification('Category already exists', 'error');
         return;
     }
 
-    // Ask for initial keywords
-    const keywordsInput = prompt('Enter keywords for this category (comma-separated, optional):');
     const keywords = keywordsInput
-        ? keywordsInput
-              .split(',')
-              .map((k) => k.trim().toUpperCase())
-              .filter((k) => k.length > 0)
-        : [];
+        .split(',')
+        .map((k) => k.trim().toUpperCase())
+        .filter((k) => k.length > 0);
 
-    categoryConfig[trimmedName] = {
+    // Check for keyword conflicts
+    const conflicts = [];
+    keywords.forEach((keyword) => {
+        for (const [categoryName, config] of Object.entries(categoryConfig)) {
+            if (config.keywords && config.keywords.includes(keyword)) {
+                conflicts.push({
+                    keyword: keyword,
+                    existingCategory: categoryName,
+                    icon: config.icon,
+                });
+            }
+        }
+    });
+
+    // If there are conflicts, show confirmation modal
+    if (conflicts.length > 0) {
+        showKeywordConflictModal(name, icon, keywords, conflicts);
+        return;
+    }
+
+    // No conflicts, proceed with creation
+    proceedWithCategoryCreation(name, icon, keywords);
+}
+
+function showKeywordConflictModal(newCategoryName, newIcon, newKeywords, conflicts) {
+    const modal = document.createElement('div');
+    modal.className = 'modal show';
+    modal.style.zIndex = '2000'; // Higher z-index for nested modal
+
+    const conflictsList = conflicts
+        .map(
+            (conflict) => `
+        <div style="padding: 10px; background: var(--light); margin: 8px 0; border-radius: 4px; border-left: 3px solid var(--warning);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong style="color: var(--dark);">"${conflict.keyword}"</strong>
+                    <span style="color: var(--gray); margin: 0 8px;">is currently in</span>
+                    <span style="background: white; padding: 3px 8px; border-radius: 3px; border: 1px solid var(--border);">
+                        ${conflict.icon} ${conflict.existingCategory}
+                    </span>
+                </div>
+            </div>
+        </div>
+    `
+        )
+        .join('');
+
+    const conflictsJson = JSON.stringify(conflicts).replace(/"/g, '&quot;');
+
+    modal.innerHTML = `
+        <div class="modal-content" style="width: 550px;">
+            <div class="modal-header" style="background: #fef3c7; border-bottom: 2px solid #fbbf24;">
+                <h2 style="color: #92400e;">⚠️ Keyword Conflict Detected</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <p style="font-size: 14px; color: var(--dark); margin-bottom: 15px;">
+                        The following keyword${
+                            conflicts.length > 1 ? 's are' : ' is'
+                        } already assigned to other categories:
+                    </p>
+                    ${conflictsList}
+                </div>
+                
+                <div style="background: #e0f2fe; border: 1px solid #0284c7; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                    <p style="color: #075985; font-size: 13px; margin: 0;">
+                        <strong>What will happen if you proceed:</strong><br>
+                        • The keyword${
+                            conflicts.length > 1 ? 's' : ''
+                        } will be <strong>moved</strong> to the new category "${newCategoryName}"<br>
+                        • Future transactions matching ${
+                            conflicts.length > 1 ? 'these keywords' : 'this keyword'
+                        } will be categorized as "${newCategoryName}"<br>
+                        • Existing categorized transactions will NOT be affected unless you reprocess them
+                    </p>
+                </div>
+                
+                <div style="padding: 15px; background: var(--light); border-radius: 6px;">
+                    <p style="font-size: 13px; color: var(--gray); margin: 0;">
+                        <strong>Tip:</strong> If you want to keep the keyword in both categories, consider using more specific keywords. 
+                        For example, instead of "AMAZON", use "AMAZON PRIME" for subscriptions and "AMAZON.COM" for shopping.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
+                <button 
+                    class="btn btn-warning"
+                    data-category="${newCategoryName}"
+                    data-icon="${newIcon}"
+                    data-keywords="${newKeywords.join(',')}"
+                    data-conflicts='${conflictsJson}'
+                    onclick="handleConflictOverrideClick(this)"
+                    style="background: #f59e0b; border-color: #f59e0b;">
+                    Override & Move Keywords
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+// 🔹 new safe handler
+function handleConflictOverrideClick(btn) {
+    const category = btn.dataset.category;
+    const icon = btn.dataset.icon;
+    const keywords = btn.dataset.keywords;
+    const conflictsJson = btn.dataset.conflicts;
+
+    proceedWithConflictOverride(category, icon, keywords, conflictsJson);
+    btn.closest('.modal').remove();
+}
+
+function proceedWithConflictOverride(categoryName, icon, keywordsString, conflictsJson) {
+    const keywords = keywordsString.split(',');
+    const conflicts = JSON.parse(conflictsJson.replace(/\\'/g, "'"));
+
+    // Remove conflicting keywords from their current categories
+    conflicts.forEach((conflict) => {
+        const existingCategory = categoryConfig[conflict.existingCategory];
+        if (existingCategory && existingCategory.keywords) {
+            existingCategory.keywords = existingCategory.keywords.filter(
+                (k) => k !== conflict.keyword
+            );
+        }
+    });
+
+    // Close the original add category modal if it exists
+    const originalModal = document.querySelector('.modal:not([style*="z-index"])');
+    if (originalModal) {
+        originalModal.remove();
+    }
+
+    // Proceed with creation
+    proceedWithCategoryCreation(categoryName, icon, keywords);
+
+    // Show confirmation with details about what was moved
+    const movedFrom = [...new Set(conflicts.map((c) => c.existingCategory))].join(', ');
+    showNotification(
+        `Category "${categoryName}" created. Keywords moved from: ${movedFrom}`,
+        'success'
+    );
+}
+
+function proceedWithCategoryCreation(name, icon, keywords) {
+    // Add the new category
+    categoryConfig[name] = {
         keywords: keywords,
-        icon: '📦',
+        icon: icon,
     };
 
-    // If keywords were added, reprocess transactions
-    let message = `Category "${trimmedName}" added`;
+    // Reprocess all transactions if keywords were provided
+    let reprocessedCount = 0;
+    if (keywords.length > 0) {
+        monthlyData.forEach((monthData, monthKey) => {
+            monthData.transactions.forEach((transaction) => {
+                // Skip if there's already an override for this transaction
+                if (
+                    window.transactionOverrides &&
+                    window.transactionOverrides[monthKey] &&
+                    window.transactionOverrides[monthKey][transaction._id]
+                ) {
+                    return;
+                }
+
+                const description = (
+                    transaction.Description ||
+                    transaction.description ||
+                    ''
+                ).toUpperCase();
+
+                // Check if any of the new keywords match
+                for (const keyword of keywords) {
+                    if (description.includes(keyword)) {
+                        // This transaction should be in the new category
+                        const oldCategory = categorizeTransaction(description, transaction._id);
+                        if (oldCategory !== name) {
+                            reprocessedCount++;
+                        }
+                        break;
+                    }
+                }
+            });
+        });
+    }
 
     saveData();
 
-    // Refresh the budget view immediately
+    // Refresh the budget view
     if (currentMonth && monthlyData.has(currentMonth)) {
         const monthData = monthlyData.get(currentMonth);
         const analyzer = analyzeTransactions(monthData.transactions);
         updateBudgetView(analyzer);
     }
 
+    // Close modal
+    const modal = document.querySelector('.modal:not([style*="z-index"])');
+    if (modal) {
+        modal.remove();
+    }
+
+    // Show success message
+    let message = `Category "${name}" created successfully`;
+    if (reprocessedCount > 0) {
+        message += ` (${reprocessedCount} transactions will be re-categorized)`;
+    }
     showNotification(message, 'success');
 }
 

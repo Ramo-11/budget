@@ -412,6 +412,14 @@ function switchToMonth(monthKey) {
         return;
     }
 
+    if (monthKey === 'CUSTOM_RANGE_SELECT') {
+        openDateRangeSelector();
+        // Reset dropdown to previous value
+        const dropdown = document.getElementById('monthDropdown');
+        dropdown.value = currentMonth || 'ALL_DATA';
+        return;
+    }
+
     // Handle Custom Date Range
     if (monthKey === 'CUSTOM_RANGE' && window.customDateRange) {
         currentMonth = 'CUSTOM_RANGE';
@@ -505,7 +513,7 @@ function updateMonthSelector() {
     // Add "All Data" option first
     const allOption = document.createElement('option');
     allOption.value = 'ALL_DATA';
-    allOption.textContent = '📊 All Months Combined';
+    allOption.textContent = 'All Months Combined';
     dropdown.appendChild(allOption);
 
     // Add separator
@@ -513,6 +521,16 @@ function updateMonthSelector() {
     separator.disabled = true;
     separator.textContent = '──────────';
     dropdown.appendChild(separator);
+
+    const customRangeOption = document.createElement('option');
+    customRangeOption.value = 'CUSTOM_RANGE_SELECT';
+    customRangeOption.textContent = 'Custom Date Range';
+    dropdown.appendChild(customRangeOption);
+
+    const separator2 = document.createElement('option');
+    separator2.disabled = true;
+    separator2.textContent = '──────────';
+    dropdown.appendChild(separator2);
 
     // Add individual months
     months.forEach((monthKey) => {

@@ -325,26 +325,29 @@ function initializeDragDrop() {
     let draggedElement = null;
     let draggedId = null;
     let draggedCategory = null;
-    let animationFrame = null;
     let lastEvent = null;
+    let animationFrame = null;
+    let lastValidY = 0;
+    let isScrolling = false;
 
-    function autoScroll(e) {
-        if (!draggedElement || !e) return;
+    function autoScroll() {
+        if (!draggedElement || !isScrolling) return;
 
         const scrollZone = 100; // px from edge
         const maxSpeed = 15; // px per frame
 
         const viewportHeight = window.innerHeight;
+        const mouseY = lastValidY;
 
         // Distance from edges
-        const distTop = e.clientY;
-        const distBottom = viewportHeight - e.clientY;
+        const distTop = mouseY;
+        const distBottom = viewportHeight - mouseY;
 
         let scrollY = 0;
 
-        if (distTop < scrollZone) {
+        if (distTop < scrollZone && distTop > 0) {
             scrollY = -((scrollZone - distTop) / scrollZone) * maxSpeed;
-        } else if (distBottom < scrollZone) {
+        } else if (distBottom < scrollZone && distBottom > 0) {
             scrollY = ((scrollZone - distBottom) / scrollZone) * maxSpeed;
         }
 
@@ -356,20 +359,23 @@ function initializeDragDrop() {
         const container = document.querySelector('.container');
         if (container) {
             const rect = container.getBoundingClientRect();
-            const distTopContainer = e.clientY - rect.top;
-            const distBottomContainer = rect.bottom - e.clientY;
+            const distTopContainer = mouseY - rect.top;
+            const distBottomContainer = rect.bottom - mouseY;
 
-            if (distTopContainer < scrollZone && container.scrollTop > 0) {
+            if (distTopContainer < scrollZone && distTopContainer > 0 && container.scrollTop > 0) {
                 container.scrollTop -= ((scrollZone - distTopContainer) / scrollZone) * maxSpeed;
             } else if (
                 distBottomContainer < scrollZone &&
+                distBottomContainer > 0 &&
                 container.scrollTop < container.scrollHeight - container.clientHeight
             ) {
                 container.scrollTop += ((scrollZone - distBottomContainer) / scrollZone) * maxSpeed;
             }
         }
 
-        animationFrame = requestAnimationFrame(() => autoScroll(lastEvent));
+        if (isScrolling) {
+            animationFrame = requestAnimationFrame(autoScroll);
+        }
     }
 
     items.forEach((item) => {
@@ -379,8 +385,9 @@ function initializeDragDrop() {
             draggedCategory = item.dataset.category;
             item.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
-            lastEvent = e;
-            animationFrame = requestAnimationFrame(() => autoScroll(lastEvent));
+            lastValidY = e.clientY;
+            isScrolling = true;
+            animationFrame = requestAnimationFrame(autoScroll);
         });
 
         item.addEventListener('dragend', () => {
@@ -388,18 +395,25 @@ function initializeDragDrop() {
             draggedElement = null;
             draggedId = null;
             draggedCategory = null;
-            cancelAnimationFrame(animationFrame);
+            isScrolling = false;
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+                animationFrame = null;
+            }
         });
 
         item.addEventListener('drag', (e) => {
-            if (e.clientY > 0) lastEvent = e;
+            if (e.clientY > 0) {
+                lastValidY = e.clientY;
+            }
         });
     });
 
     document.addEventListener('dragover', (e) => {
         if (draggedElement) {
             e.preventDefault();
-            lastEvent = e;
+            // Always update position on dragover as it's more reliable
+            lastValidY = e.clientY;
         }
     });
 

@@ -68,3 +68,12 @@
 .close-btn:hover {
     color: var(--dark);
 }
+
+.icon-option:hover {
+    transform: scale(1.1);
+    background: var(--light) !important;
+}
+
+.icon-option.selected {
+    background: rgba(79, 70, 229, 0.1) !important;
+}
