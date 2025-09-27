@@ -47,7 +47,10 @@
     border: 1px solid var(--border);
 }
 
-.chart-wrapper h3 {
+/* .chart-wrapper canvas {
+    max-height: 300px !important; /* Adjust this value as needed */
+/* } */
+*/ .chart-wrapper h3 {
     font-size: 14px;
     margin-bottom: 15px;
     color: var(--dark);

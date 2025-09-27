@@ -4,38 +4,44 @@ let widgetUpdateInterval = null;
 
 // Initialize widget
 function initializeWidget() {
-    const widget = document.createElement('div');
-    widget.id = 'quickStatsWidget';
-    widget.className = 'quick-stats-widget collapsed';
-    widget.innerHTML = `
-        <div class="widget-toggle" onclick="toggleWidget()">
-            <span class="widget-icon">📊</span>
-            <span class="widget-label">Quick Stats</span>
-        </div>
-        <div class="widget-content">
-            <div class="widget-header">
-                <h3>Quick Stats</h3>
-                <button class="widget-close" onclick="toggleWidget()">×</button>
-            </div>
-            <div class="widget-body">
-                <div class="widget-tabs">
-                    <button class="widget-tab active" onclick="switchWidgetTab('today')">Today</button>
-                    <button class="widget-tab" onclick="switchWidgetTab('week')">This Week</button>
-                    <button class="widget-tab" onclick="switchWidgetTab('month')">This Month</button>
-                </div>
-                <div class="widget-stats" id="widgetStats">
-                    <!-- Stats will be loaded here -->
-                </div>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(widget);
-
-    // Update widget when data changes
-    if (monthlyData.size > 0) {
-        updateWidgetStats('today');
-    }
+    // if (!monthlyData || monthlyData.size === 0) {
+    //     return;
+    // }
+    // console.log('monthlyData:', JSON.stringify([...monthlyData], null, 2));
+    // const existingWidget = document.getElementById('quickStatsWidget');
+    // if (existingWidget) {
+    //     existingWidget.remove();
+    // }
+    // const widget = document.createElement('div');
+    // widget.id = 'quickStatsWidget';
+    // widget.className = 'quick-stats-widget collapsed';
+    // widget.innerHTML = `
+    //     <div class="widget-toggle" onclick="toggleWidget()">
+    //         <span class="widget-icon">📊</span>
+    //         <span class="widget-label">Quick Stats</span>
+    //     </div>
+    //     <div class="widget-content">
+    //         <div class="widget-header">
+    //             <h3>Quick Stats</h3>
+    //             <button class="widget-close" onclick="toggleWidget()">×</button>
+    //         </div>
+    //         <div class="widget-body">
+    //             <div class="widget-tabs">
+    //                 <button class="widget-tab active" onclick="switchWidgetTab('today')">Today</button>
+    //                 <button class="widget-tab" onclick="switchWidgetTab('week')">This Week</button>
+    //                 <button class="widget-tab" onclick="switchWidgetTab('month')">This Month</button>
+    //             </div>
+    //             <div class="widget-stats" id="widgetStats">
+    //                 <!-- Stats will be loaded here -->
+    //             </div>
+    //         </div>
+    //     </div>
+    // `;
+    // document.body.appendChild(widget);
+    // // Update widget when data changes
+    // if (monthlyData.size > 0) {
+    //     updateWidgetStats('today');
+    // }
 }
 
 // Toggle widget

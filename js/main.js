@@ -64,6 +64,7 @@ async function handleFileUpload(event) {
         switchToMonth('ALL_DATA');
 
         saveData();
+        initializeWidget();
 
         // Show detailed upload result
         let message = `Processed ${allTransactions.length} transactions`;

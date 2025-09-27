@@ -124,6 +124,9 @@ function loadSavedData() {
             if (document.getElementById('monthDropdown')) {
                 updateMonthSelector();
             }
+            if (typeof initializeWidget === 'function' && monthlyData.size > 0) {
+                initializeWidget();
+            }
         }
     } catch (error) {
         console.error('Error loading saved data:', error);

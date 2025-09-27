@@ -386,6 +386,27 @@
     }
 }
 
+.month-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.month-selector label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--dark);
+}
+
+.month-selector select {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 200px;
+    background: white;
+}
+
 /* Focus States for Accessibility */
 button:focus-visible,
 input:focus-visible {

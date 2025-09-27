@@ -204,7 +204,7 @@ function showHelp() {
                     localStorage.getItem('sahabBudget_sampleMode') === 'true'
                         ? `
                     <div class="help-option-card" onclick="exitSampleMode(); this.closest('.help-modal').remove();">
-                        <h3>🚪 Exit Sample Mode</h3>
+                        <h3>Exit Sample Mode</h3>
                         <p>Clear sample data and start fresh</p>
                         <button class="btn btn-danger">Exit Sample Mode</button>
                     </div>

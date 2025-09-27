@@ -11,7 +11,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (monthlyData.size > 0) {
         const months = Array.from(monthlyData.keys()).sort().reverse();
         if (months.length > 0) {
-            switchSettingsMonth(months[0]);
+            document.getElementById('settingsMonthDropdown').value = 'ALL_MONTHS';
+            switchSettingsMonth('ALL_MONTHS');
         }
     }
 });
@@ -87,6 +88,16 @@ function updateSettingsMonthSelector() {
     const dropdown = document.getElementById('settingsMonthDropdown');
     dropdown.innerHTML = '';
 
+    const allOption = document.createElement('option');
+    allOption.value = 'ALL_MONTHS';
+    allOption.textContent = 'All Months (View/Edit)';
+    dropdown.appendChild(allOption);
+
+    const separator = document.createElement('option');
+    separator.disabled = true;
+    separator.textContent = '──────────';
+    dropdown.appendChild(separator);
+
     const months = Array.from(monthlyData.keys()).sort().reverse();
     months.forEach((monthKey) => {
         const monthData = monthlyData.get(monthKey);
@@ -99,12 +110,187 @@ function updateSettingsMonthSelector() {
 
 // Switch settings month
 function switchSettingsMonth(monthKey) {
+    if (monthKey === 'ALL_MONTHS') {
+        // Handle all months view
+        currentMonth = 'ALL_MONTHS';
+        updateBudgetViewForAllMonths();
+        return;
+    }
     if (!monthlyData.has(monthKey)) return;
 
     currentMonth = monthKey;
     const monthData = monthlyData.get(monthKey);
     const analyzer = analyzeTransactions(monthData.transactions);
     updateBudgetView(analyzer);
+}
+
+function updateBudgetViewForAllMonths() {
+    const container = document.getElementById('budgetGrid');
+    if (!container) return;
+
+    // Calculate budgets across all months
+    const budgetSummary = {};
+    const monthsList = Array.from(monthlyData.keys()).sort();
+
+    // Gather budget info for each category across all months
+    Object.keys(categoryConfig).forEach((category) => {
+        budgetSummary[category] = {
+            budgets: {},
+            hasAnyBudget: false,
+            isConsistent: true,
+            firstValue: null,
+        };
+    });
+
+    // Check each month's budgets
+    monthsList.forEach((monthKey) => {
+        const monthBudgets = budgets[monthKey] || {};
+
+        Object.keys(categoryConfig).forEach((category) => {
+            const budget = monthBudgets[category] || 0;
+            budgetSummary[category].budgets[monthKey] = budget;
+
+            if (budget > 0) {
+                budgetSummary[category].hasAnyBudget = true;
+
+                if (budgetSummary[category].firstValue === null) {
+                    budgetSummary[category].firstValue = budget;
+                } else if (budgetSummary[category].firstValue !== budget) {
+                    budgetSummary[category].isConsistent = false;
+                }
+            }
+        });
+    });
+
+    // Get all categories sorted alphabetically (Others at the end)
+    const allCategories = Object.keys(categoryConfig).sort((a, b) => {
+        if (a === 'Others') return 1;
+        if (b === 'Others') return -1;
+        return a.localeCompare(b);
+    });
+
+    const categoriesHTML = allCategories
+        .map((category) => {
+            const config = categoryConfig[category] || { icon: '📦', keywords: [] };
+            const categoryId = category.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+            const summary = budgetSummary[category];
+
+            // Determine what to show for budget
+            let budgetDisplay = '';
+            let budgetValue = '';
+
+            if (!summary.hasAnyBudget) {
+                budgetDisplay = 'No budget set';
+                budgetValue = '';
+            } else if (summary.isConsistent) {
+                budgetDisplay = `$${summary.firstValue.toFixed(2)} (all months)`;
+                budgetValue = summary.firstValue;
+            } else {
+                // Calculate average
+                const validBudgets = Object.values(summary.budgets).filter((b) => b > 0);
+                const average = validBudgets.reduce((a, b) => a + b, 0) / validBudgets.length;
+                budgetDisplay = `Varies (avg: $${average.toFixed(2)})`;
+                budgetValue = '';
+            }
+
+            return `
+                <div class="budget-item compact">
+                    <div class="budget-item-row">
+                        <div class="category-info">
+                            <input type="text" 
+                                   class="icon-input-compact" 
+                                   id="icon-${categoryId}" 
+                                   value="${config.icon}" 
+                                   maxlength="2"
+                                   onchange="markUnsavedChanges()"
+                                   title="Click to change icon">
+                            <input type="text" 
+                                   class="category-name-input-compact" 
+                                   id="name-${categoryId}" 
+                                   value="${category}" 
+                                   ${category === 'Others' ? 'readonly' : ''}
+                                   onchange="renameCategory('${category}', this.value); markUnsavedChanges()">
+                        </div>
+                        
+                        <div class="budget-controls">
+                            <div class="spending-info">
+                                <span class="spent-label" style="font-size: 12px; color: var(--gray);">
+                                    ${budgetDisplay}
+                                </span>
+                            </div>
+                            
+                            <div class="budget-input-compact">
+                                <input type="number" 
+                                       id="budget-${categoryId}" 
+                                       placeholder="${
+                                           summary.isConsistent && summary.hasAnyBudget
+                                               ? budgetValue
+                                               : 'Set budget'
+                                       }" 
+                                       value=""
+                                       step="0.01"
+                                       class="budget-field">
+                                <button class="btn-set-budget" onclick="setBudgetForAllMonths('${category}')">Set All</button>
+                            </div>
+                            
+                            ${
+                                category !== 'Others'
+                                    ? `<button class="btn-remove-compact" onclick="removeCategory('${category}')" title="Remove">×</button>`
+                                    : '<div style="width: 32px;"></div>'
+                            }
+                        </div>
+                    </div>
+                    
+                    <div class="keywords-row">
+                        <input type="text" 
+                               class="keywords-input-compact" 
+                               id="keywords-${categoryId}" 
+                               value="${config.keywords.join(', ')}" 
+                               placeholder="Keywords: e.g., AMAZON, WALMART (comma-separated)"
+                               onchange="markUnsavedChanges()"
+                               title="Add keywords that will auto-categorize transactions">
+                    </div>
+                </div>
+            `;
+        })
+        .join('');
+
+    container.innerHTML = `
+        <div class="budget-header">
+            <h3>Categories & Monthly Budgets</h3>
+            <div class="budget-actions-compact">
+                <button class="btn btn-primary compact" onclick="addNewCategory()">+ Add Category</button>
+                <button class="btn btn-primary compact" id="saveChangesBtn" onclick="saveAllCategoryChanges()">
+                    <span id="saveChangesText">Save Changes</span>
+                </button>
+            </div>
+        </div>
+        <div id="unsavedNotice" style="display: none; background: #fef3c7; color: #92400e; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; font-size: 13px;">
+            ⚠️ You have unsaved changes. Click "Save Changes" to apply keyword updates and re-categorize transactions.
+        </div>
+        <div class="budget-items-container">
+            ${categoriesHTML}
+        </div>
+    `;
+}
+
+function setBudgetForAllMonths(category) {
+    const inputId = `budget-${category.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}`;
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    const value = parseFloat(input.value);
+
+    if (isNaN(value) || value < 0) {
+        showNotification('Please enter a valid budget amount', 'error');
+        return;
+    }
+
+    // Apply to all months directly
+    applyBudgetToAllMonthsForCategory(category, value);
+
+    // Refresh the view
+    updateBudgetViewForAllMonths();
 }
 
 // Export all data as CSV
@@ -209,7 +395,7 @@ function updateBudgetView(analyzer) {
 
     container.innerHTML = `
         <div class="budget-header">
-            <h3>Categories & Monthly Budgets - ${monthlyData.get(currentMonth).monthName}</h3>
+            <h3>Categories & Monthly Budgets</h3>
             <div class="budget-actions-compact">
                 <button class="btn btn-primary compact" onclick="addNewCategory()">+ Add Category</button>
                 <button class="btn btn-primary compact" id="saveChangesBtn" onclick="saveAllCategoryChanges()">
@@ -238,10 +424,16 @@ function setBudgetWithOptions(category) {
         showNotification('Please enter a valid budget amount', 'error');
         return;
     }
+    const currentMonthName = monthlyData.get(currentMonth).monthName;
+
+    if (currentMonthName === 'ALL_MONTHS') {
+        // When viewing all months, default action is to apply to all
+        applyBudgetToAllMonthsForCategory(category, value);
+        return;
+    }
 
     // Get all months sorted
     const months = Array.from(monthlyData.keys()).sort().reverse();
-    const currentMonthName = monthlyData.get(currentMonth).monthName;
 
     // Create month options
     const monthOptions = months
@@ -1111,6 +1303,10 @@ function clearAllData() {
     if (confirm('Are you absolutely sure? This cannot be undone.')) {
         localStorage.removeItem('sahabBudget_data');
         window.transactionOverrides = {};
+        const widget = document.getElementById('quickStatsWidget');
+        if (widget) {
+            widget.remove();
+        }
         location.reload();
     }
 }

@@ -106,6 +106,10 @@ body {
     cursor: pointer;
 }
 
+img.logo {
+    filter: brightness(0) invert(1);
+}
+
 .month-selector {
     display: none;
 }
