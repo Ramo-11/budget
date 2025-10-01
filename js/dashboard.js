@@ -2,12 +2,29 @@
 
 // Update dashboard
 function updateDashboard(analyzer) {
-    console.log(`analyzer: ${analyzer}`);
-    console.log(`analyzer.transactionCount: ${analyzer.transactionCount}`);
+    // Check if we have the necessary DOM elements
+    const summaryCards = document.getElementById('summaryCards');
+    const categoryDetails = document.getElementById('categoryDetails');
+    const chartsContainer = document.querySelector('.charts-container');
+
+    if (!summaryCards || !categoryDetails || !chartsContainer) {
+        console.warn('Dashboard DOM elements not found');
+        return;
+    }
+
     if (!analyzer || analyzer.transactionCount === 0) {
         showDashboardEmptyState();
         return;
     }
+
+    // Show the "Detailed Breakdown" heading
+    const headings = document.querySelectorAll('h3');
+    headings.forEach((h) => {
+        if (h.textContent.trim() === 'Detailed Breakdown') {
+            h.style.display = 'block';
+        }
+    });
+
     // Update summary cards
     const avgTransaction =
         analyzer.transactionCount > 0 ? analyzer.totalExpenses / analyzer.transactionCount : 0;
@@ -33,7 +50,7 @@ function updateDashboard(analyzer) {
             <p>$${avgTransaction.toFixed(2)}</p>
         </div>
     `;
-    document.getElementById('summaryCards').innerHTML = cardsHTML;
+    summaryCards.innerHTML = cardsHTML;
 
     // Update category details
     updateCategoryDetails(analyzer);
@@ -43,6 +60,11 @@ function updateDashboard(analyzer) {
 }
 
 function showDashboardEmptyState() {
+    // Don't show empty state if we actually have data
+    if (monthlyData && monthlyData.size > 0) {
+        return;
+    }
+
     const emptyStateHTML = `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; color: var(--gray); grid-column: 1 / -1;">
             <div style="font-size: 64px; margin-bottom: 20px;">📊</div>
@@ -283,6 +305,15 @@ function toggleCategoryExpansion(category) {
 
 // Update charts
 function updateCharts(analyzer) {
+    // Check if canvas elements exist
+    const pieCanvas = document.getElementById('pieChart');
+    const barCanvas = document.getElementById('barChart');
+
+    if (!pieCanvas || !barCanvas) {
+        console.warn('Chart canvas elements not found');
+        return;
+    }
+
     const categories = Object.entries(analyzer.categoryTotals)
         .filter(([_, value]) => value > 0)
         .sort((a, b) => b[1] - a[1]);
@@ -297,8 +328,8 @@ function updateCharts(analyzer) {
             </div>
         `;
 
-        document.querySelector('#pieChart').parentElement.innerHTML = emptyStateHTML;
-        document.querySelector('#barChart').parentElement.innerHTML = emptyStateHTML;
+        pieCanvas.parentElement.innerHTML = emptyStateHTML;
+        barCanvas.parentElement.innerHTML = emptyStateHTML;
         return;
     }
 
@@ -319,8 +350,8 @@ function updateCharts(analyzer) {
     if (charts.pie) charts.pie.destroy();
     if (charts.bar) charts.bar.destroy();
 
-    // Pie chart
-    const pieCtx = document.getElementById('pieChart').getContext('2d');
+    // Create pie chart
+    const pieCtx = pieCanvas.getContext('2d');
     charts.pie = new Chart(pieCtx, {
         type: 'pie',
         data: {
@@ -348,8 +379,8 @@ function updateCharts(analyzer) {
         },
     });
 
-    // Bar chart
-    const barCtx = document.getElementById('barChart').getContext('2d');
+    // Create bar chart
+    const barCtx = barCanvas.getContext('2d');
     charts.bar = new Chart(barCtx, {
         type: 'bar',
         data: {

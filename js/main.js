@@ -17,11 +17,6 @@ window.addEventListener('DOMContentLoaded', () => {
         // Show empty state if no data
         showDashboardEmptyState();
     }
-
-    // Initialize quick stats widget only if there's data
-    if (monthlyData.size > 0) {
-        initializeWidget();
-    }
 });
 
 // Handle file upload
@@ -55,23 +50,8 @@ async function handleFileUpload(event) {
 
         // Process and detect duplicates
         const processResult = splitByMonth(allTransactions);
-        updateMonthSelector();
-
-        // Always add ALL_DATA as option
-        const dropdown = document.getElementById('monthDropdown');
-        if (![...dropdown.options].some((opt) => opt.value === 'ALL_DATA')) {
-            const opt = document.createElement('option');
-            opt.value = 'ALL_DATA';
-            opt.textContent = 'All Data';
-            dropdown.prepend(opt);
-        }
-
-        // Default to ALL_DATA after upload
-        document.getElementById('monthDropdown').value = 'ALL_DATA';
-        switchToMonth('ALL_DATA');
 
         saveData();
-        initializeWidget();
 
         // Show detailed upload result
         let message = `Processed ${allTransactions.length} transactions`;
@@ -88,15 +68,18 @@ async function handleFileUpload(event) {
             message += ` - ${processResult.added} new expenses added`;
         }
         showNotification(message, 'success');
+
+        // Reload the page after a short delay
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 1000);
     } catch (error) {
         console.error('Upload error:', error);
         showNotification('Error processing files: ' + error.message, 'error');
-    } finally {
         document.getElementById('loading').style.display = 'none';
         event.target.value = ''; // Reset file input
     }
 }
-
 // Switch view
 function switchView(viewName) {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));

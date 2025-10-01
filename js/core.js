@@ -408,8 +408,8 @@ function switchToMonth(monthKey) {
         });
         const analyzer = analyzeTransactions(allTransactions);
 
-        // Only update dashboard if the function exists (we're on the main page)
-        if (typeof updateDashboard === 'function') {
+        // Only update dashboard if the function exists and we're on the dashboard
+        if (typeof updateDashboard === 'function' && document.getElementById('dashboardView')) {
             updateDashboard(analyzer);
         }
         return;
@@ -419,7 +419,9 @@ function switchToMonth(monthKey) {
         openDateRangeSelector();
         // Reset dropdown to previous value
         const dropdown = document.getElementById('monthDropdown');
-        dropdown.value = currentMonth || 'ALL_DATA';
+        if (dropdown) {
+            dropdown.value = currentMonth || 'ALL_DATA';
+        }
         return;
     }
 
@@ -441,7 +443,7 @@ function switchToMonth(monthKey) {
         });
 
         const analyzer = analyzeTransactions(rangeTransactions);
-        if (typeof updateDashboard === 'function') {
+        if (typeof updateDashboard === 'function' && document.getElementById('dashboardView')) {
             updateDashboard(analyzer);
         }
         return;
@@ -455,7 +457,7 @@ function switchToMonth(monthKey) {
     const analyzer = analyzeTransactions(monthData.transactions);
 
     // Update the appropriate view based on what's available
-    if (typeof updateDashboard === 'function') {
+    if (typeof updateDashboard === 'function' && document.getElementById('dashboardView')) {
         updateDashboard(analyzer);
     }
     if (typeof updateBudgetView === 'function') {

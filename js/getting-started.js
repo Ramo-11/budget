@@ -19,6 +19,11 @@ async function loadSampleData() {
 
         // Fetch the sample JSON file
         const response = await fetch('sample_data.json');
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch sample data: ${response.status}`);
+        }
+
         const importData = await response.json();
 
         // Validate the backup structure
@@ -40,59 +45,16 @@ async function loadSampleData() {
         isInSampleMode = true;
         localStorage.setItem('sahabBudget_sampleMode', 'true');
 
-        // Update UI elements
-        const sampleIndicator = document.getElementById('sampleModeIndicator');
-        const sampleBanner = document.getElementById('sampleModeBanner');
-        const gettingStarted = document.getElementById('gettingStartedSection');
-
-        if (sampleIndicator) sampleIndicator.style.display = 'block';
-        if (sampleBanner) sampleBanner.style.display = 'block';
-        if (gettingStarted) gettingStarted.classList.add('collapsed');
-
-        // Update the appropriate month selector
-        if (typeof updateMonthSelector === 'function' && document.getElementById('monthDropdown')) {
-            updateMonthSelector();
-            document.getElementById('monthDropdown').value = 'ALL_DATA';
-            switchToMonth('ALL_DATA');
-        } else if (
-            typeof updateSettingsMonthSelector === 'function' &&
-            document.getElementById('settingsMonthDropdown')
-        ) {
-            updateSettingsMonthSelector();
-            const months = Array.from(monthlyData.keys()).sort().reverse();
-            if (months.length > 0) {
-                document.getElementById('settingsMonthDropdown').value = months[0];
-                switchSettingsMonth(months[0]);
-            }
-        }
-
-        // Update storage stats if on settings page
-        if (typeof updateStorageStats === 'function') {
-            updateStorageStats();
-        }
-
         // Show success message
-        showNotification(
-            'Sample data loaded! Feel free to explore all features. Your original data is safely backed up.',
-            'success'
-        );
+        showNotification('Sample data loaded! Redirecting to dashboard...', 'success');
 
-        // Redirect to dashboard if not already there
-        if (
-            !window.location.pathname.includes('index.html') &&
-            window.location.pathname !== '/' &&
-            window.location.pathname !== ''
-        ) {
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 1500);
-        }
+        // Always redirect/reload to dashboard
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 500);
     } catch (error) {
         console.error('Error loading sample data:', error);
-        showNotification(
-            'Error loading sample data. Please ensure sample-data.json exists.',
-            'error'
-        );
+        showNotification('Error loading sample data: ' + error.message, 'error');
     }
 }
 
@@ -277,6 +239,52 @@ window.addEventListener('DOMContentLoaded', () => {
         const sampleBanner = document.getElementById('sampleModeBanner');
         if (sampleBanner) {
             sampleBanner.style.display = 'block';
+        }
+
+        // Hide the sample data card if in sample mode
+        const sampleDataCard = document.querySelector('.sample-data-card');
+        if (sampleDataCard) {
+            sampleDataCard.style.display = 'none';
+        }
+
+        // Adjust grid and make tutorial card more compact
+        const gettingStartedGrid = document.querySelector('.getting-started-grid');
+        if (gettingStartedGrid) {
+            gettingStartedGrid.style.gridTemplateColumns = '1fr';
+        }
+
+        const tutorialCard = document.querySelector('.tutorial-card');
+        if (tutorialCard) {
+            tutorialCard.style.maxWidth = 'none';
+            tutorialCard.style.margin = '0 auto';
+        }
+
+        const videoWrapper = document.getElementById('videoWrapper');
+        if (videoWrapper) {
+            videoWrapper.style.paddingBottom = '100%';
+        }
+    } else if (monthlyData && monthlyData.size > 0) {
+        // User has their own data (not sample mode) - hide sample data card
+        const sampleDataCard = document.querySelector('.sample-data-card');
+        if (sampleDataCard) {
+            sampleDataCard.style.display = 'none';
+        }
+
+        // Adjust grid to single column
+        const gettingStartedGrid = document.querySelector('.getting-started-grid');
+        if (gettingStartedGrid) {
+            gettingStartedGrid.style.gridTemplateColumns = '1fr';
+        }
+
+        const tutorialCard = document.querySelector('.tutorial-card');
+        if (tutorialCard) {
+            tutorialCard.style.maxWidth = 'none';
+            tutorialCard.style.margin = '0 auto';
+        }
+
+        const videoWrapper = document.getElementById('videoWrapper');
+        if (videoWrapper) {
+            videoWrapper.style.paddingBottom = '50%';
         }
     }
 
