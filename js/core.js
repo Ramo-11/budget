@@ -162,15 +162,46 @@ function splitByMonth(transactions) {
     }
 
     transactions.forEach((transaction) => {
-        const description = (
-            transaction.Description ||
-            transaction.description ||
-            ''
-        ).toUpperCase();
+        // Detect CSV format and normalize fields
+        let description, amount, dateField;
+
+        // First Financial Bank format
+        if (transaction.nickname || transaction.original_name) {
+            description = transaction.nickname || transaction.original_name || '';
+            amount = parseFloat(transaction.amount || 0);
+            dateField = transaction.posted_at;
+
+            // First Financial uses positive amounts for debits (expenses)
+            // and negative amounts for credits (income)
+            // So we need to keep debits positive and skip credits
+            if (transaction.transaction_type === 'Credit' || amount < 0) {
+                skipped++;
+                return;
+            }
+            // Convert debit amount to negative for consistency
+            amount = -Math.abs(amount);
+        }
+        // Chase/Standard format
+        else {
+            description = (transaction.Description || transaction.description || '').toUpperCase();
+            amount = parseFloat(transaction.Amount || transaction.Debit || transaction.Credit || 0);
+            dateField =
+                transaction['Transaction Date'] ||
+                transaction['Posting Date'] ||
+                transaction['Post Date'] ||
+                transaction.Date ||
+                transaction.date ||
+                transaction['Trans Date'] ||
+                transaction['Trans. Date'] ||
+                transaction['Posted Date'];
+        }
 
         // Apply unified rules
         if (typeof applyRulesToTransaction === 'function' && window.unifiedRules) {
-            const result = applyRulesToTransaction(transaction);
+            const result = applyRulesToTransaction({
+                Description: description,
+                description: description,
+            });
             if (result && result.action === 'delete') {
                 rulesApplied++;
                 return;
@@ -201,27 +232,12 @@ function splitByMonth(transactions) {
         const shouldSkip = skipPatterns.some((pattern) => description.includes(pattern));
 
         // Also skip positive amounts (credits/income)
-        const amount = parseFloat(
-            transaction.Amount || transaction.Debit || transaction.Credit || 0
-        );
         if (shouldSkip || amount > 0) {
             skipped++;
             return;
         }
 
-        // Enhanced date field detection - try multiple possible field names
-        const dateField =
-            transaction['Transaction Date'] ||
-            transaction['Posting Date'] ||
-            transaction['Post Date'] ||
-            transaction.Date ||
-            transaction.date ||
-            transaction['Trans Date'] ||
-            transaction['Trans. Date'] ||
-            transaction['Posted Date'];
-
         if (!dateField) return;
-
         if (amount === 0) return;
 
         const date = new Date(dateField);
@@ -238,13 +254,21 @@ function splitByMonth(transactions) {
 
         const monthData = monthlyData.get(monthKey);
 
+        // Normalize transaction object to standard format
+        const normalizedTransaction = {
+            'Transaction Date': dateField,
+            Description: description,
+            Amount: amount,
+            _originalFormat: transaction.nickname ? 'FirstFinancial' : 'Chase',
+        };
+
         // Check for duplicate
-        if (isDuplicateTransaction(transaction, monthData.transactions)) {
+        if (isDuplicateTransaction(normalizedTransaction, monthData.transactions)) {
             duplicates++;
         } else {
             // Add unique ID
-            transaction._id = Math.random().toString(36).substr(2, 9);
-            monthData.transactions.push(transaction);
+            normalizedTransaction._id = Math.random().toString(36).substr(2, 9);
+            monthData.transactions.push(normalizedTransaction);
             added++;
         }
     });
@@ -254,38 +278,19 @@ function splitByMonth(transactions) {
 
 // Check if a transaction is a duplicate
 function isDuplicateTransaction(newTransaction, existingTransactions) {
-    // Enhanced date field detection
-    const newDate =
-        newTransaction['Transaction Date'] ||
-        newTransaction['Posting Date'] ||
-        newTransaction['Post Date'] ||
-        newTransaction.Date ||
-        newTransaction.date ||
-        newTransaction['Trans Date'] ||
-        newTransaction['Trans. Date'] ||
-        newTransaction['Posted Date'];
-
-    const newDesc = (newTransaction.Description || newTransaction.description || '').trim();
-    const newAmount = parseFloat(
-        newTransaction.Amount || newTransaction.Debit || newTransaction.Credit || 0
-    );
+    const newDate = newTransaction['Transaction Date'];
+    const newDesc = (newTransaction.Description || newTransaction.description || '')
+        .trim()
+        .toUpperCase();
+    const newAmount = parseFloat(newTransaction.Amount || 0);
 
     // Check for exact duplicates (same date, description, and amount)
     return existingTransactions.some((existing) => {
-        const existingDate =
-            existing['Transaction Date'] ||
-            existing['Posting Date'] ||
-            existing['Post Date'] ||
-            existing.Date ||
-            existing.date ||
-            existing['Trans Date'] ||
-            existing['Trans. Date'] ||
-            existing['Posted Date'];
-
-        const existingDesc = (existing.Description || existing.description || '').trim();
-        const existingAmount = parseFloat(
-            existing.Amount || existing.Debit || existing.Credit || 0
-        );
+        const existingDate = existing['Transaction Date'];
+        const existingDesc = (existing.Description || existing.description || '')
+            .trim()
+            .toUpperCase();
+        const existingAmount = parseFloat(existing.Amount || 0);
 
         // Compare date strings (to avoid timezone issues)
         const sameDate = new Date(newDate).toDateString() === new Date(existingDate).toDateString();
@@ -295,6 +300,7 @@ function isDuplicateTransaction(newTransaction, existingTransactions) {
         return sameDate && sameDesc && sameAmount;
     });
 }
+
 // Categorize transaction
 function categorizeTransaction(description, transactionId = null) {
     // First check if this specific transaction has an override

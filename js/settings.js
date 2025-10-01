@@ -1301,13 +1301,43 @@ function clearAllData() {
     }
 
     if (confirm('Are you absolutely sure? This cannot be undone.')) {
-        localStorage.removeItem('sahabBudget_data');
-        window.transactionOverrides = {};
-        const widget = document.getElementById('quickStatsWidget');
-        if (widget) {
-            widget.remove();
+        try {
+            // Clear localStorage
+            localStorage.removeItem('sahabBudget_data');
+            localStorage.removeItem('sahabBudget_sampleMode');
+            localStorage.removeItem('sahabBudget_hideGettingStarted');
+
+            // Clear in-memory data
+            if (typeof monthlyData !== 'undefined' && monthlyData) {
+                monthlyData.clear();
+            }
+            if (typeof budgets !== 'undefined') {
+                budgets = {};
+            }
+            if (typeof window.transactionOverrides !== 'undefined') {
+                window.transactionOverrides = {};
+            }
+            if (typeof window.unifiedRules !== 'undefined') {
+                window.unifiedRules = [];
+            }
+
+            // Remove widget if exists
+            const widget = document.getElementById('quickStatsWidget');
+            if (widget) {
+                widget.remove();
+            }
+
+            // Show notification before reload
+            showNotification('All data cleared. Reloading...', 'success');
+
+            // Reload after short delay
+            setTimeout(() => {
+                location.reload();
+            }, 500);
+        } catch (error) {
+            console.error('Error clearing data:', error);
+            showNotification('Error clearing data. Please try again.', 'error');
         }
-        location.reload();
     }
 }
 
