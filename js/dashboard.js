@@ -2,6 +2,12 @@
 
 // Update dashboard
 function updateDashboard(analyzer) {
+    console.log(`analyzer: ${analyzer}`);
+    console.log(`analyzer.transactionCount: ${analyzer.transactionCount}`);
+    if (!analyzer || analyzer.transactionCount === 0) {
+        showDashboardEmptyState();
+        return;
+    }
     // Update summary cards
     const avgTransaction =
         analyzer.transactionCount > 0 ? analyzer.totalExpenses / analyzer.transactionCount : 0;
@@ -34,6 +40,49 @@ function updateDashboard(analyzer) {
 
     // Update charts
     updateCharts(analyzer);
+}
+
+function showDashboardEmptyState() {
+    const emptyStateHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; color: var(--gray); grid-column: 1 / -1;">
+            <div style="font-size: 64px; margin-bottom: 20px;">📊</div>
+            <h2 style="color: var(--dark); margin-bottom: 10px; font-size: 24px;">Welcome to Sahab Budget!</h2>
+            <p style="font-size: 15px; text-align: center; max-width: 500px; margin-bottom: 30px; line-height: 1.6;">
+                Get started by uploading your bank transaction CSV files. The app will automatically categorize your expenses and show you detailed insights.
+            </p>
+            <div style="background: var(--light); padding: 20px; border-radius: 8px; max-width: 400px; text-align: left;">
+                <h3 style="font-size: 16px; margin-bottom: 10px; color: var(--dark);">Quick Steps:</h3>
+                <ol style="margin-left: 20px; font-size: 14px; line-height: 2;">
+                    <li>Export transactions from your bank as CSV</li>
+                    <li>Click "Upload CSV Files" button above</li>
+                    <li>View your categorized expenses instantly</li>
+                </ol>
+            </div>
+        </div>
+    `;
+
+    // Clear and show empty state
+    document.getElementById('summaryCards').innerHTML = '';
+    document.getElementById('categoryDetails').innerHTML = '';
+
+    // Hide the "Detailed Breakdown" heading
+    const breakdownHeading = document.querySelector('h3[style*="margin: 20px 0 10px"]');
+    if (!breakdownHeading) {
+        // Find it by text content if style selector doesn't work
+        const headings = document.querySelectorAll('h3');
+        headings.forEach((h) => {
+            if (h.textContent.trim() === 'Detailed Breakdown') {
+                h.style.display = 'none';
+            }
+        });
+    } else {
+        breakdownHeading.style.display = 'none';
+    }
+
+    const chartsContainer = document.querySelector('.charts-container');
+    if (chartsContainer) {
+        chartsContainer.innerHTML = emptyStateHTML;
+    }
 }
 
 // Update category details
@@ -238,7 +287,20 @@ function updateCharts(analyzer) {
         .filter(([_, value]) => value > 0)
         .sort((a, b) => b[1] - a[1]);
 
-    if (categories.length === 0) return;
+    // Show empty state if no data
+    if (categories.length === 0) {
+        const emptyStateHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: var(--gray);">
+                <div style="font-size: 48px; margin-bottom: 15px;">📊</div>
+                <h3 style="color: var(--dark); margin-bottom: 8px;">No Transaction Data</h3>
+                <p style="font-size: 14px; text-align: center;">Upload CSV files to see your expense distribution and category breakdown</p>
+            </div>
+        `;
+
+        document.querySelector('#pieChart').parentElement.innerHTML = emptyStateHTML;
+        document.querySelector('#barChart').parentElement.innerHTML = emptyStateHTML;
+        return;
+    }
 
     const labels = categories.map(([name]) => name);
     const values = categories.map(([_, value]) => value);
@@ -320,6 +382,11 @@ function updateCharts(analyzer) {
 
 // Initialize drag and drop
 function initializeDragDrop() {
+    if (window.innerWidth <= 768) {
+        enableMobileCategoryChange();
+        return;
+    }
+
     const items = document.querySelectorAll('.transaction-item');
     const cards = document.querySelectorAll('.category-card');
 
@@ -438,6 +505,57 @@ function initializeDragDrop() {
             }
         });
     });
+}
+
+function enableMobileCategoryChange() {
+    const items = document.querySelectorAll('.transaction-item');
+
+    items.forEach((item) => {
+        // Remove draggable attribute
+        item.removeAttribute('draggable');
+        item.style.cursor = 'pointer';
+
+        item.addEventListener('click', () => {
+            const transactionId = item.dataset.transactionId;
+            const currentCategory = item.dataset.category;
+            showMobileCategorySelector(transactionId, currentCategory, item);
+        });
+    });
+}
+
+function showMobileCategorySelector(transactionId, currentCategory, element) {
+    const categories = Object.keys(categoryConfig).filter((c) => c !== currentCategory);
+
+    const modal = document.createElement('div');
+    modal.className = 'modal show';
+    modal.innerHTML = `
+        <div class="modal-content" style="width: 90%; max-width: 400px;">
+            <div class="modal-header">
+                <h2>Move Transaction</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 13px; color: var(--gray); margin-bottom: 15px;">
+                    Current category: <strong>${currentCategory}</strong>
+                </p>
+                <div style="display: grid; gap: 10px;">
+                    ${categories
+                        .map(
+                            (cat) => `
+                        <button class="btn btn-secondary" 
+                                style="text-align: left; padding: 12px; display: flex; align-items: center; gap: 10px;"
+                                onclick="moveTransaction('${transactionId}', '${currentCategory}', '${cat}'); this.closest('.modal').remove();">
+                            <span style="font-size: 20px;">${categoryConfig[cat].icon}</span>
+                            <span>${cat}</span>
+                        </button>
+                    `
+                        )
+                        .join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
 }
 
 // Move transaction between categories

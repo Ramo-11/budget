@@ -10,6 +10,13 @@ let analyticsData = {
 // Initialize analytics
 window.addEventListener('DOMContentLoaded', () => {
     loadDataFromStorage();
+
+    // Check if there's any data
+    if (!analyticsData.monthlyData || analyticsData.monthlyData.size === 0) {
+        showAnalyticsGlobalEmptyState();
+        return;
+    }
+
     initializeDateRangeSelectors();
     loadTrendsView();
 
@@ -19,6 +26,39 @@ window.addEventListener('DOMContentLoaded', () => {
         searchBox.style.display = 'none';
     }
 });
+
+function showAnalyticsGlobalEmptyState() {
+    const emptyStateHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 100px 20px; color: var(--gray);">
+            <div style="font-size: 64px; margin-bottom: 20px;">📈</div>
+            <h2 style="color: var(--dark); margin-bottom: 10px; font-size: 24px;">No Analytics Data Available</h2>
+            <p style="font-size: 15px; text-align: center; max-width: 500px; margin-bottom: 30px;">
+                Upload your transaction data on the Dashboard first to see detailed analytics and spending insights.
+            </p>
+            <button class="btn btn-primary" onclick="window.location.href='index.html'">
+                Go to Dashboard
+            </button>
+        </div>
+    `;
+
+    // Hide controls and tabs
+    const controls = document.querySelector('.analytics-controls');
+    const tabs = document.querySelector('.analytics-tabs');
+    if (controls) controls.style.display = 'none';
+    if (tabs) tabs.style.display = 'none';
+
+    // Hide all views first
+    document.querySelectorAll('.analytics-view').forEach((view) => {
+        view.style.display = 'none';
+    });
+
+    // Show empty state only in the trends view (first/default view)
+    const trendsView = document.getElementById('trendsView');
+    if (trendsView) {
+        trendsView.innerHTML = emptyStateHTML;
+        trendsView.style.display = 'block';
+    }
+}
 
 // Load data from localStorage
 function loadDataFromStorage() {
@@ -154,7 +194,11 @@ function getFilteredMonths() {
 // Load trends view
 function loadTrendsView() {
     const months = getFilteredMonths();
-    if (months.length === 0) return;
+
+    if (months.length === 0) {
+        showAnalyticsEmptyState('trendsView', 'Spending Trends');
+        return;
+    }
 
     // Prepare data for chart
     const labels = [];
@@ -226,10 +270,36 @@ function loadTrendsView() {
     updateTrendsStats(totals, labels);
 }
 
+function showAnalyticsEmptyState(viewId, title) {
+    const view = document.getElementById(viewId);
+    const emptyHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; color: var(--gray);">
+            <div style="font-size: 64px; margin-bottom: 20px;">📈</div>
+            <h3 style="color: var(--dark); margin-bottom: 10px;">No Data for ${title}</h3>
+            <p style="font-size: 14px; text-align: center; max-width: 400px;">
+                Upload your transaction data to see detailed analytics and insights about your spending patterns
+            </p>
+            <button class="btn btn-primary" style="margin-top: 20px;" onclick="window.location.href='index.html'">
+                Go to Dashboard
+            </button>
+        </div>
+    `;
+
+    const statsGrid = view.querySelector('.stats-grid');
+    const chartContainer = view.querySelector('.chart-container');
+
+    if (statsGrid) statsGrid.style.display = 'none';
+    if (chartContainer) chartContainer.innerHTML = emptyHTML;
+}
+
 // Load year over year view
 function loadYearOverYearView() {
     const months = getFilteredMonths();
-    if (months.length === 0) return;
+
+    if (months.length === 0) {
+        showAnalyticsEmptyState('yearOverYearView', 'Year Over Year Comparison');
+        return;
+    }
 
     // Group by month (ignoring year)
     const yearData = {};
@@ -310,11 +380,14 @@ function loadYearOverYearView() {
     // Update stats
     updateYoYStats(yearData, years);
 }
-
 // Load merchants view
 function loadMerchantsView() {
     const months = getFilteredMonths();
-    if (months.length === 0) return;
+
+    if (months.length === 0) {
+        showAnalyticsEmptyState('merchantsView', 'Merchant Analysis');
+        return;
+    }
 
     // Aggregate merchant data
     const merchantTotals = {};

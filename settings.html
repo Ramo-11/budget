@@ -47,21 +47,24 @@
                         </div>
                     </div>
 
-                    <div class="nav-buttons">
-                        <button class="nav-btn" onclick="window.location.href='index.html'">
-                            Dashboard
-                        </button>
-                        <button class="nav-btn" onclick="window.location.href='analytics.html'">
-                            Analytics
-                        </button>
-                        <button class="nav-btn active">Settings</button>
-                        <button class="nav-btn" onclick="window.location.href='about.html'">
-                            About
-                        </button>
+                    <!-- Add hamburger button before nav-buttons -->
+                    <button class="menu-toggle" onclick="toggleMobileMenu()" style="display: none">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+
+                    <div class="nav-buttons" id="mobileNav">
+                        <a href="index.html" class="nav-btn">Dashboard</a>
+                        <a href="analytics.html" class="nav-btn">Analytics</a>
+                        <a href="settings.html" class="nav-btn">Settings</a>
+                        <a href="about.html" class="nav-btn">About</a>
                         <button class="help-btn" onclick="showHelp()" title="Help & Tutorial">
                             ❓
                         </button>
                     </div>
+
+                    <div class="nav-overlay" id="navOverlay" onclick="toggleMobileMenu()"></div>
                 </div>
             </div>
 
@@ -205,5 +208,6 @@
         <script src="js/rules.js"></script>
         <script src="js/settings.js"></script>
         <script src="js/getting-started.js"></script>
+        <script src="js/mobile.js"></script>
     </body>
 </html>

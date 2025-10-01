@@ -4,7 +4,6 @@ let isInSampleMode = false;
 let backupData = null;
 
 // Load sample data
-// Load sample data from JSON backup file
 async function loadSampleData() {
     try {
         // Backup current data if exists

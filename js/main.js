@@ -7,14 +7,21 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     loadSavedData();
+
+    // Check if there's any data
     if (monthlyData.size > 0) {
         updateMonthSelector();
         document.getElementById('monthDropdown').value = 'ALL_DATA';
         switchToMonth('ALL_DATA');
+    } else {
+        // Show empty state if no data
+        showDashboardEmptyState();
     }
 
-    // Initialize quick stats widget
-    initializeWidget();
+    // Initialize quick stats widget only if there's data
+    if (monthlyData.size > 0) {
+        initializeWidget();
+    }
 });
 
 // Handle file upload

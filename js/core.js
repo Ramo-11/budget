@@ -580,3 +580,28 @@ function reprocessAllTransactions() {
 
     return totalMoved;
 }
+
+// Set active navigation button based on current page
+function setActiveNavButton() {
+    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    const navButtons = document.querySelectorAll('.nav-btn');
+
+    navButtons.forEach((btn) => {
+        btn.classList.remove('active');
+
+        const btnText = btn.textContent.trim().toLowerCase();
+
+        if (currentPage === 'index.html' || currentPage === '' || currentPage === '/') {
+            if (btnText === 'dashboard') btn.classList.add('active');
+        } else if (currentPage === 'analytics.html' && btnText === 'analytics') {
+            btn.classList.add('active');
+        } else if (currentPage === 'settings.html' && btnText === 'settings') {
+            btn.classList.add('active');
+        } else if (currentPage === 'about.html' && btnText === 'about') {
+            btn.classList.add('active');
+        }
+    });
+}
+
+// Call this on page load
+window.addEventListener('DOMContentLoaded', setActiveNavButton);
