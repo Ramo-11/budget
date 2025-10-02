@@ -481,7 +481,7 @@ function searchTransactions(query) {
     document.querySelectorAll('.analytics-view').forEach((v) => v.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
     document.getElementById('searchView').classList.add('active');
-    document.querySelectorAll('.tab-btn')[3].classList.add('active');
+    document.querySelectorAll('.tab-btn')[2].classList.add('active');
 
     const searchTerm = query.toLowerCase();
     const results = [];
