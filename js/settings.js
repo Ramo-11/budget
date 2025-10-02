@@ -14,6 +14,10 @@ window.addEventListener('DOMContentLoaded', () => {
             document.getElementById('settingsMonthDropdown').value = 'ALL_MONTHS';
             switchSettingsMonth('ALL_MONTHS');
         }
+    } else {
+        // No data uploaded yet, but still show categories
+        currentMonth = 'NO_DATA';
+        updateBudgetView(null);
     }
 });
 
@@ -116,12 +120,17 @@ function switchSettingsMonth(monthKey) {
         updateBudgetViewForAllMonths();
         return;
     }
-    if (!monthlyData.has(monthKey)) return;
 
     currentMonth = monthKey;
-    const monthData = monthlyData.get(monthKey);
-    const analyzer = analyzeTransactions(monthData.transactions);
-    updateBudgetView(analyzer);
+
+    // Check if month exists
+    if (monthlyData.has(monthKey)) {
+        const monthData = monthlyData.get(monthKey);
+        const analyzer = analyzeTransactions(monthData.transactions);
+        updateBudgetView(analyzer);
+    } else {
+        updateBudgetView(null);
+    }
 }
 
 function updateBudgetViewForAllMonths() {
@@ -326,6 +335,16 @@ function updateBudgetView(analyzer) {
 
     if (!budgets[monthKey]) {
         budgets[monthKey] = {};
+    }
+
+    // Create empty analyzer if none provided (no data uploaded yet)
+    if (!analyzer) {
+        analyzer = {
+            categoryTotals: {},
+            categoryDetails: {},
+            totalExpenses: 0,
+            transactionCount: 0,
+        };
     }
 
     // Get all categories sorted alphabetically (Others at the end)
@@ -1337,6 +1356,54 @@ function clearAllData() {
         } catch (error) {
             console.error('Error clearing data:', error);
             showNotification('Error clearing data. Please try again.', 'error');
+        }
+    }
+}
+
+// Clear all transactions only
+function clearAllTransactions() {
+    if (
+        !confirm(
+            'This will delete all transactions but keep your categories, budgets, and rules. Continue?'
+        )
+    ) {
+        return;
+    }
+
+    if (confirm('Are you absolutely sure? This cannot be undone.')) {
+        try {
+            // Clear only transactions
+            if (typeof monthlyData !== 'undefined' && monthlyData) {
+                monthlyData.clear();
+            }
+
+            // Clear transaction overrides since transactions are gone
+            if (typeof window.transactionOverrides !== 'undefined') {
+                window.transactionOverrides = {};
+            }
+
+            // Keep everything else: categoryConfig, budgets, unifiedRules
+            saveData();
+
+            // Remove widget if exists
+            const widget = document.getElementById('quickStatsWidget');
+            if (widget) {
+                widget.remove();
+            }
+
+            // Show notification before reload
+            showNotification(
+                'All transactions cleared. Categories, budgets, and rules preserved. Reloading...',
+                'success'
+            );
+
+            // Reload after short delay
+            setTimeout(() => {
+                location.reload();
+            }, 500);
+        } catch (error) {
+            console.error('Error clearing transactions:', error);
+            showNotification('Error clearing transactions. Please try again.', 'error');
         }
     }
 }
