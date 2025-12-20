@@ -4,6 +4,10 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Sahab Budget</title>
+        <!-- Google Fonts - Inter -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <!-- CSS Files -->
         <link rel="stylesheet" href="css/base.css" />
         <link rel="stylesheet" href="css/features.css" />
@@ -21,54 +25,35 @@
         <div class="container">
             <!-- Header -->
             <div class="header">
-                <div
-                    style="
-                        display: flex;
-                        align-items: center;
-                        justify-content: space-between;
-                        width: 100%;
-                    "
-                >
-                    <div style="display: flex; align-items: center; gap: 15px">
+                <div class="header-inner">
+                    <div class="header-brand">
                         <img
                             src="/images/logo.png"
                             alt="Sahab Solutions"
-                            style="height: 32px; width: auto"
+                            class="header-logo"
                         />
                         <div>
-                            <h1 style="margin: 0; font-size: 24px">Sahab Budget</h1>
-                            <p
-                                style="
-                                    font-size: 11px;
-                                    color: rgba(255, 255, 255, 0.7);
-                                    margin: 2px 0 0 0;
-                                "
-                            >
+                            <h1 class="header-title">Sahab Budget</h1>
+                            <p class="header-subtitle">
                                 by
-                                <a
-                                    href="https://sahab-solutions.com"
-                                    target="_blank"
-                                    style="color: #818cf8; text-decoration: none"
-                                    >Sahab Solutions</a
-                                >
+                                <a href="https://sahab-solutions.com" target="_blank">Sahab Solutions</a>
                             </p>
                         </div>
                     </div>
 
-                    <!-- Add hamburger button before nav-buttons -->
-                    <button class="menu-toggle" onclick="toggleMobileMenu()" style="display: none">
+                    <button class="menu-toggle" onclick="toggleMobileMenu()">
                         <span></span>
                         <span></span>
                         <span></span>
                     </button>
 
                     <div class="nav-buttons" id="mobileNav">
-                        <a href="index.html" class="nav-btn">Dashboard</a>
+                        <a href="index.html" class="nav-btn active">Dashboard</a>
                         <a href="analytics.html" class="nav-btn">Analytics</a>
                         <a href="settings.html" class="nav-btn">Settings</a>
                         <a href="about.html" class="nav-btn">About</a>
                         <button class="help-btn" onclick="showHelp()" title="Help & Tutorial">
-                            ❓
+                            ?
                         </button>
                     </div>
 
@@ -83,12 +68,11 @@
                         <h2>Welcome to Sahab Budget!</h2>
                         <p>New here? Watch our quick tutorial or try with sample data</p>
                         <button
-                            class="btn btn-secondary"
-                            style="position: absolute; top: 20px; right: 20px; padding: 8px 16px"
+                            class="btn btn-secondary getting-started-hide-btn"
                             onclick="toggleGettingStarted()"
                             title="Hide this section"
                         >
-                            ✕ Hide
+                            Hide
                         </button>
                     </div>
 
@@ -116,7 +100,6 @@
                             <div
                                 class="sample-mode-indicator"
                                 id="sampleModeIndicator"
-                                style="display: none"
                             >
                                 <span>✨ Sample Mode Active</span>
                                 <button class="btn btn-secondary btn-sm" onclick="exitSampleMode()">
@@ -129,7 +112,7 @@
             </div>
 
             <!-- Sample Mode Banner -->
-            <div class="sample-mode-banner" id="sampleModeBanner" style="display: none">
+            <div class="sample-mode-banner" id="sampleModeBanner">
                 <div class="banner-content">
                     <span>You're viewing sample data - feel free to explore all features!</span>
                     <button class="btn btn-secondary btn-sm" onclick="exitSampleMode()">
@@ -140,7 +123,7 @@
 
             <!-- Upload Section -->
             <div class="upload-section">
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap">
+                <div class="upload-section-inner">
                     <div class="file-input-wrapper">
                         <input
                             type="file"
@@ -149,7 +132,7 @@
                             multiple
                             onchange="handleFileUpload(event)"
                         />
-                        <span>📁 Upload CSV Files</span>
+                        <span>Upload CSV Files</span>
                     </div>
 
                     <div class="month-selector" id="monthSelector">
@@ -157,11 +140,7 @@
                         <select id="monthDropdown" onchange="switchToMonth(this.value)"></select>
                     </div>
 
-                    <!-- Quick action buttons -->
-                    <div
-                        class="action-buttons"
-                        style="margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap"
-                    >
+                    <div class="action-buttons">
                         <button
                             class="btn btn-secondary"
                             onclick="openBudgetGoals()"
@@ -198,7 +177,7 @@
                         <canvas id="barChart"></canvas>
                     </div>
                 </div>
-                <h3 style="margin: 20px 0 10px">Detailed Breakdown</h3>
+                <h3 class="section-header">Detailed Breakdown</h3>
                 <div class="category-details" id="categoryDetails"></div>
             </div>
         </div>

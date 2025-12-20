@@ -4,6 +4,10 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Analytics - Sahab Budget</title>
+        <!-- Google Fonts - Inter -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <!-- CSS Files -->
         <link rel="stylesheet" href="css/base.css" />
         <link rel="stylesheet" href="css/analytics.css" />
@@ -17,36 +21,22 @@
         <div class="container">
             <!-- Header -->
             <div class="header">
-                <div
-                    style="
-                        display: flex;
-                        align-items: center;
-                        justify-content: space-between;
-                        width: 100%;
-                    "
-                >
-                    <div style="display: flex; align-items: center; gap: 15px">
+                <div class="header-inner">
+                    <div class="header-brand">
                         <img
                             src="/images/logo.png"
                             alt="Sahab Solutions"
-                            style="height: 32px; width: auto"
+                            class="header-logo"
                         />
                         <div>
-                            <h1 style="margin: 0; font-size: 24px">Analytics</h1>
-                            <p
-                                style="
-                                    font-size: 11px;
-                                    color: rgba(255, 255, 255, 0.7);
-                                    margin: 2px 0 0 0;
-                                "
-                            >
+                            <h1 class="header-title">Analytics</h1>
+                            <p class="header-subtitle">
                                 Detailed insights into your spending patterns
                             </p>
                         </div>
                     </div>
 
-                    <!-- Add hamburger button before nav-buttons -->
-                    <button class="menu-toggle" onclick="toggleMobileMenu()" style="display: none">
+                    <button class="menu-toggle" onclick="toggleMobileMenu()">
                         <span></span>
                         <span></span>
                         <span></span>
@@ -54,11 +44,11 @@
 
                     <div class="nav-buttons" id="mobileNav">
                         <a href="index.html" class="nav-btn">Dashboard</a>
-                        <a href="analytics.html" class="nav-btn">Analytics</a>
+                        <a href="analytics.html" class="nav-btn active">Analytics</a>
                         <a href="settings.html" class="nav-btn">Settings</a>
                         <a href="about.html" class="nav-btn">About</a>
                         <button class="help-btn" onclick="showHelp()" title="Help & Tutorial">
-                            ❓
+                            ?
                         </button>
                     </div>
 
@@ -67,7 +57,7 @@
             </div>
 
             <!-- Sample Mode Banner -->
-            <div class="sample-mode-banner" id="sampleModeBanner" style="display: none">
+            <div class="sample-mode-banner" id="sampleModeBanner">
                 <div class="banner-content">
                     <span>You're viewing sample data - feel free to explore all features!</span>
                     <button class="btn btn-secondary btn-sm" onclick="exitSampleMode()">
@@ -93,15 +83,12 @@
                 <button class="tab-btn active" onclick="switchAnalyticsTab('trends')">
                     Spending Trends
                 </button>
-                <!-- <button class="tab-btn" onclick="switchAnalyticsTab('yearOverYear')">
-                    Year Over Year
-                </button> -->
                 <button class="tab-btn" onclick="switchAnalyticsTab('merchants')">
                     Merchant Analysis
                 </button>
-                <button class="tab-btn" onclick="switchAnalyticsTab('search')">🔍 Search</button>
+                <button class="tab-btn" onclick="switchAnalyticsTab('search')">Search</button>
 
-                <div class="search-box" style="display: none; margin-left: auto">
+                <div class="search-box" id="analyticsSearchBox">
                     <input
                         type="text"
                         id="transactionSearch"
@@ -120,19 +107,10 @@
                 </div>
             </div>
 
-            <!-- Year Over Year View -->
-            <!-- <div class="analytics-view" id="yearOverYearView">
-                <div class="chart-container">
-                    <h3>Year Over Year Comparison</h3>
-                    <canvas id="yoyChart"></canvas>
-                </div>
-                <div class="stats-grid" id="yoyStats"></div>
-            </div> -->
-
             <!-- Merchants View -->
             <div class="analytics-view" id="merchantsView">
                 <div class="merchants-container">
-                    <div class="chart-container" style="max-width: 500px">
+                    <div class="chart-container merchant-chart">
                         <h3>Top 10 Merchants</h3>
                         <canvas id="merchantChart"></canvas>
                     </div>

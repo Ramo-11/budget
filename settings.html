@@ -4,6 +4,10 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Settings - Sahab Budget</title>
+        <!-- Google Fonts - Inter -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <!-- CSS Files -->
         <link rel="stylesheet" href="css/base.css" />
         <link rel="stylesheet" href="css/features.css" />
@@ -19,36 +23,22 @@
         <div class="container">
             <!-- Header -->
             <div class="header">
-                <div
-                    style="
-                        display: flex;
-                        align-items: center;
-                        justify-content: space-between;
-                        width: 100%;
-                    "
-                >
-                    <div style="display: flex; align-items: center; gap: 15px">
+                <div class="header-inner">
+                    <div class="header-brand">
                         <img
                             src="/images/logo.png"
                             alt="Sahab Solutions"
-                            style="height: 32px; width: auto"
+                            class="header-logo"
                         />
                         <div>
-                            <h1 style="margin: 0; font-size: 24px">Settings</h1>
-                            <p
-                                style="
-                                    font-size: 11px;
-                                    color: rgba(255, 255, 255, 0.7);
-                                    margin: 2px 0 0 0;
-                                "
-                            >
+                            <h1 class="header-title">Settings</h1>
+                            <p class="header-subtitle">
                                 Configure categories, budgets, and manage your data
                             </p>
                         </div>
                     </div>
 
-                    <!-- Add hamburger button before nav-buttons -->
-                    <button class="menu-toggle" onclick="toggleMobileMenu()" style="display: none">
+                    <button class="menu-toggle" onclick="toggleMobileMenu()">
                         <span></span>
                         <span></span>
                         <span></span>
@@ -57,10 +47,10 @@
                     <div class="nav-buttons" id="mobileNav">
                         <a href="index.html" class="nav-btn">Dashboard</a>
                         <a href="analytics.html" class="nav-btn">Analytics</a>
-                        <a href="settings.html" class="nav-btn">Settings</a>
+                        <a href="settings.html" class="nav-btn active">Settings</a>
                         <a href="about.html" class="nav-btn">About</a>
                         <button class="help-btn" onclick="showHelp()" title="Help & Tutorial">
-                            ❓
+                            ?
                         </button>
                     </div>
 
@@ -69,7 +59,7 @@
             </div>
 
             <!-- Sample Mode Banner -->
-            <div class="sample-mode-banner" id="sampleModeBanner" style="display: none">
+            <div class="sample-mode-banner" id="sampleModeBanner">
                 <div class="banner-content">
                     <span>You're viewing sample data - feel free to explore all features!</span>
                     <button class="btn btn-secondary btn-sm" onclick="exitSampleMode()">
@@ -85,21 +75,14 @@
                 </button>
                 <button class="settings-tab" onclick="switchSettingsTab('rules')">Rules</button>
                 <button class="settings-tab" onclick="switchSettingsTab('data')">
-                    💾 Data Management
+                    Data Management
                 </button>
             </div>
 
             <!-- Categories Tab -->
             <div class="settings-content active" id="categoriesTab">
                 <div class="settings-section">
-                    <div
-                        style="
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
-                            margin-bottom: 20px;
-                        "
-                    >
+                    <div class="settings-section-header">
                         <div class="month-selector">
                             <label>Budget Month:</label>
                             <select
@@ -116,14 +99,14 @@
             <div class="settings-content" id="rulesTab">
                 <div class="settings-section">
                     <h3>Transaction Rules</h3>
-                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 20px">
+                    <p>
                         Automatic and custom rules to categorize or delete transactions. Rules
                         marked with "AUTO" are created when you drag and drop transactions.
                     </p>
 
-                    <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap">
+                    <div class="rules-actions">
                         <button class="btn btn-primary" onclick="showRuleModal()">
-                            + Create Custom Rule
+                            Create Custom Rule
                         </button>
                         <button class="btn btn-secondary" onclick="applyRulesToExistingData()">
                             Apply Rules to Existing Data
@@ -142,9 +125,7 @@
                 <!-- Backup & Restore -->
                 <div class="settings-section">
                     <h3>Backup & Restore</h3>
-                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 20px">
-                        Keep your data safe with regular backups
-                    </p>
+                    <p>Keep your data safe with regular backups</p>
                     <div class="data-actions">
                         <div class="data-action-card">
                             <div class="data-action-icon">💾</div>
@@ -165,22 +146,6 @@
                     </div>
                 </div>
 
-                <!-- Export Options -->
-                <!-- <div class="settings-section"> -->
-                <!-- <h3>Export Data</h3> -->
-                <!-- <p style="font-size: 13px; color: var(--gray); margin-bottom: 20px"> -->
-                <!-- Export your transactions in different formats -->
-                <!-- </p> -->
-                <!-- <div class="export-options">
-                        <button class="btn btn-secondary" onclick="exportToCSV()">
-                            📄 Export Current Month as CSV
-                        </button>
-                        <button class="btn btn-secondary" onclick="exportAllToCSV()">
-                            📑 Export All Data as CSV
-                        </button>
-                    </div> -->
-                <!-- </div> -->
-
                 <!-- Data Storage Info -->
                 <div class="settings-section">
                     <h3>Storage Statistics</h3>
@@ -190,22 +155,13 @@
                 <!-- Danger Zone -->
                 <div class="settings-section danger-zone">
                     <h3>Danger Zone</h3>
-                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 20px">
-                        Irreversible actions - proceed with caution
-                    </p>
+                    <p>Irreversible actions - proceed with caution</p>
                     <button class="btn btn-danger" onclick="clearAllTransactions()">
                         Clear All Transactions
                     </button>
                     <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
                 </div>
-                <p
-                    style="
-                        font-size: 12px;
-                        color: var(--gray);
-                        margin-top: 10px;
-                        font-style: italic;
-                    "
-                >
+                <p class="settings-note">
                     "Clear All Transactions" removes only transaction data, keeping categories,
                     budgets, and rules.<br />
                     "Clear All Data" removes everything including settings and rules.
