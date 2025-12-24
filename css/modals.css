@@ -114,3 +114,162 @@
     background: var(--primary-subtle) !important;
     box-shadow: 0 0 0 2px var(--primary);
 }
+
+/* Column Mapping Modal */
+.column-mapping-modal {
+    width: 700px;
+    max-width: 95vw;
+}
+
+.mapping-notice {
+    background: rgba(14, 165, 233, 0.08);
+    border: 1px solid rgba(14, 165, 233, 0.2);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 24px;
+}
+
+.mapping-notice p {
+    color: var(--gray-700);
+    font-size: 14px;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.csv-preview {
+    margin-bottom: 24px;
+}
+
+.csv-preview h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--dark);
+    margin-bottom: 12px;
+}
+
+.preview-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.preview-table th,
+.preview-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.preview-table th {
+    background: var(--gray-100);
+    font-weight: 600;
+    color: var(--dark);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.preview-table tr:last-child td {
+    border-bottom: none;
+}
+
+.preview-table tr:hover td {
+    background: var(--gray-50);
+}
+
+.column-mapping-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.mapping-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mapping-field label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--dark);
+}
+
+.mapping-field .required {
+    color: var(--danger);
+}
+
+.mapping-field .field-hint {
+    font-size: 12px;
+    color: var(--gray);
+}
+
+.mapping-select,
+.mapping-input {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    color: var(--dark);
+    background: var(--white);
+    transition: all var(--transition-fast);
+}
+
+.mapping-select:focus,
+.mapping-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-subtle);
+}
+
+.mapping-select:hover,
+.mapping-input:hover {
+    border-color: var(--gray-300);
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+.checkbox-label span {
+    font-weight: 400;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .column-mapping-modal {
+        width: 100%;
+    }
+
+    .preview-table-wrapper {
+        max-height: 150px;
+    }
+
+    .preview-table th,
+    .preview-table td {
+        padding: 8px 10px;
+        font-size: 11px;
+    }
+}

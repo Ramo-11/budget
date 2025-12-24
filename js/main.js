@@ -48,31 +48,84 @@ async function handleFileUpload(event) {
             throw new Error('No valid transactions found in files');
         }
 
-        // Process and detect duplicates
-        const processResult = splitByMonth(allTransactions);
+        // Check if we can detect the bank format
+        const headers = Object.keys(allTransactions[0]);
+        const detectedFormat = window.detectBankFormat ? window.detectBankFormat(headers) : null;
 
-        saveData();
+        if (detectedFormat) {
+            // Known format detected - process normally or with custom mapping
+            let transactionsToProcess = allTransactions;
 
-        // Show detailed upload result
-        let message = `Processed ${allTransactions.length} transactions`;
-        if (processResult.rulesApplied > 0) {
-            message += ` (${processResult.rulesApplied} removed by custom rules)`;
-        }
-        if (processResult.skipped > 0) {
-            message += ` (${processResult.skipped} income/credits skipped)`;
-        }
-        if (processResult.duplicates > 0) {
-            message += ` (${processResult.duplicates} duplicates skipped)`;
-        }
-        if (processResult.added > 0) {
-            message += ` - ${processResult.added} new expenses added`;
-        }
-        showNotification(message, 'success');
+            if (detectedFormat.type === 'custom') {
+                // Use saved custom mapping
+                const mapping = {
+                    dateColumn: detectedFormat.mapping.dateColumn,
+                    descriptionColumn: detectedFormat.mapping.descriptionColumn,
+                    amountColumn: detectedFormat.mapping.amountColumn,
+                    negativeIsExpense: detectedFormat.mapping.negativeIsExpense
+                };
 
-        // Reload the page after a short delay
-        setTimeout(() => {
-            window.location.href = 'index.html';
-        }, 1000);
+                // Normalize transactions using custom mapping
+                transactionsToProcess = [];
+                allTransactions.forEach(row => {
+                    const dateValue = row[mapping.dateColumn];
+                    const descValue = row[mapping.descriptionColumn];
+                    let amountValue = parseFloat(row[mapping.amountColumn]) || 0;
+
+                    if (!dateValue || !descValue) return;
+
+                    if (mapping.negativeIsExpense) {
+                        if (amountValue >= 0) return;
+                    } else {
+                        if (amountValue <= 0) return;
+                        amountValue = -Math.abs(amountValue);
+                    }
+
+                    transactionsToProcess.push({
+                        'Transaction Date': dateValue,
+                        Description: String(descValue).toUpperCase(),
+                        Amount: amountValue,
+                        _originalFormat: 'CustomMapping'
+                    });
+                });
+            }
+
+            // Process transactions
+            const processResult = splitByMonth(transactionsToProcess);
+            saveData();
+
+            // Show detailed upload result
+            let message = `Processed ${transactionsToProcess.length} transactions`;
+            if (detectedFormat.name) {
+                message = `${detectedFormat.name} format detected. ` + message;
+            }
+            if (processResult.rulesApplied > 0) {
+                message += ` (${processResult.rulesApplied} removed by custom rules)`;
+            }
+            if (processResult.skipped > 0) {
+                message += ` (${processResult.skipped} income/credits skipped)`;
+            }
+            if (processResult.duplicates > 0) {
+                message += ` (${processResult.duplicates} duplicates skipped)`;
+            }
+            if (processResult.added > 0) {
+                message += ` - ${processResult.added} new expenses added`;
+            }
+            showNotification(message, 'success');
+
+            // Reload the page after a short delay
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 1000);
+        } else {
+            // Unknown format - show column mapping UI
+            if (window.showColumnMappingModal) {
+                window.showColumnMappingModal(allTransactions, files);
+            } else {
+                // Fallback if column mapping not loaded
+                throw new Error('Unknown CSV format. Please ensure your CSV has Date, Description, and Amount columns.');
+            }
+        }
     } catch (error) {
         console.error('Upload error:', error);
         showNotification('Error processing files: ' + error.message, 'error');

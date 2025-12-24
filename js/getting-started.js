@@ -288,37 +288,34 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Check if getting started should be hidden (user preference)
-    if (localStorage.getItem('sahabBudget_hideGettingStarted') === 'true') {
-        const section = document.getElementById('gettingStartedSection');
-        if (section) {
-            section.classList.add('collapsed');
-        }
-    }
+    // Check if we need to temporarily show tutorial (from help modal navigation)
+    const showGettingStarted = localStorage.getItem('sahabBudget_showGettingStarted') === 'true';
+    const showTutorial = localStorage.getItem('sahabBudget_showTutorial') === 'true';
+    const showFromHelp = showGettingStarted || showTutorial;
 
-    // Check if we should show getting started (from navigation)
-    if (localStorage.getItem('sahabBudget_showGettingStarted') === 'true') {
-        localStorage.removeItem('sahabBudget_showGettingStarted');
-        const section = document.getElementById('gettingStartedSection');
-        if (section) {
-            section.classList.remove('collapsed');
-            localStorage.removeItem('sahabBudget_hideGettingStarted');
-        }
-    }
+    // Clean up the navigation flags
+    localStorage.removeItem('sahabBudget_showGettingStarted');
+    localStorage.removeItem('sahabBudget_showTutorial');
 
-    // Check if we should show tutorial (from navigation)
-    if (localStorage.getItem('sahabBudget_showTutorial') === 'true') {
-        localStorage.removeItem('sahabBudget_showTutorial');
-        const section = document.getElementById('gettingStartedSection');
-        if (section) {
-            section.classList.remove('collapsed');
-            localStorage.removeItem('sahabBudget_hideGettingStarted');
+    const section = document.getElementById('gettingStartedSection');
+
+    if (showFromHelp && section) {
+        // User explicitly requested to see tutorial from help modal - show it temporarily
+        section.classList.remove('collapsed');
+
+        // Scroll to video if that was the request
+        if (showTutorial) {
             setTimeout(() => {
                 const videoWrapper = document.getElementById('videoWrapper');
                 if (videoWrapper) {
                     videoWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }, 500);
+        }
+    } else if (localStorage.getItem('sahabBudget_hideGettingStarted') === 'true') {
+        // User previously chose to hide - keep it hidden
+        if (section) {
+            section.classList.add('collapsed');
         }
     }
 });

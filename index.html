@@ -206,6 +206,72 @@
         <!-- Date Range Modal -->
         <div class="modal" id="dateRangeModal"></div>
 
+        <!-- Column Mapping Modal -->
+        <div class="modal" id="columnMappingModal">
+            <div class="modal-content column-mapping-modal">
+                <div class="modal-header">
+                    <h2>Map CSV Columns</h2>
+                    <button class="close-btn" onclick="cancelColumnMapping()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="mapping-notice">
+                        <p>We couldn't automatically detect your bank's CSV format. Please tell us which columns contain the transaction data.</p>
+                    </div>
+
+                    <div class="csv-preview">
+                        <h4>Preview of your CSV data:</h4>
+                        <div class="preview-table-wrapper">
+                            <table class="preview-table" id="csvPreviewTable"></table>
+                        </div>
+                    </div>
+
+                    <div class="column-mapping-form">
+                        <div class="mapping-field">
+                            <label for="dateColumnSelect">Date Column <span class="required">*</span></label>
+                            <select id="dateColumnSelect" class="mapping-select">
+                                <option value="">-- Select column --</option>
+                            </select>
+                            <span class="field-hint">The column containing transaction dates</span>
+                        </div>
+
+                        <div class="mapping-field">
+                            <label for="descriptionColumnSelect">Description Column <span class="required">*</span></label>
+                            <select id="descriptionColumnSelect" class="mapping-select">
+                                <option value="">-- Select column --</option>
+                            </select>
+                            <span class="field-hint">The column with merchant/transaction names</span>
+                        </div>
+
+                        <div class="mapping-field">
+                            <label for="amountColumnSelect">Amount Column <span class="required">*</span></label>
+                            <select id="amountColumnSelect" class="mapping-select">
+                                <option value="">-- Select column --</option>
+                            </select>
+                            <span class="field-hint">The column containing transaction amounts</span>
+                        </div>
+
+                        <div class="mapping-field">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="amountNegativeExpense" checked>
+                                <span>Negative amounts are expenses</span>
+                            </label>
+                            <span class="field-hint">Uncheck if your bank uses positive numbers for expenses</span>
+                        </div>
+
+                        <div class="mapping-field">
+                            <label for="bankNameInput">Save as bank preset (optional)</label>
+                            <input type="text" id="bankNameInput" class="mapping-input" placeholder="e.g., Bank of America">
+                            <span class="field-hint">Save this mapping for future uploads from the same bank</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="cancelColumnMapping()">Cancel</button>
+                    <button class="btn btn-primary" onclick="applyColumnMapping()">Import Transactions</button>
+                </div>
+            </div>
+        </div>
+
         <!-- JavaScript Files -->
         <script src="js/comparison.js"></script>
         <script src="js/daterange.js"></script>
@@ -213,6 +279,7 @@
         <script src="js/core.js"></script>
         <script src="js/rules.js"></script>
         <script src="js/utils.js"></script>
+        <script src="js/columnMapping.js"></script>
         <script src="js/dashboard.js"></script>
         <script src="js/budgetView.js"></script>
         <script src="js/main.js"></script>
