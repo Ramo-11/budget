@@ -185,79 +185,105 @@ function updateBudgetViewForAllMonths() {
             const summary = budgetSummary[category];
 
             // Determine what to show for budget
-            let budgetDisplay = '';
-            let budgetValue = '';
+            let budgetStatusClass = 'no-budget';
+            let budgetStatusText = 'No monthly limit set';
+            let currentBudgetValue = '';
 
-            if (!summary.hasAnyBudget) {
-                budgetDisplay = 'No budget set';
-                budgetValue = '';
-            } else if (summary.isConsistent) {
-                budgetDisplay = `$${summary.firstValue.toFixed(2)} (all months)`;
-                budgetValue = summary.firstValue;
-            } else {
-                // Calculate average
-                const validBudgets = Object.values(summary.budgets).filter((b) => b > 0);
-                const average = validBudgets.reduce((a, b) => a + b, 0) / validBudgets.length;
-                budgetDisplay = `Varies (avg: $${average.toFixed(2)})`;
-                budgetValue = '';
+            if (summary.hasAnyBudget) {
+                if (summary.isConsistent) {
+                    budgetStatusClass = 'has-budget';
+                    budgetStatusText = `$${summary.firstValue.toFixed(0)}/month`;
+                    currentBudgetValue = summary.firstValue;
+                } else {
+                    budgetStatusClass = 'varies';
+                    const validBudgets = Object.values(summary.budgets).filter((b) => b > 0);
+                    const average = validBudgets.reduce((a, b) => a + b, 0) / validBudgets.length;
+                    budgetStatusText = `Varies by month (avg: $${average.toFixed(0)})`;
+                }
             }
 
+            const keywordsCount = config.keywords.length;
+            const keywordsPreview = keywordsCount > 0
+                ? config.keywords.slice(0, 3).join(', ') + (keywordsCount > 3 ? ` +${keywordsCount - 3} more` : '')
+                : 'No keywords set';
+
             return `
-                <div class="budget-item compact">
-                    <div class="budget-item-row">
-                        <div class="category-info">
-                            <input type="text" 
-                                   class="icon-input-compact" 
-                                   id="icon-${categoryId}" 
-                                   value="${config.icon}" 
+                <div class="category-card" data-category="${category}">
+                    <div class="category-card-header">
+                        <div class="category-identity">
+                            <input type="text"
+                                   class="category-icon-input"
+                                   id="icon-${categoryId}"
+                                   value="${config.icon}"
                                    maxlength="2"
                                    onchange="markUnsavedChanges()"
-                                   title="Click to change icon">
-                            <input type="text" 
-                                   class="category-name-input-compact" 
-                                   id="name-${categoryId}" 
-                                   value="${category}" 
-                                   ${category === 'Others' ? 'readonly' : ''}
-                                   onchange="renameCategory('${category}', this.value); markUnsavedChanges()">
-                        </div>
-                        
-                        <div class="budget-controls">
-                            <div class="spending-info">
-                                <span class="spent-label" style="font-size: 12px; color: var(--gray);">
-                                    ${budgetDisplay}
-                                </span>
+                                   title="Change icon">
+                            <div class="category-name-wrapper">
+                                <input type="text"
+                                       class="category-name-input"
+                                       id="name-${categoryId}"
+                                       value="${category}"
+                                       ${category === 'Others' ? 'readonly title="Default category cannot be renamed"' : 'title="Click to rename"'}
+                                       onchange="renameCategory('${category}', this.value); markUnsavedChanges()">
+                                ${category === 'Others' ? '<span class="default-badge">Default</span>' : ''}
                             </div>
-                            
-                            <div class="budget-input-compact">
-                                <input type="number" 
-                                       id="budget-${categoryId}" 
-                                       placeholder="${
-                                           summary.isConsistent && summary.hasAnyBudget
-                                               ? budgetValue
-                                               : 'Set budget'
-                                       }" 
-                                       value=""
-                                       step="0.01"
-                                       class="budget-field">
-                                <button class="btn-set-budget" onclick="setBudgetForAllMonths('${category}')">Set All</button>
-                            </div>
-                            
-                            ${
-                                category !== 'Others'
-                                    ? `<button class="btn-remove-compact" onclick="removeCategory('${category}')" title="Remove">×</button>`
-                                    : '<div style="width: 32px;"></div>'
-                            }
                         </div>
+                        ${category !== 'Others' ? `
+                            <button class="category-delete-btn" onclick="removeCategory('${category}')" title="Delete category">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                        ` : ''}
                     </div>
-                    
-                    <div class="keywords-row">
-                        <input type="text" 
-                               class="keywords-input-compact" 
-                               id="keywords-${categoryId}" 
-                               value="${config.keywords.join(', ')}" 
-                               placeholder="Keywords: e.g., AMAZON, WALMART (comma-separated)"
-                               onchange="markUnsavedChanges()"
-                               title="Add keywords that will auto-categorize transactions">
+
+                    <div class="category-card-body">
+                        <div class="category-field">
+                            <label class="field-label">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                                </svg>
+                                Monthly Budget
+                            </label>
+                            <div class="budget-input-group">
+                                <span class="currency-prefix">$</span>
+                                <input type="number"
+                                       id="budget-${categoryId}"
+                                       placeholder="${currentBudgetValue || '0.00'}"
+                                       value=""
+                                       step="1"
+                                       min="0"
+                                       class="budget-amount-input">
+                                <button class="apply-budget-btn" onclick="setBudgetForAllMonths('${category}')" title="Apply this budget to all months">
+                                    Apply to All Months
+                                </button>
+                            </div>
+                            <div class="budget-status ${budgetStatusClass}">
+                                <span class="status-indicator"></span>
+                                ${budgetStatusText}
+                            </div>
+                        </div>
+
+                        <div class="category-field">
+                            <label class="field-label">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                                    <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                                </svg>
+                                Auto-Match Keywords
+                                <span class="keyword-count">${keywordsCount} keyword${keywordsCount !== 1 ? 's' : ''}</span>
+                            </label>
+                            <input type="text"
+                                   class="keywords-input"
+                                   id="keywords-${categoryId}"
+                                   value="${config.keywords.join(', ')}"
+                                   placeholder="e.g., AMAZON, WALMART, COSTCO"
+                                   onchange="markUnsavedChanges()"
+                                   onfocus="this.select()">
+                            <span class="field-hint">Transactions containing these keywords will auto-categorize here</span>
+                        </div>
                     </div>
                 </div>
             `;
@@ -265,19 +291,38 @@ function updateBudgetViewForAllMonths() {
         .join('');
 
     container.innerHTML = `
-        <div class="budget-header">
-            <h3>Categories & Monthly Budgets</h3>
-            <div class="budget-actions-compact">
-                <button class="btn btn-primary compact" onclick="addNewCategory()">+ Add Category</button>
-                <button class="btn btn-primary compact" id="saveChangesBtn" onclick="saveAllCategoryChanges()">
+        <div class="categories-header">
+            <div class="categories-header-content">
+                <h2>Manage Your Categories</h2>
+                <p>Organize transactions and set monthly spending limits for each category</p>
+            </div>
+            <div class="categories-header-actions">
+                <button class="btn-add-category" onclick="addNewCategory()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Add Category
+                </button>
+                <button class="btn-save-changes" id="saveChangesBtn" onclick="saveAllCategoryChanges()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
                     <span id="saveChangesText">Save Changes</span>
                 </button>
             </div>
         </div>
-        <div id="unsavedNotice" style="display: none; background: #fef3c7; color: #92400e; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; font-size: 13px;">
-            ⚠️ You have unsaved changes. Click "Save Changes" to apply keyword updates and re-categorize transactions.
+        <div id="unsavedNotice" class="unsaved-notice">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            You have unsaved changes. Click "Save Changes" to apply updates.
         </div>
-        <div class="budget-items-container">
+        <div class="categories-grid">
             ${categoriesHTML}
         </div>
     `;
@@ -360,52 +405,89 @@ function updateBudgetView(analyzer) {
             const config = categoryConfig[category] || { icon: '📦', keywords: [] };
             const categoryId = category.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
 
+            // Budget status
+            let budgetStatusClass = budget > 0 ? 'has-budget' : 'no-budget';
+            let budgetStatusText = budget > 0 ? `$${budget.toFixed(0)}/month` : 'No monthly limit set';
+
+            const keywordsCount = config.keywords.length;
+
             return `
-                <div class="budget-item compact">
-                    <div class="budget-item-row">
-                        <div class="category-info">
-                            <input type="text" 
-                                   class="icon-input-compact" 
-                                   id="icon-${categoryId}" 
-                                   value="${config.icon}" 
+                <div class="category-card" data-category="${category}">
+                    <div class="category-card-header">
+                        <div class="category-identity">
+                            <input type="text"
+                                   class="category-icon-input"
+                                   id="icon-${categoryId}"
+                                   value="${config.icon}"
                                    maxlength="2"
                                    onchange="markUnsavedChanges()"
-                                   title="Click to change icon">
-                            <input type="text" 
-                                   class="category-name-input-compact" 
-                                   id="name-${categoryId}" 
-                                   value="${category}" 
-                                   ${category === 'Others' ? 'readonly' : ''}
-                                   onchange="renameCategory('${category}', this.value); markUnsavedChanges()">
-                        </div>
-                        
-                        <div class="budget-controls">
-                            <div class="budget-input-compact">
-                                <input type="number" 
-                                       id="budget-${categoryId}" 
-                                       placeholder="No budget" 
-                                       value="${budget || ''}"
-                                       step="0.01"
-                                       class="budget-field">
-                                <button class="btn-set-budget" onclick="setBudgetWithOptions('${category}')">Set</button>
+                                   title="Change icon">
+                            <div class="category-name-wrapper">
+                                <input type="text"
+                                       class="category-name-input"
+                                       id="name-${categoryId}"
+                                       value="${category}"
+                                       ${category === 'Others' ? 'readonly title="Default category cannot be renamed"' : 'title="Click to rename"'}
+                                       onchange="renameCategory('${category}', this.value); markUnsavedChanges()">
+                                ${category === 'Others' ? '<span class="default-badge">Default</span>' : ''}
                             </div>
-                            
-                            ${
-                                category !== 'Others'
-                                    ? `<button class="btn-remove-compact" onclick="removeCategory('${category}')" title="Remove">×</button>`
-                                    : '<div style="width: 32px;"></div>'
-                            }
                         </div>
+                        ${category !== 'Others' ? `
+                            <button class="category-delete-btn" onclick="removeCategory('${category}')" title="Delete category">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                        ` : ''}
                     </div>
-                    
-                    <div class="keywords-row">
-                        <input type="text" 
-                               class="keywords-input-compact" 
-                               id="keywords-${categoryId}" 
-                               value="${config.keywords.join(', ')}" 
-                               placeholder="Keywords: e.g., AMAZON, WALMART (comma-separated)"
-                               onchange="markUnsavedChanges()"
-                               title="Add keywords that will auto-categorize transactions">
+
+                    <div class="category-card-body">
+                        <div class="category-field">
+                            <label class="field-label">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                                </svg>
+                                Monthly Budget
+                            </label>
+                            <div class="budget-input-group">
+                                <span class="currency-prefix">$</span>
+                                <input type="number"
+                                       id="budget-${categoryId}"
+                                       placeholder="${budget || '0.00'}"
+                                       value="${budget || ''}"
+                                       step="1"
+                                       min="0"
+                                       class="budget-amount-input">
+                                <button class="apply-budget-btn" onclick="setBudgetWithOptions('${category}')" title="Set budget for this month or all months">
+                                    Set Budget
+                                </button>
+                            </div>
+                            <div class="budget-status ${budgetStatusClass}">
+                                <span class="status-indicator"></span>
+                                ${budgetStatusText}
+                            </div>
+                        </div>
+
+                        <div class="category-field">
+                            <label class="field-label">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                                    <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                                </svg>
+                                Auto-Match Keywords
+                                <span class="keyword-count">${keywordsCount} keyword${keywordsCount !== 1 ? 's' : ''}</span>
+                            </label>
+                            <input type="text"
+                                   class="keywords-input"
+                                   id="keywords-${categoryId}"
+                                   value="${config.keywords.join(', ')}"
+                                   placeholder="e.g., AMAZON, WALMART, COSTCO"
+                                   onchange="markUnsavedChanges()"
+                                   onfocus="this.select()">
+                            <span class="field-hint">Transactions containing these keywords will auto-categorize here</span>
+                        </div>
                     </div>
                 </div>
             `;
@@ -413,19 +495,38 @@ function updateBudgetView(analyzer) {
         .join('');
 
     container.innerHTML = `
-        <div class="budget-header">
-            <h3>Categories & Monthly Budgets</h3>
-            <div class="budget-actions-compact">
-                <button class="btn btn-primary compact" onclick="addNewCategory()">+ Add Category</button>
-                <button class="btn btn-primary compact" id="saveChangesBtn" onclick="saveAllCategoryChanges()">
+        <div class="categories-header">
+            <div class="categories-header-content">
+                <h2>Manage Your Categories</h2>
+                <p>Organize transactions and set monthly spending limits for each category</p>
+            </div>
+            <div class="categories-header-actions">
+                <button class="btn-add-category" onclick="addNewCategory()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Add Category
+                </button>
+                <button class="btn-save-changes" id="saveChangesBtn" onclick="saveAllCategoryChanges()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
                     <span id="saveChangesText">Save Changes</span>
                 </button>
             </div>
         </div>
-        <div id="unsavedNotice" style="display: none; background: #fef3c7; color: #92400e; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; font-size: 13px;">
-            ⚠️ You have unsaved changes. Click "Save Changes" to apply keyword updates and re-categorize transactions.
+        <div id="unsavedNotice" class="unsaved-notice">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            You have unsaved changes. Click "Save Changes" to apply updates.
         </div>
-        <div class="budget-items-container">
+        <div class="categories-grid">
             ${categoriesHTML}
         </div>
     `;
@@ -1414,12 +1515,15 @@ function markUnsavedChanges() {
     const saveBtn = document.getElementById('saveChangesBtn');
 
     if (notice) {
-        notice.style.display = 'block';
+        notice.style.display = 'flex';
     }
 
     if (saveBtn) {
         saveBtn.classList.add('pulse');
-        document.getElementById('saveChangesText').textContent = 'Save Changes*';
+        const saveText = document.getElementById('saveChangesText');
+        if (saveText) {
+            saveText.textContent = 'Save Changes*';
+        }
     }
 }
 

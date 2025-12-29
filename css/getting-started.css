@@ -1,11 +1,27 @@
 /* Getting Started Styles */
+
+/* ==========================================
+   GETTING STARTED SECTION
+   ========================================== */
 .getting-started-section {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    background: linear-gradient(135deg, var(--dark) 0%, #0c1929 100%);
     color: white;
-    padding: 24px;
+    padding: 36px 32px;
     margin: 0;
     transition: all var(--transition-slow);
     position: relative;
+    overflow: hidden;
+}
+
+.getting-started-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 60%;
+    height: 200%;
+    background: radial-gradient(ellipse at center, rgba(8, 145, 178, 0.15) 0%, transparent 70%);
+    pointer-events: none;
 }
 
 .getting-started-section.collapsed {
@@ -15,71 +31,94 @@
 .getting-started-content {
     max-width: 1200px;
     margin: 0 auto;
+    position: relative;
+    z-index: 1;
 }
 
 .getting-started-header {
     text-align: center;
-    margin-bottom: 24px;
+    margin-bottom: 32px;
     position: relative;
-    padding: 0 100px;
+    padding: 0 120px;
 }
 
 .getting-started-header h2 {
-    font-size: 26px;
-    margin-bottom: 10px;
+    font-size: 28px;
+    margin-bottom: 12px;
     font-weight: 700;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #fff 0%, var(--gray-300) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .getting-started-header p {
     font-size: 15px;
-    opacity: 0.9;
+    opacity: 0.8;
+    max-width: 500px;
+    margin: 0 auto;
+    line-height: 1.6;
 }
 
 .getting-started-hide-btn {
     position: absolute;
     top: 0;
     right: 0;
-    background: rgba(255, 255, 255, 0.15) !important;
-    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
     color: white !important;
-    padding: 8px 16px !important;
+    padding: 10px 20px !important;
     font-size: 13px !important;
+    font-weight: 500 !important;
+    border-radius: var(--radius-lg) !important;
+    backdrop-filter: blur(10px);
+    transition: all var(--transition-base) !important;
 }
 
 .getting-started-hide-btn:hover {
-    background: rgba(255, 255, 255, 0.25) !important;
+    background: rgba(255, 255, 255, 0.2) !important;
+    transform: translateY(-1px);
 }
 
 .getting-started-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 24px;
-    margin-bottom: 20px;
+    gap: 28px;
+    margin-bottom: 24px;
 }
 
 .tutorial-card,
 .sample-data-card {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-radius: var(--radius-lg);
-    padding: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius-xl);
+    padding: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    transition: all var(--transition-base);
+}
+
+.tutorial-card:hover,
+.sample-data-card:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
 
 .tutorial-card h3,
 .sample-data-card h3 {
     font-size: 18px;
     margin-bottom: 12px;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: -0.02em;
 }
 
 .tutorial-card p,
 .sample-data-card p {
     font-size: 14px;
-    opacity: 0.9;
-    margin-bottom: 18px;
-    line-height: 1.5;
+    opacity: 0.8;
+    margin-bottom: 20px;
+    line-height: 1.6;
 }
 
 .video-wrapper {
@@ -87,8 +126,9 @@
     padding-bottom: 56.25%;
     height: 0;
     overflow: hidden;
-    border-radius: var(--radius-md);
-    background: #000;
+    border-radius: var(--radius-lg);
+    background: rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .video-wrapper iframe {
@@ -97,16 +137,18 @@
     left: 0;
     width: 100%;
     height: 100%;
+    border-radius: var(--radius-lg);
 }
 
 .sample-mode-indicator {
-    background: rgba(255, 255, 255, 0.15);
-    padding: 14px 16px;
-    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.1);
+    padding: 16px 20px;
+    border-radius: var(--radius-lg);
     display: none;
     justify-content: space-between;
     align-items: center;
-    margin-top: 18px;
+    margin-top: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .sample-mode-indicator.active {
@@ -115,16 +157,16 @@
 
 .sample-mode-indicator span {
     font-weight: 600;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .collapse-btn {
     background: transparent;
     border: none;
     color: white;
-    opacity: 0.8;
+    opacity: 0.7;
     cursor: pointer;
-    padding: 10px;
+    padding: 12px;
     font-size: 14px;
     text-align: center;
     width: 100%;
@@ -135,11 +177,13 @@
     opacity: 1;
 }
 
-/* Sample Mode Banner */
+/* ==========================================
+   SAMPLE MODE BANNER
+   ========================================== */
 .sample-mode-banner {
     background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%);
     color: #78350f;
-    padding: 14px 24px;
+    padding: 16px 32px;
     border-bottom: none;
     display: none;
 }
@@ -159,72 +203,96 @@
 }
 
 .banner-content span {
-    font-weight: 600;
+    font-weight: 700;
     font-size: 14px;
 }
 
-/* Help Button */
+/* ==========================================
+   HELP BUTTON
+   ========================================== */
 .help-btn {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.08);
     color: white;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     padding: 0;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     cursor: pointer;
     transition: all var(--transition-base);
     font-size: 16px;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
+    backdrop-filter: blur(10px);
 }
 
 .help-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.15);
     transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }
 
-/* Help Modal */
+/* ==========================================
+   HELP MODAL
+   ========================================== */
 .help-modal {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(4px);
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(8px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 2000;
-    padding: 20px;
+    padding: 24px;
+    animation: helpModalFadeIn var(--transition-base) ease-out;
+}
+
+@keyframes helpModalFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .help-modal-content {
     background: var(--white);
-    border-radius: var(--radius-xl);
+    border-radius: var(--radius-2xl);
     width: 90%;
     max-width: 800px;
     max-height: 90vh;
     overflow-y: auto;
-    padding: 32px;
-    box-shadow: var(--shadow-xl);
+    padding: 36px;
+    box-shadow: var(--shadow-2xl), 0 0 60px rgba(0, 0, 0, 0.15);
+    animation: helpModalSlideUp var(--transition-slow) cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes helpModalSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .help-modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: 28px;
 }
 
 .help-modal-header h2 {
     font-size: 24px;
     color: var(--dark);
     font-weight: 700;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
 }
 
 .help-close-btn {
@@ -233,9 +301,9 @@
     font-size: 24px;
     cursor: pointer;
     color: var(--gray);
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-md);
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-lg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -245,6 +313,7 @@
 .help-close-btn:hover {
     background: var(--gray-200);
     color: var(--dark);
+    transform: rotate(90deg);
 }
 
 .help-options {
@@ -254,10 +323,10 @@
 }
 
 .help-option-card {
-    background: var(--gray-100);
+    background: var(--gray-50);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 24px;
+    border-radius: var(--radius-xl);
+    padding: 28px;
     text-align: center;
     transition: all var(--transition-base);
     cursor: pointer;
@@ -265,37 +334,41 @@
 
 .help-option-card:hover {
     border-color: var(--primary);
-    transform: translateY(-3px);
+    transform: translateY(-4px);
     box-shadow: var(--shadow-lg);
+    background: var(--white);
 }
 
 .help-option-card h3 {
     font-size: 18px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     color: var(--dark);
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: -0.02em;
 }
 
 .help-option-card p {
     font-size: 14px;
     color: var(--gray);
-    margin-bottom: 16px;
+    margin-bottom: 20px;
     line-height: 1.5;
 }
 
-/* Responsive */
+/* ==========================================
+   RESPONSIVE
+   ========================================== */
 @media (max-width: 768px) {
     .getting-started-section {
-        padding: 20px 16px;
+        padding: 24px 16px;
     }
 
     .getting-started-header {
         padding: 0;
-        padding-right: 90px;
+        padding-right: 100px;
     }
 
     .getting-started-header h2 {
-        font-size: 20px;
+        font-size: 22px;
         text-align: left;
     }
 
@@ -305,18 +378,18 @@
     }
 
     .getting-started-hide-btn {
-        padding: 6px 12px !important;
+        padding: 8px 14px !important;
         font-size: 12px !important;
     }
 
     .getting-started-grid {
         grid-template-columns: 1fr;
-        gap: 16px;
+        gap: 20px;
     }
 
     .tutorial-card,
     .sample-data-card {
-        padding: 18px;
+        padding: 20px;
     }
 
     .tutorial-card h3,
@@ -332,13 +405,18 @@
         flex-direction: column;
         gap: 12px;
         text-align: center;
+        padding: 0 16px;
     }
 
     .help-modal-content {
-        padding: 24px;
+        padding: 28px;
     }
 
     .help-modal-header h2 {
         font-size: 20px;
+    }
+
+    .help-option-card {
+        padding: 24px;
     }
 }

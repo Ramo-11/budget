@@ -49,8 +49,23 @@
                         <a href="analytics.html" class="nav-btn">Analytics</a>
                         <a href="settings.html" class="nav-btn active">Settings</a>
                         <a href="about.html" class="nav-btn">About</a>
+                        <button class="help-btn mobile-only" onclick="showHelp()" title="Help & Tutorial">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                            <span>Help</span>
+                        </button>
+                    </div>
+
+                    <div class="header-actions">
                         <button class="help-btn" onclick="showHelp()" title="Help & Tutorial">
-                            ?
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
                         </button>
                     </div>
 
@@ -71,11 +86,27 @@
             <!-- Settings Tabs -->
             <div class="settings-tabs">
                 <button class="settings-tab active" onclick="switchSettingsTab('categories')">
-                    Categories & Budgets
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span>Categories & Budgets</span>
                 </button>
-                <button class="settings-tab" onclick="switchSettingsTab('rules')">Rules</button>
+                <button class="settings-tab" onclick="switchSettingsTab('rules')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                    </svg>
+                    <span>Auto-Categorization Rules</span>
+                </button>
                 <button class="settings-tab" onclick="switchSettingsTab('data')">
-                    Data Management
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                    </svg>
+                    <span>Data Management</span>
                 </button>
             </div>
 
@@ -128,7 +159,13 @@
                     <p>Keep your data safe with regular backups</p>
                     <div class="data-actions">
                         <div class="data-action-card">
-                            <div class="data-action-icon">💾</div>
+                            <div class="data-action-icon">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                    <polyline points="7 3 7 8 15 8"></polyline>
+                                </svg>
+                            </div>
                             <h4>Create Backup</h4>
                             <p>Export all your data as a JSON file</p>
                             <button class="btn btn-primary" onclick="exportToJSON()">
@@ -136,7 +173,13 @@
                             </button>
                         </div>
                         <div class="data-action-card">
-                            <div class="data-action-icon">📥</div>
+                            <div class="data-action-icon">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                            </div>
                             <h4>Restore Backup</h4>
                             <p>Import a previously saved backup file</p>
                             <button class="btn btn-secondary" onclick="importJSONBackup()">
