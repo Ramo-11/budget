@@ -28,6 +28,24 @@ function saveBankMappings() {
 
 // Known bank format detection patterns
 const knownBankFormats = {
+    chaseChecking: {
+        name: 'Chase Checking',
+        detect: (headers) => {
+            const h = headers.map(h => h.toLowerCase());
+            // Chase checking has: Details, Posting Date, Description, Amount, Type, Balance
+            return h.includes('posting date') &&
+                   h.includes('details') &&
+                   h.includes('type') &&
+                   h.includes('balance') &&
+                   h.includes('amount');
+        },
+        mapping: {
+            date: ['Posting Date'],
+            description: ['Description'],
+            amount: ['Amount']
+        },
+        negativeIsExpense: true
+    },
     chase: {
         name: 'Chase',
         detect: (headers) => {
@@ -265,7 +283,8 @@ function processTransactionsWithMapping(transactions, mapping) {
             'Transaction Date': dateValue,
             Description: String(descValue).toUpperCase(),
             Amount: amountValue,
-            _originalFormat: 'CustomMapping'
+            _originalFormat: 'CustomMapping',
+            _rawCsvData: { ...row }, // Store the original raw CSV row
         });
     });
 

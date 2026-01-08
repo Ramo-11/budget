@@ -233,6 +233,8 @@ function showGettingStarted() {
 
 // Check for saved preferences on load
 window.addEventListener('DOMContentLoaded', () => {
+    // Remove the early-hide class so normal CSS/JS takes over
+    document.documentElement.classList.remove('tutorial-hidden');
     // Check if in sample mode from localStorage
     if (localStorage.getItem('sahabBudget_sampleMode') === 'true') {
         isInSampleMode = true;

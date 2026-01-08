@@ -20,6 +20,20 @@
         <!-- External Libraries -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+        <!-- Prevent tutorial flash: check localStorage before render -->
+        <script>
+            (function() {
+                if (localStorage.getItem('sahabBudget_hideGettingStarted') === 'true' &&
+                    localStorage.getItem('sahabBudget_showGettingStarted') !== 'true' &&
+                    localStorage.getItem('sahabBudget_showTutorial') !== 'true') {
+                    document.documentElement.classList.add('tutorial-hidden');
+                }
+            })();
+        </script>
+        <style>
+            .tutorial-hidden #gettingStartedSection { display: none !important; }
+        </style>
     </head>
     <body>
         <div class="container">

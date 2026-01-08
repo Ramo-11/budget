@@ -260,6 +260,7 @@ function splitByMonth(transactions) {
             Description: description,
             Amount: amount,
             _originalFormat: transaction.nickname ? 'FirstFinancial' : 'Chase',
+            _rawCsvData: { ...transaction }, // Store the original raw CSV row
         };
 
         // Check for duplicate

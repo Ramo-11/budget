@@ -157,11 +157,13 @@ function updateCategoryDetails(analyzer) {
                     ${displayedTransactions
                         .map(
                             (t) => `
-                        <div class="transaction-item" 
-                             draggable="true" 
+                        <div class="transaction-item"
+                             draggable="true"
                              data-transaction-id="${t.id}"
                              data-category="${category}">
-                            <span class="transaction-name" title="${t.name}">${t.name}</span>
+                            <span class="transaction-name clickable-transaction"
+                                  title="Click to view raw data"
+                                  onclick="event.stopPropagation(); showRawTransactionData('${t.id}', '${category}')">${t.name}</span>
                             <span style="display: flex; align-items: center;">
                                 <span class="transaction-amount">$${t.amount.toFixed(2)}</span>
                                 <button class="btn-icon" onclick="deleteTransaction('${category}', '${
@@ -752,6 +754,122 @@ function deleteTransaction(category, transactionId) {
 function deleteTransactionFromModal(category, transactionId) {
     deleteTransaction(category, transactionId);
     closeModal('transactionsModal');
+}
+
+// Show raw transaction data in a modal
+function showRawTransactionData(transactionId, category) {
+    let transaction = null;
+
+    // Find the transaction across all months if viewing all data
+    if (currentMonth === 'ALL_DATA') {
+        for (const [monthKey, monthData] of monthlyData.entries()) {
+            const found = monthData.transactions.find((t) => t._id === transactionId);
+            if (found) {
+                transaction = found;
+                break;
+            }
+        }
+    } else if (currentMonth === 'CUSTOM_RANGE' && window.customDateRange) {
+        // Search in custom range
+        for (const [monthKey, monthData] of monthlyData.entries()) {
+            const found = monthData.transactions.find((t) => t._id === transactionId);
+            if (found) {
+                transaction = found;
+                break;
+            }
+        }
+    } else {
+        const monthData = monthlyData.get(currentMonth);
+        if (monthData) {
+            transaction = monthData.transactions.find((t) => t._id === transactionId);
+        }
+    }
+
+    if (!transaction) {
+        showNotification('Transaction not found', 'error');
+        return;
+    }
+
+    const rawData = transaction._rawCsvData;
+
+    // Build the raw data display
+    let rawDataHTML = '';
+    if (rawData && Object.keys(rawData).length > 0) {
+        rawDataHTML = `
+            <div class="raw-data-table">
+                <table>
+                    <thead>
+                        <tr>
+                            ${Object.keys(rawData)
+                                .map((key) => `<th>${escapeHtmlDashboard(key)}</th>`)
+                                .join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            ${Object.values(rawData)
+                                .map((val) => `<td>${escapeHtmlDashboard(String(val ?? ''))}</td>`)
+                                .join('')}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="raw-data-csv-line">
+                <h4>CSV Line:</h4>
+                <code>${Object.values(rawData)
+                    .map((v) => {
+                        const val = String(v ?? '');
+                        // Quote if contains comma or quotes
+                        if (val.includes(',') || val.includes('"')) {
+                            return '"' + val.replace(/"/g, '""') + '"';
+                        }
+                        return val;
+                    })
+                    .join(',')}</code>
+            </div>
+        `;
+    } else {
+        rawDataHTML = `
+            <div class="raw-data-notice">
+                <p>Raw CSV data is not available for this transaction.</p>
+                <p>This may be because the transaction was imported before this feature was added.</p>
+            </div>
+        `;
+    }
+
+    const modal = document.createElement('div');
+    modal.className = 'modal show';
+    modal.id = 'rawDataModal';
+    modal.innerHTML = `
+        <div class="modal-content" style="width: 90%; max-width: 800px;">
+            <div class="modal-header">
+                <h2>Transaction Details</h2>
+                <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="transaction-summary">
+                    <p><strong>Description:</strong> ${escapeHtmlDashboard(transaction.Description || '')}</p>
+                    <p><strong>Amount:</strong> $${Math.abs(transaction.Amount || 0).toFixed(2)}</p>
+                    <p><strong>Date:</strong> ${transaction['Transaction Date'] || ''}</p>
+                    <p><strong>Category:</strong> ${category}</p>
+                </div>
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid var(--border);">
+                <h3 style="margin-bottom: 15px;">Original CSV Data</h3>
+                ${rawDataHTML}
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Helper function to escape HTML for dashboard display
+function escapeHtmlDashboard(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // Show all transactions for a category
