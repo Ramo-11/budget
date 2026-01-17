@@ -202,6 +202,7 @@ function loadOverviewView() {
 
     // Calculate aggregated data
     let totalSpending = 0;
+    let totalIncome = 0;
     let transactionCount = 0;
     const categoryTotals = {};
     const merchantTotals = {};
@@ -211,14 +212,14 @@ function loadOverviewView() {
     months.forEach((monthKey) => {
         const monthData = analyticsData.monthlyData.get(monthKey);
         let monthTotal = 0;
+        let monthIncome = 0;
 
         monthData.transactions.forEach((transaction) => {
             const amount = Math.abs(parseFloat(transaction.Amount) || 0);
             const description = transaction.Description || transaction.description || 'Unknown';
             const category = categorizeTransactionForAnalytics(description, transaction._id);
+            const isIncome = category === 'Income' || transaction._isIncome === true;
 
-            totalSpending += amount;
-            monthTotal += amount;
             transactionCount++;
 
             // Track categories
@@ -227,18 +228,27 @@ function loadOverviewView() {
             }
             categoryTotals[category] += amount;
 
-            // Track merchants
-            if (!merchantTotals[description]) {
-                merchantTotals[description] = { total: 0, count: 0 };
+            if (isIncome) {
+                totalIncome += amount;
+                monthIncome += amount;
+            } else {
+                totalSpending += amount;
+                monthTotal += amount;
+
+                // Only track merchants for expenses
+                if (!merchantTotals[description]) {
+                    merchantTotals[description] = { total: 0, count: 0 };
+                }
+                merchantTotals[description].total += amount;
+                merchantTotals[description].count++;
             }
-            merchantTotals[description].total += amount;
-            merchantTotals[description].count++;
 
             // Collect all transactions for recent activity
             allTransactions.push({
                 ...transaction,
                 parsedAmount: amount,
                 monthName: monthData.monthName,
+                isIncome: isIncome,
                 parsedDate: new Date(
                     transaction['Transaction Date'] ||
                     transaction['Posting Date'] ||
@@ -255,6 +265,7 @@ function loadOverviewView() {
         monthlyTotals.push({
             month: monthData.monthName,
             total: monthTotal,
+            income: monthIncome,
         });
     });
 
@@ -262,13 +273,18 @@ function loadOverviewView() {
     allTransactions.sort((a, b) => b.parsedDate - a.parsedDate);
     const recentTransactions = allTransactions.slice(0, 5);
 
-    // Sort categories and merchants
-    const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1]);
+    // Sort categories (excluding Income for expense analysis) and merchants
+    const expenseCategories = Object.entries(categoryTotals).filter(([cat]) => cat !== 'Income');
+    const sortedCategories = expenseCategories.sort((a, b) => b[1] - a[1]);
     const sortedMerchants = Object.entries(merchantTotals).sort((a, b) => b[1].total - a[1].total);
 
-    // Calculate averages
+    // Calculate averages (based on expenses only)
+    const expenseTransactionCount = transactionCount - (categoryTotals['Income'] ? allTransactions.filter(t => t.isIncome).length : 0);
     const avgMonthly = totalSpending / months.length;
-    const avgTransaction = totalSpending / transactionCount;
+    const avgTransaction = expenseTransactionCount > 0 ? totalSpending / expenseTransactionCount : 0;
+
+    // Render Income Stats Panel if income exists
+    renderIncomeStatsPanel(totalIncome, totalSpending, months.length);
 
     // Render Quick Stats
     renderQuickStats(totalSpending, avgMonthly, transactionCount, avgTransaction);
@@ -276,7 +292,7 @@ function loadOverviewView() {
     // Render Spending Summary
     renderSpendingSummary(totalSpending, avgMonthly, months);
 
-    // Render Top Categories
+    // Render Top Categories (expenses only)
     renderTopCategories(sortedCategories, totalSpending);
 
     // Render Recent Activity
@@ -287,6 +303,79 @@ function loadOverviewView() {
 
     // Render Overview Chart
     renderOverviewChart(monthlyTotals);
+}
+
+// Render income stats panel when income tracking is enabled
+function renderIncomeStatsPanel(totalIncome, totalExpenses, monthCount) {
+    const container = document.getElementById('incomeStatsPanel');
+
+    // Create container if it doesn't exist
+    if (!container) {
+        const overviewView = document.getElementById('overviewView');
+        if (overviewView) {
+            const panel = document.createElement('div');
+            panel.id = 'incomeStatsPanel';
+            panel.className = 'income-stats-panel';
+            overviewView.insertBefore(panel, overviewView.firstChild);
+        }
+    }
+
+    const incomePanel = document.getElementById('incomeStatsPanel');
+    if (!incomePanel) return;
+
+    // Only show if there's income data
+    if (totalIncome === 0) {
+        incomePanel.style.display = 'none';
+        return;
+    }
+
+    const netAmount = totalIncome - totalExpenses;
+    const isPositive = netAmount >= 0;
+
+    incomePanel.style.display = 'grid';
+    incomePanel.innerHTML = `
+        <div class="income-stat-card income">
+            <div class="income-stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+            </div>
+            <div class="income-stat-content">
+                <h4>Total Income</h4>
+                <div class="income-stat-value">$${totalIncome.toFixed(2)}</div>
+                <div class="income-stat-period">${monthCount} month${monthCount !== 1 ? 's' : ''}</div>
+            </div>
+        </div>
+        <div class="income-stat-card expenses">
+            <div class="income-stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                    <polyline points="17 6 23 6 23 12"></polyline>
+                </svg>
+            </div>
+            <div class="income-stat-content">
+                <h4>Total Expenses</h4>
+                <div class="income-stat-value">$${totalExpenses.toFixed(2)}</div>
+                <div class="income-stat-period">${monthCount} month${monthCount !== 1 ? 's' : ''}</div>
+            </div>
+        </div>
+        <div class="income-stat-card ${isPositive ? 'positive' : 'negative'}">
+            <div class="income-stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    ${isPositive
+                        ? '<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline>'
+                        : '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline>'
+                    }
+                </svg>
+            </div>
+            <div class="income-stat-content">
+                <h4>Net ${isPositive ? 'Savings' : 'Deficit'}</h4>
+                <div class="income-stat-value ${isPositive ? 'positive' : 'negative'}">$${Math.abs(netAmount).toFixed(2)}</div>
+                <div class="income-stat-period">${isPositive ? 'saved' : 'over budget'}</div>
+            </div>
+        </div>
+    `;
 }
 
 function renderQuickStats(totalSpending, avgMonthly, transactionCount, avgTransaction) {
@@ -382,35 +471,25 @@ function renderTopCategories(sortedCategories, totalSpending) {
 }
 
 function renderRecentActivity(transactions) {
-    const categoryIcons = {
-        'Food & Dining': '🍽️',
-        'Shopping': '🛍️',
-        'Transportation': '🚗',
-        'Entertainment': '🎬',
-        'Bills & Utilities': '💡',
-        'Health': '🏥',
-        'Travel': '✈️',
-        'Education': '📚',
-        'Groceries': '🛒',
-        'Others': '📋',
-    };
-
     const html = `
         <div class="activity-list">
             ${transactions.map((tx) => {
                 const description = tx.Description || tx.description || 'Unknown';
                 const category = categorizeTransactionForAnalytics(description, tx._id);
-                const icon = categoryIcons[category] || '💳';
+                const isIncome = category === 'Income' || tx.isIncome;
+                const icon = analyticsData.categoryConfig[category]?.icon || '💳';
                 const dateStr = tx.parsedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
                 return `
-                    <div class="activity-item">
+                    <div class="activity-item ${isIncome ? 'income' : ''}">
                         <div class="activity-icon">${icon}</div>
                         <div class="activity-details">
                             <h5>${description.length > 30 ? description.substring(0, 30) + '...' : description}</h5>
                             <span>${dateStr} • ${category}</span>
                         </div>
-                        <div class="activity-amount">$${tx.parsedAmount.toFixed(2)}</div>
+                        <div class="activity-amount ${isIncome ? 'income' : ''}">
+                            ${isIncome ? '+' : ''}$${tx.parsedAmount.toFixed(2)}
+                        </div>
                     </div>
                 `;
             }).join('')}

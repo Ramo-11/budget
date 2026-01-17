@@ -90,6 +90,11 @@ let categoryConfig = {
         keywords: ['MOVIE', 'CINEMA', 'MUSIC', 'CONCERT', 'GAME', 'HBO'],
         icon: '🎬',
     },
+    Income: {
+        keywords: [],
+        icon: '💰',
+        _isIncome: true,
+    },
     Others: {
         keywords: [],
         icon: '📦',
@@ -99,6 +104,28 @@ let categoryConfig = {
 let budgets = {};
 let charts = {};
 window.merchantRules = {};
+
+// Income tracking settings
+window.incomeSettings = {
+    trackIncome: true,
+    incomePatterns: [
+        'PAYROLL',
+        'SALARY',
+        'DIRECT DEP',
+        'DEPOSIT',
+        'ACH_CREDIT',
+        'WIRE_INCOMING',
+        'QUICKPAY_CREDIT',
+        'ZELLE PAYMENT FROM',
+        'ONLINE TRANSFER FROM',
+        'INTEREST PAID',
+        'REFUND',
+        'CASHBACK',
+        'REWARD',
+        'DIVIDEND',
+        'TAX REFUND',
+    ],
+};
 
 // Load saved data
 function loadSavedData() {
@@ -111,6 +138,11 @@ function loadSavedData() {
             budgets = data.budgets || {};
             window.transactionOverrides = data.transactionOverrides || {};
             window.unifiedRules = data.unifiedRules || [];
+
+            // Load income settings
+            if (data.incomeSettings) {
+                window.incomeSettings = { ...window.incomeSettings, ...data.incomeSettings };
+            }
 
             // Initialize rules system if available
             if (
@@ -142,6 +174,7 @@ function saveData() {
             budgets: budgets,
             transactionOverrides: window.transactionOverrides || {},
             unifiedRules: window.unifiedRules || [],
+            incomeSettings: window.incomeSettings || {},
         };
         localStorage.setItem('sahabBudget_data', JSON.stringify(data));
     } catch (error) {
@@ -155,15 +188,48 @@ function splitByMonth(transactions) {
     let duplicates = 0;
     let skipped = 0;
     let rulesApplied = 0;
+    let incomeAdded = 0;
 
     // Load unified rules if available
     if (typeof loadRules === 'function') {
         loadRules();
     }
 
+    // Check if income tracking is enabled
+    const trackIncome = window.incomeSettings?.trackIncome === true;
+
+    // Ensure Income category exists if tracking is enabled
+    if (trackIncome && !categoryConfig['Income']) {
+        categoryConfig['Income'] = {
+            keywords: [],
+            icon: '💰',
+            _isIncome: true,
+        };
+    }
+
+    // Income patterns for detection
+    const incomePatterns = window.incomeSettings?.incomePatterns || [
+        'PAYROLL',
+        'SALARY',
+        'DIRECT DEP',
+        'DEPOSIT',
+        'ACH_CREDIT',
+        'WIRE_INCOMING',
+        'QUICKPAY_CREDIT',
+        'ZELLE PAYMENT FROM',
+        'ONLINE TRANSFER FROM',
+        'INTEREST PAID',
+        'REFUND',
+        'CASHBACK',
+        'REWARD',
+        'DIVIDEND',
+        'TAX REFUND',
+    ];
+
     transactions.forEach((transaction) => {
         // Detect CSV format and normalize fields
         let description, amount, dateField;
+        let isFirstFinancialCredit = false;
 
         // First Financial Bank format
         if (transaction.nickname || transaction.original_name) {
@@ -173,13 +239,13 @@ function splitByMonth(transactions) {
 
             // First Financial uses positive amounts for debits (expenses)
             // and negative amounts for credits (income)
-            // So we need to keep debits positive and skip credits
             if (transaction.transaction_type === 'Credit' || amount < 0) {
-                skipped++;
-                return;
+                isFirstFinancialCredit = true;
+                amount = Math.abs(amount); // Make positive for income
+            } else {
+                // Convert debit amount to negative for consistency (expense)
+                amount = -Math.abs(amount);
             }
-            // Convert debit amount to negative for consistency
-            amount = -Math.abs(amount);
         }
         // Chase/Standard format
         else {
@@ -208,32 +274,67 @@ function splitByMonth(transactions) {
             }
         }
 
-        // Skip non-expense transactions (income, payments, etc.)
-        const skipPatterns = [
-            'PAYMENT THANK YOU',
-            'PAYROLL',
-            'SALARY',
-            'DIRECT DEP',
-            'DEPOSIT',
-            'ACH_CREDIT',
-            'WIRE_INCOMING',
-            'QUICKPAY_CREDIT',
-            'ZELLE PAYMENT FROM',
-            'ONLINE TRANSFER FROM',
-            'INTEREST PAID',
-            'REFUND',
-            'CASHBACK',
-            'REWARD',
-            'DIVIDEND',
-            'TAX REFUND',
-        ];
+        // Check if this is an income transaction
+        const isIncomePattern = incomePatterns.some((pattern) => description.includes(pattern));
+        const isPositiveAmount = amount > 0;
+        const isIncome = isIncomePattern || isPositiveAmount || isFirstFinancialCredit;
 
-        // Check if transaction should be skipped
-        const shouldSkip = skipPatterns.some((pattern) => description.includes(pattern));
-
-        // Also skip positive amounts (credits/income)
-        if (shouldSkip || amount > 0) {
+        // Skip payment thank you (credit card payments)
+        if (description.includes('PAYMENT THANK YOU')) {
             skipped++;
+            return;
+        }
+
+        // Handle income vs expense
+        if (isIncome) {
+            if (trackIncome) {
+                // Process as income transaction
+                if (!dateField) return;
+                const incomeAmount = Math.abs(amount);
+                if (incomeAmount === 0) return;
+
+                const date = new Date(dateField);
+                if (isNaN(date.getTime())) return;
+
+                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+                if (!monthlyData.has(monthKey)) {
+                    monthlyData.set(monthKey, {
+                        transactions: [],
+                        monthName: date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+                    });
+                }
+
+                const monthData = monthlyData.get(monthKey);
+
+                const normalizedTransaction = {
+                    'Transaction Date': dateField,
+                    Description: description,
+                    Amount: incomeAmount, // Positive for income
+                    _originalFormat: transaction.nickname ? 'FirstFinancial' : 'Chase',
+                    _rawCsvData: { ...transaction },
+                    _isIncome: true,
+                };
+
+                if (isDuplicateTransaction(normalizedTransaction, monthData.transactions)) {
+                    duplicates++;
+                } else {
+                    normalizedTransaction._id = Math.random().toString(36).substr(2, 9);
+                    monthData.transactions.push(normalizedTransaction);
+                    incomeAdded++;
+
+                    // Auto-assign to Income category
+                    if (!window.transactionOverrides) {
+                        window.transactionOverrides = {};
+                    }
+                    if (!window.transactionOverrides[monthKey]) {
+                        window.transactionOverrides[monthKey] = {};
+                    }
+                    window.transactionOverrides[monthKey][normalizedTransaction._id] = 'Income';
+                }
+            } else {
+                skipped++;
+            }
             return;
         }
 
@@ -274,7 +375,7 @@ function splitByMonth(transactions) {
         }
     });
 
-    return { added, duplicates, skipped, rulesApplied };
+    return { added, duplicates, skipped, rulesApplied, incomeAdded };
 }
 
 // Check if a transaction is a duplicate

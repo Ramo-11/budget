@@ -7,6 +7,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     updateSettingsMonthSelector();
     updateStorageStats();
+    initializeIncomeToggle();
 
     if (monthlyData.size > 0) {
         const months = Array.from(monthlyData.keys()).sort().reverse();
@@ -20,6 +21,103 @@ window.addEventListener('DOMContentLoaded', () => {
         updateBudgetView(null);
     }
 });
+
+// Initialize income toggle state
+function initializeIncomeToggle() {
+    const toggle = document.getElementById('incomeToggle');
+    const label = document.getElementById('incomeToggleLabel');
+
+    if (toggle && window.incomeSettings) {
+        toggle.checked = window.incomeSettings.trackIncome === true;
+        updateIncomeToggleLabel(toggle.checked);
+    }
+}
+
+// Toggle income tracking
+function toggleIncomeTracking(enabled) {
+    window.incomeSettings = window.incomeSettings || {};
+    window.incomeSettings.trackIncome = enabled;
+
+    // Add or ensure Income category exists when enabled
+    if (enabled && !categoryConfig['Income']) {
+        categoryConfig['Income'] = {
+            keywords: [],
+            icon: '💰',
+            _isIncome: true,
+        };
+    }
+
+    // Scan existing transactions and move income ones to Income category
+    let movedCount = 0;
+    if (enabled && monthlyData.size > 0) {
+        movedCount = scanAndMoveIncomeTransactions();
+    }
+
+    saveData();
+    updateIncomeToggleLabel(enabled);
+
+    // Broadcast sync to other tabs
+    if (typeof broadcastSync === 'function') {
+        broadcastSync('data_changed', { incomeTracking: enabled });
+    }
+
+    if (enabled) {
+        if (movedCount > 0) {
+            showNotification(`Income tracking enabled. ${movedCount} existing transaction${movedCount > 1 ? 's' : ''} moved to Income.`, 'success');
+        } else {
+            showNotification('Income tracking enabled.', 'success');
+        }
+    } else {
+        showNotification('Income tracking disabled. Existing income transactions are preserved.', 'info');
+    }
+}
+
+// Scan existing transactions and move income ones to Income category
+function scanAndMoveIncomeTransactions() {
+    const incomePatterns = window.incomeSettings?.incomePatterns || [];
+    let movedCount = 0;
+
+    monthlyData.forEach((monthData, monthKey) => {
+        monthData.transactions.forEach((transaction) => {
+            const description = (transaction.Description || transaction.description || '').toUpperCase();
+            const amount = parseFloat(transaction.Amount) || 0;
+            const transactionId = transaction._id;
+
+            // Check if already categorized as Income
+            const currentCategory = window.transactionOverrides?.[monthKey]?.[transactionId];
+            if (currentCategory === 'Income') {
+                return; // Already income
+            }
+
+            // Check if matches income patterns or is positive amount
+            const isIncomePattern = incomePatterns.some((pattern) => description.includes(pattern));
+            const isPositive = amount > 0;
+
+            if (isIncomePattern || isPositive) {
+                // Move to Income category
+                if (!window.transactionOverrides) {
+                    window.transactionOverrides = {};
+                }
+                if (!window.transactionOverrides[monthKey]) {
+                    window.transactionOverrides[monthKey] = {};
+                }
+                window.transactionOverrides[monthKey][transactionId] = 'Income';
+                transaction._isIncome = true;
+                movedCount++;
+            }
+        });
+    });
+
+    return movedCount;
+}
+
+// Update income toggle label
+function updateIncomeToggleLabel(enabled) {
+    const label = document.getElementById('incomeToggleLabel');
+    if (label) {
+        label.textContent = enabled ? 'Income tracking is enabled' : 'Income tracking is disabled';
+    }
+}
 
 // Switch settings tab
 function switchSettingsTab(tab) {
@@ -85,6 +183,11 @@ function updateStorageStats() {
             </div>
         </div>
     `;
+
+    // Populate export month dropdown
+    if (typeof populateExportMonthDropdown === 'function') {
+        populateExportMonthDropdown();
+    }
 }
 
 // Update month selector for settings
@@ -857,6 +960,11 @@ function saveAllCategoryChanges() {
     if (hasChanges) {
         saveData();
 
+        // Broadcast sync event to other tabs
+        if (typeof broadcastSync === 'function') {
+            broadcastSync('category_updated', {});
+        }
+
         // Refresh current view immediately
         if (currentMonth && monthlyData.has(currentMonth)) {
             const monthData = monthlyData.get(currentMonth);
@@ -1213,6 +1321,11 @@ function proceedWithCategoryCreation(name, icon, keywords) {
 
     saveData();
 
+    // Broadcast sync event to other tabs
+    if (typeof broadcastSync === 'function') {
+        broadcastSync('category_added', { name: name, icon: icon });
+    }
+
     // Refresh the budget view
     if (currentMonth && monthlyData.has(currentMonth)) {
         const monthData = monthlyData.get(currentMonth);
@@ -1236,19 +1349,32 @@ function proceedWithCategoryCreation(name, icon, keywords) {
 
 // Remove category
 function removeCategory(name) {
+    // Prevent deletion of Income category while tracking is enabled
+    if (name === 'Income' && window.incomeSettings?.trackIncome) {
+        showNotification('Cannot delete Income category while income tracking is enabled', 'error');
+        return;
+    }
+
     if (!confirm(`Remove category "${name}"? Transactions will be moved to "Others".`)) return;
 
     delete categoryConfig[name];
     saveData();
 
-    // Refresh views
-    if (currentMonth) {
-        switchToMonth(currentMonth);
+    // Broadcast sync event to other tabs
+    if (typeof broadcastSync === 'function') {
+        broadcastSync('category_deleted', { name: name });
+    }
+
+    // Refresh views - handle ALL_MONTHS case
+    if (currentMonth === 'ALL_MONTHS') {
+        updateBudgetViewForAllMonths();
+    } else if (currentMonth && monthlyData.has(currentMonth)) {
         const monthData = monthlyData.get(currentMonth);
-        if (monthData) {
-            const analyzer = analyzeTransactions(monthData.transactions);
-            updateBudgetView(analyzer);
-        }
+        const analyzer = analyzeTransactions(monthData.transactions);
+        updateBudgetView(analyzer);
+    } else {
+        // No data case - still refresh the view
+        updateBudgetView(null);
     }
 
     updateCategoriesView();

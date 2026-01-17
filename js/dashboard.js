@@ -29,27 +29,57 @@ function updateDashboard(analyzer) {
     const avgTransaction =
         analyzer.transactionCount > 0 ? analyzer.totalExpenses / analyzer.transactionCount : 0;
 
-    const cardsHTML = `
-        <div class="card">
-            <h3>Total Expenses</h3>
-            <p>$${analyzer.totalExpenses.toFixed(2)}</p>
-        </div>
-        <div class="card">
-            <h3>Transactions</h3>
-            <p>${analyzer.transactionCount}</p>
-        </div>
-        <div class="card">
-            <h3>Categories</h3>
-            <p>${
-                Object.keys(analyzer.categoryTotals).filter((c) => analyzer.categoryTotals[c] > 0)
-                    .length
-            }</p>
-        </div>
-        <div class="card">
-            <h3>Average</h3>
-            <p>$${avgTransaction.toFixed(2)}</p>
-        </div>
-    `;
+    // Calculate income and net if tracking is enabled
+    const incomeTotal = analyzer.categoryTotals['Income'] || 0;
+    const expensesWithoutIncome = analyzer.totalExpenses - incomeTotal;
+    const netAmount = incomeTotal - expensesWithoutIncome;
+    const trackIncome = window.incomeSettings?.trackIncome === true;
+
+    let cardsHTML = '';
+
+    // Show income cards if tracking is enabled and there's income data
+    if (trackIncome && incomeTotal > 0) {
+        cardsHTML = `
+            <div class="card income-card">
+                <h3>Total Income</h3>
+                <p>$${incomeTotal.toFixed(2)}</p>
+            </div>
+            <div class="card">
+                <h3>Total Expenses</h3>
+                <p>$${expensesWithoutIncome.toFixed(2)}</p>
+            </div>
+            <div class="card ${netAmount >= 0 ? 'net-positive' : 'net-negative'}">
+                <h3>Net ${netAmount >= 0 ? 'Savings' : 'Deficit'}</h3>
+                <p>$${Math.abs(netAmount).toFixed(2)}</p>
+            </div>
+            <div class="card">
+                <h3>Transactions</h3>
+                <p>${analyzer.transactionCount}</p>
+            </div>
+        `;
+    } else {
+        cardsHTML = `
+            <div class="card">
+                <h3>Total Expenses</h3>
+                <p>$${analyzer.totalExpenses.toFixed(2)}</p>
+            </div>
+            <div class="card">
+                <h3>Transactions</h3>
+                <p>${analyzer.transactionCount}</p>
+            </div>
+            <div class="card">
+                <h3>Categories</h3>
+                <p>${
+                    Object.keys(analyzer.categoryTotals).filter((c) => analyzer.categoryTotals[c] > 0)
+                        .length
+                }</p>
+            </div>
+            <div class="card">
+                <h3>Average</h3>
+                <p>$${avgTransaction.toFixed(2)}</p>
+            </div>
+        `;
+    }
     summaryCards.innerHTML = cardsHTML;
 
     // Update category details
@@ -112,8 +142,10 @@ function updateCategoryDetails(analyzer) {
     const container = document.getElementById('categoryDetails');
     container.innerHTML = '';
 
-    // Get all categories sorted alphabetically (Others at the end)
+    // Get all categories sorted alphabetically (Income first, Others at the end)
     const allCategories = Object.keys(categoryConfig).sort((a, b) => {
+        if (a === 'Income') return -1;
+        if (b === 'Income') return 1;
         if (a === 'Others') return 1;
         if (b === 'Others') return -1;
         return a.localeCompare(b);
@@ -130,7 +162,8 @@ function updateCategoryDetails(analyzer) {
         const percentage = budget > 0 ? (total / budget) * 100 : 0;
 
         const card = document.createElement('div');
-        card.className = 'category-card';
+        const isIncomeCategory = category === 'Income' || categoryConfig[category]?._isIncome;
+        card.className = 'category-card' + (isIncomeCategory ? ' income-category' : '');
         card.dataset.category = category;
         card.dataset.expanded = 'false'; // Track expansion state
 

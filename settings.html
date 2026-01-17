@@ -153,6 +153,22 @@
 
             <!-- Data Management Tab -->
             <div class="settings-content" id="dataTab">
+                <!-- Income Tracking -->
+                <div class="settings-section">
+                    <h3>Income Tracking</h3>
+                    <p>Enable to import and track income transactions alongside your expenses</p>
+                    <div class="income-toggle-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="incomeToggle" onchange="toggleIncomeTracking(this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <div class="toggle-label">
+                            <span id="incomeToggleLabel">Income tracking is disabled</span>
+                            <span class="toggle-description">When enabled, income transactions (deposits, refunds, etc.) will be imported into an "Income" category</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Backup & Restore -->
                 <div class="settings-section">
                     <h3>Backup & Restore</h3>
@@ -189,6 +205,47 @@
                     </div>
                 </div>
 
+                <!-- Export Data -->
+                <div class="settings-section">
+                    <h3>Export Data</h3>
+                    <p>Export your transaction data with categories for use in spreadsheets</p>
+                    <div class="data-actions">
+                        <div class="data-action-card">
+                            <div class="data-action-icon">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                                </svg>
+                            </div>
+                            <h4>Export All Transactions</h4>
+                            <p>Download CSV with all transactions and their categories</p>
+                            <button class="btn btn-primary" onclick="exportCategorizedCSV()">
+                                Export All to CSV
+                            </button>
+                        </div>
+                        <div class="data-action-card">
+                            <div class="data-action-icon">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                                </svg>
+                            </div>
+                            <h4>Export by Month</h4>
+                            <p>Choose a specific month to export</p>
+                            <select id="exportMonthSelect" class="export-month-select">
+                                <option value="">Select a month...</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="exportMonthCSV()" style="margin-top: 12px;">
+                                Export Month to CSV
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Data Storage Info -->
                 <div class="settings-section">
                     <h3>Storage Statistics</h3>
@@ -216,6 +273,7 @@
         <div class="modal" id="importModal"></div>
 
         <!-- JavaScript Files -->
+        <script src="js/sync.js"></script>
         <script src="js/import.js"></script>
         <script src="js/core.js"></script>
         <script src="js/utils.js"></script>

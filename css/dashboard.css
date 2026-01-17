@@ -68,6 +68,43 @@
     opacity: 1;
 }
 
+/* Income card styling */
+.card.income-card {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.card.income-card h3 {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.card.income-card p {
+    color: white;
+}
+
+.card.income-card::before {
+    display: none;
+}
+
+/* Net positive/negative cards */
+.card.net-positive {
+    border-left: 4px solid #10b981;
+}
+
+.card.net-positive::before {
+    background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+    opacity: 1;
+}
+
+.card.net-negative {
+    border-left: 4px solid #ef4444;
+}
+
+.card.net-negative::before {
+    background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+    opacity: 1;
+}
+
 .card-icon {
     width: 48px;
     height: 48px;
@@ -217,6 +254,25 @@
     border: 2px dashed var(--primary);
     background: var(--primary-subtle);
     box-shadow: 0 0 0 4px var(--primary-subtle);
+}
+
+/* Income category card styling */
+.category-card.income-category {
+    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+    border: 1px solid #a7f3d0;
+}
+
+.category-card.income-category::before {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    opacity: 1;
+}
+
+.category-card.income-category .category-total {
+    color: #059669;
+}
+
+.category-card.income-category .transaction-amount {
+    color: #059669;
 }
 
 .category-header {

@@ -661,6 +661,10 @@ img.logo {
     background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
 }
 
+.notification.info {
+    background: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+}
+
 @keyframes notificationSlide {
     from {
         transform: translateX(120%) scale(0.8);
