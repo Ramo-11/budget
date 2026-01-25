@@ -73,6 +73,7 @@ function toggleIncomeTracking(enabled) {
 }
 
 // Scan existing transactions and move income ones to Income category
+// Only pattern-based detection - positive amounts (refunds/cashback) are NOT moved
 function scanAndMoveIncomeTransactions() {
     const incomePatterns = window.incomeSettings?.incomePatterns || [];
     let movedCount = 0;
@@ -80,7 +81,6 @@ function scanAndMoveIncomeTransactions() {
     monthlyData.forEach((monthData, monthKey) => {
         monthData.transactions.forEach((transaction) => {
             const description = (transaction.Description || transaction.description || '').toUpperCase();
-            const amount = parseFloat(transaction.Amount) || 0;
             const transactionId = transaction._id;
 
             // Check if already categorized as Income
@@ -89,11 +89,11 @@ function scanAndMoveIncomeTransactions() {
                 return; // Already income
             }
 
-            // Check if matches income patterns or is positive amount
+            // Only pattern-based income detection
+            // Positive amounts (refunds/cashback) are NOT automatically moved to Income
             const isIncomePattern = incomePatterns.some((pattern) => description.includes(pattern));
-            const isPositive = amount > 0;
 
-            if (isIncomePattern || isPositive) {
+            if (isIncomePattern) {
                 // Move to Income category
                 if (!window.transactionOverrides) {
                     window.transactionOverrides = {};

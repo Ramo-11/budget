@@ -119,9 +119,6 @@ window.incomeSettings = {
         'ZELLE PAYMENT FROM',
         'ONLINE TRANSFER FROM',
         'INTEREST PAID',
-        'REFUND',
-        'CASHBACK',
-        'REWARD',
         'DIVIDEND',
         'TAX REFUND',
     ],
@@ -207,7 +204,7 @@ function splitByMonth(transactions) {
         };
     }
 
-    // Income patterns for detection
+    // Income patterns for detection (pattern-based only, no positive amount auto-detection)
     const incomePatterns = window.incomeSettings?.incomePatterns || [
         'PAYROLL',
         'SALARY',
@@ -219,9 +216,6 @@ function splitByMonth(transactions) {
         'ZELLE PAYMENT FROM',
         'ONLINE TRANSFER FROM',
         'INTEREST PAID',
-        'REFUND',
-        'CASHBACK',
-        'REWARD',
         'DIVIDEND',
         'TAX REFUND',
     ];
@@ -274,10 +268,11 @@ function splitByMonth(transactions) {
             }
         }
 
-        // Check if this is an income transaction
+        // Check if this is an income transaction (pattern-based only)
+        // Positive amounts (refunds/cashback) are NOT automatically classified as income
+        // They will be categorized normally and reduce the category total
         const isIncomePattern = incomePatterns.some((pattern) => description.includes(pattern));
-        const isPositiveAmount = amount > 0;
-        const isIncome = isIncomePattern || isPositiveAmount || isFirstFinancialCredit;
+        const isIncome = isIncomePattern || isFirstFinancialCredit;
 
         // Skip payment thank you (credit card payments)
         if (description.includes('PAYMENT THANK YOU')) {
@@ -473,14 +468,32 @@ function analyzeTransactions(transactions) {
     });
 
     transactions.forEach((transaction) => {
-        const amount = Math.abs(parseFloat(transaction.Amount) || 0);
+        const rawAmount = parseFloat(transaction.Amount) || 0;
         const description = transaction.Description || transaction.description || '';
         const category = categorizeTransaction(description, transaction._id); // Pass the ID
+        const isIncomeCategory = category === 'Income' || categoryConfig[category]?._isIncome;
 
-        categoryTotals[category] += amount;
+        // For income: use absolute value (income is stored as positive)
+        // For expenses: negative amounts add to total, positive amounts (refunds) subtract
+        let displayAmount;
+        let effectOnTotal;
+
+        if (isIncomeCategory || transaction._isIncome) {
+            // Income transactions - always positive display and addition
+            displayAmount = Math.abs(rawAmount);
+            effectOnTotal = Math.abs(rawAmount);
+        } else {
+            // Expense transactions
+            // Negative = expense (add to total), Positive = refund (subtract from total)
+            displayAmount = Math.abs(rawAmount);
+            effectOnTotal = rawAmount < 0 ? Math.abs(rawAmount) : -Math.abs(rawAmount);
+        }
+
+        categoryTotals[category] += effectOnTotal;
         categoryDetails[category].push({
             name: description,
-            amount: amount,
+            amount: displayAmount,
+            isRefund: rawAmount > 0 && !isIncomeCategory && !transaction._isIncome,
             date:
                 transaction['Transaction Date'] ||
                 transaction['Posting Date'] ||
@@ -493,6 +506,13 @@ function analyzeTransactions(transactions) {
             id: transaction._id,
             originalData: transaction,
         });
+    });
+
+    // Ensure no negative totals (can happen if refunds exceed purchases)
+    Object.keys(categoryTotals).forEach((cat) => {
+        if (categoryTotals[cat] < 0) {
+            categoryTotals[cat] = 0;
+        }
     });
 
     return {

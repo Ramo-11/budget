@@ -210,6 +210,118 @@
 }
 
 /* ==========================================
+   BREAKDOWN HEADER & SORT CONTROLS
+   ========================================== */
+.breakdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.breakdown-header .section-header {
+    margin: 0;
+}
+
+.sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sort-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--gray);
+}
+
+.sort-buttons {
+    display: flex;
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    padding: 4px;
+    gap: 4px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+}
+
+.sort-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: none;
+    background: transparent;
+    color: var(--gray-600);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.sort-btn:hover {
+    background: var(--gray-100);
+    color: var(--dark);
+}
+
+.sort-btn.active {
+    background: var(--primary);
+    color: var(--white);
+    box-shadow: var(--shadow-sm);
+}
+
+.sort-btn.active:hover {
+    background: var(--primary-dark);
+    color: var(--white);
+}
+
+.sort-btn svg {
+    flex-shrink: 0;
+}
+
+/* Sort button transition animation */
+.category-details {
+    transition: opacity var(--transition-fast);
+}
+
+.category-details.reordering {
+    opacity: 0.6;
+}
+
+/* Category card entry animation */
+.category-card {
+    animation: cardSlideIn var(--transition-slow) ease-out;
+    animation-fill-mode: both;
+}
+
+@keyframes cardSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.category-card:nth-child(1) { animation-delay: 0ms; }
+.category-card:nth-child(2) { animation-delay: 30ms; }
+.category-card:nth-child(3) { animation-delay: 60ms; }
+.category-card:nth-child(4) { animation-delay: 90ms; }
+.category-card:nth-child(5) { animation-delay: 120ms; }
+.category-card:nth-child(6) { animation-delay: 150ms; }
+.category-card:nth-child(7) { animation-delay: 180ms; }
+.category-card:nth-child(8) { animation-delay: 210ms; }
+.category-card:nth-child(9) { animation-delay: 240ms; }
+.category-card:nth-child(10) { animation-delay: 270ms; }
+.category-card:nth-child(n+11) { animation-delay: 300ms; }
+
+/* ==========================================
    CATEGORY CARDS - Transaction breakdown
    ========================================== */
 .category-details {
@@ -243,7 +355,7 @@
 
 .category-card:hover {
     box-shadow: var(--shadow-card-hover);
-    transform: translateY(-2px);
+    transform: translateY(-4px);
 }
 
 .category-card:hover::before {
@@ -321,6 +433,48 @@
     font-weight: 500;
 }
 
+/* Analysis Button */
+.analysis-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--gray-100);
+    color: var(--gray);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.analysis-btn:hover {
+    background: var(--primary-subtle);
+    color: var(--primary);
+    transform: scale(1.1);
+}
+
+.analysis-btn svg {
+    flex-shrink: 0;
+}
+
+/* First-use attention animation */
+.analysis-btn.first-use {
+    animation: analysisPulse 2s ease-in-out 3;
+}
+
+@keyframes analysisPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(8, 145, 178, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(8, 145, 178, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(8, 145, 178, 0);
+    }
+}
+
 .category-actions {
     display: flex;
     gap: 4px;
@@ -347,6 +501,8 @@
     background: var(--gray-100);
     border-color: var(--gray-200);
     transform: translateX(4px);
+    border-left: 3px solid var(--primary);
+    padding-left: 13px;
 }
 
 .transaction-item.dragging {
@@ -370,6 +526,40 @@
     margin-right: 12px;
     color: var(--dark);
     font-size: 14px;
+}
+
+/* Refund transaction styling */
+.transaction-item.refund-transaction {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.04) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.transaction-item.refund-transaction:hover {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0.08) 100%);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.refund-badge {
+    display: inline-flex;
+    align-items: center;
+    background: var(--success);
+    color: white;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+.refund-amount {
+    color: var(--success) !important;
+}
+
+.refund-amount::before {
+    content: '+';
 }
 
 .transaction-date {
@@ -669,6 +859,28 @@
 }
 
 @media (max-width: 768px) {
+    .breakdown-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .sort-controls {
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .sort-buttons {
+        width: 100%;
+    }
+
+    .sort-btn {
+        flex: 1;
+        justify-content: center;
+        padding: 10px 8px;
+        font-size: 12px;
+    }
+
     .chart-wrapper canvas {
         max-height: 280px !important;
         height: auto !important;

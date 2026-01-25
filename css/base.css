@@ -677,6 +677,107 @@ img.logo {
 }
 
 /* ==========================================
+   UTILITY ANIMATIONS
+   ========================================== */
+
+/* Ripple effect for buttons */
+.btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.4s ease, height 0.4s ease;
+    pointer-events: none;
+}
+
+.btn:active::after {
+    width: 200px;
+    height: 200px;
+}
+
+.btn-secondary::after {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Pulse animation for attention */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(8, 145, 178, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 8px rgba(8, 145, 178, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(8, 145, 178, 0);
+    }
+}
+
+.pulse-attention {
+    animation: pulse 2s ease-in-out 3;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Scale in animation */
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Slide up animation */
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Focus states for accessibility */
+.btn:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+
+/* Keyboard navigation indicator */
+[data-keyboard-nav="true"] *:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* ==========================================
    RESPONSIVE
    ========================================== */
 @media (max-width: 768px) {
