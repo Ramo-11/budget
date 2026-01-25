@@ -1312,9 +1312,6 @@ function executeDelete(category, transactionId, monthKey, merchantPattern) {
         );
 
         if (!existingRule) {
-            // Count matching transactions
-            const matchCount = countSimilarTransactions(pattern) - 1; // Subtract the one we just deleted
-
             const newRule = {
                 id: generateRuleId(),
                 name: `Delete: "${pattern}"`,
@@ -1329,13 +1326,44 @@ function executeDelete(category, transactionId, monthKey, merchantPattern) {
             window.unifiedRules.push(newRule);
             saveRules();
 
-            if (matchCount > 0) {
-                showNotification(`Transaction deleted and rule created for "${pattern}" (${matchCount} more will be auto-deleted on import)`, 'success');
+            // Apply delete rule to all matching transactions immediately
+            let deletedCount = 0;
+            monthlyData.forEach((monthData, monthKey) => {
+                const initialLength = monthData.transactions.length;
+                monthData.transactions = monthData.transactions.filter((t) => {
+                    const desc = (t.Description || t.description || '').toUpperCase();
+                    if (desc.includes(pattern) && t._id !== transactionId) {
+                        deletedCount++;
+                        return false; // Remove from array
+                    }
+                    return true;
+                });
+            });
+
+            if (deletedCount > 0) {
+                showNotification(`Deleted ${deletedCount + 1} transaction(s) matching "${pattern}" (rule created for future imports)`, 'success');
             } else {
                 showNotification(`Transaction deleted and rule created for "${pattern}"`, 'success');
             }
         } else {
-            showNotification('Transaction deleted (rule already exists)', 'success');
+            // Rule exists - still apply it to existing matching transactions
+            let deletedCount = 0;
+            monthlyData.forEach((monthData, monthKey) => {
+                monthData.transactions = monthData.transactions.filter((t) => {
+                    const desc = (t.Description || t.description || '').toUpperCase();
+                    if (desc.includes(pattern) && t._id !== transactionId) {
+                        deletedCount++;
+                        return false;
+                    }
+                    return true;
+                });
+            });
+
+            if (deletedCount > 0) {
+                showNotification(`Deleted ${deletedCount + 1} transaction(s) matching "${pattern}" (rule already exists)`, 'success');
+            } else {
+                showNotification('Transaction deleted (rule already exists)', 'success');
+            }
         }
     } else {
         showNotification('Transaction deleted', 'success');

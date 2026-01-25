@@ -554,7 +554,36 @@ function applyRulesToExistingData() {
         return;
     }
 
-    if (!confirm(`Apply ${activeRules.length} active rule(s) to existing data?`)) {
+    // Pre-calculate affected transactions before confirmation
+    let previewCount = 0;
+    let previewDeleteCount = 0;
+    let previewMoveCount = 0;
+
+    monthlyData.forEach((monthData) => {
+        monthData.transactions.forEach((transaction) => {
+            const result = applyRulesToTransaction(transaction);
+            if (result) {
+                previewCount++;
+                if (result.action === 'delete') {
+                    previewDeleteCount++;
+                } else if (result.action === 'categorize') {
+                    previewMoveCount++;
+                }
+            }
+        });
+    });
+
+    if (previewCount === 0) {
+        showNotification('No transactions match your active rules', 'info');
+        return;
+    }
+
+    // Show accurate count in confirmation
+    let confirmMsg = `Apply rules to ${previewCount} matching transaction(s)?`;
+    if (previewDeleteCount > 0) confirmMsg += `\n- ${previewDeleteCount} will be deleted`;
+    if (previewMoveCount > 0) confirmMsg += `\n- ${previewMoveCount} will be re-categorized`;
+
+    if (!confirm(confirmMsg)) {
         return;
     }
 

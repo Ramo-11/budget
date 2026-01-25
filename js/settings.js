@@ -1326,11 +1326,16 @@ function proceedWithCategoryCreation(name, icon, keywords) {
         broadcastSync('category_added', { name: name, icon: icon });
     }
 
-    // Refresh the budget view
-    if (currentMonth && monthlyData.has(currentMonth)) {
+    // Refresh the budget view - handle ALL_MONTHS case
+    if (currentMonth === 'ALL_MONTHS') {
+        updateBudgetViewForAllMonths();
+    } else if (currentMonth && monthlyData.has(currentMonth)) {
         const monthData = monthlyData.get(currentMonth);
         const analyzer = analyzeTransactions(monthData.transactions);
         updateBudgetView(analyzer);
+    } else {
+        // No data case - still refresh the view to show new category
+        updateBudgetView(null);
     }
 
     // Close modal
