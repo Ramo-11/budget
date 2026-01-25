@@ -401,13 +401,21 @@ function isDuplicateTransaction(newTransaction, existingTransactions) {
 // Categorize transaction
 function categorizeTransaction(description, transactionId = null) {
     // First check if this specific transaction has an override
-    if (
-        transactionId &&
-        window.transactionOverrides &&
-        window.transactionOverrides[currentMonth] &&
-        window.transactionOverrides[currentMonth][transactionId]
-    ) {
-        return window.transactionOverrides[currentMonth][transactionId];
+    if (transactionId && window.transactionOverrides) {
+        // Check currentMonth first (most common case)
+        if (
+            window.transactionOverrides[currentMonth] &&
+            window.transactionOverrides[currentMonth][transactionId]
+        ) {
+            return window.transactionOverrides[currentMonth][transactionId];
+        }
+
+        // If not found, search through all months (needed for ALL_DATA view and cross-month rules)
+        for (const monthKey of Object.keys(window.transactionOverrides)) {
+            if (window.transactionOverrides[monthKey][transactionId]) {
+                return window.transactionOverrides[monthKey][transactionId];
+            }
+        }
     }
 
     // Check unified rules

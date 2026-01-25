@@ -310,9 +310,58 @@ function changeCategorySort(sortType) {
     }
 }
 
+// Get show empty categories preference from localStorage
+function getShowEmptyCategoriesPreference() {
+    return localStorage.getItem('sahabBudget_showEmptyCategories') !== 'false'; // Default to true
+}
+
+// Save show empty categories preference to localStorage
+function setShowEmptyCategoriesPreference(show) {
+    localStorage.setItem('sahabBudget_showEmptyCategories', show ? 'true' : 'false');
+}
+
+// Toggle show empty categories
+function toggleShowEmptyCategories() {
+    const currentPref = getShowEmptyCategoriesPreference();
+    setShowEmptyCategoriesPreference(!currentPref);
+
+    // Re-render dashboard
+    if (currentMonth) {
+        if (currentMonth === 'ALL_DATA') {
+            const allTransactions = [];
+            monthlyData.forEach((monthData) => {
+                allTransactions.push(...monthData.transactions);
+            });
+            const analyzer = analyzeTransactions(allTransactions);
+            updateCategoryDetails(analyzer);
+        } else if (currentMonth === 'CUSTOM_RANGE' && window.customDateRange) {
+            const start = new Date(window.customDateRange.start);
+            const end = new Date(window.customDateRange.end);
+            const rangeTransactions = [];
+            monthlyData.forEach((data) => {
+                data.transactions.forEach((t) => {
+                    const date = new Date(t['Transaction Date'] || t.Date || t.date);
+                    if (date >= start && date <= end) {
+                        rangeTransactions.push(t);
+                    }
+                });
+            });
+            const analyzer = analyzeTransactions(rangeTransactions);
+            updateCategoryDetails(analyzer);
+        } else {
+            const monthData = monthlyData.get(currentMonth);
+            if (monthData) {
+                const analyzer = analyzeTransactions(monthData.transactions);
+                updateCategoryDetails(analyzer);
+            }
+        }
+    }
+}
+
 // Render sort controls
 function renderSortControls() {
     const sortType = getCategorySortPreference();
+    const showEmpty = getShowEmptyCategoriesPreference();
     return `
         <div class="sort-controls">
             <span class="sort-label">Sort by:</span>
@@ -342,6 +391,19 @@ function renderSortControls() {
                     Low-High
                 </button>
             </div>
+            <div class="empty-toggle">
+                <button class="sort-btn ${showEmpty ? 'active' : ''}"
+                        onclick="toggleShowEmptyCategories()"
+                        title="${showEmpty ? 'Hide categories with no transactions' : 'Show categories with no transactions'}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        ${showEmpty
+                            ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>'
+                            : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>'
+                        }
+                    </svg>
+                    ${showEmpty ? 'All' : 'Active'}
+                </button>
+            </div>
         </div>
     `;
 }
@@ -359,11 +421,42 @@ function updateCategoryDetails(analyzer) {
 
     // Get all categories and sort based on preference
     const sortType = getCategorySortPreference();
-    const allCategories = sortCategories(
+    const showEmpty = getShowEmptyCategoriesPreference();
+    let allCategories = sortCategories(
         Object.keys(categoryConfig),
         analyzer.categoryTotals,
         sortType
     );
+
+    // Filter out empty categories if preference is set
+    let hiddenCount = 0;
+    if (!showEmpty) {
+        const filteredCategories = allCategories.filter((category) => {
+            const transactions = analyzer.categoryDetails[category] || [];
+            if (transactions.length === 0) {
+                hiddenCount++;
+                return false;
+            }
+            return true;
+        });
+        allCategories = filteredCategories;
+    }
+
+    // Show hidden count indicator if categories are hidden
+    if (hiddenCount > 0) {
+        const hiddenIndicator = document.createElement('div');
+        hiddenIndicator.className = 'hidden-categories-indicator';
+        hiddenIndicator.innerHTML = `
+            <button class="hidden-categories-btn" onclick="toggleShowEmptyCategories()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+                ${hiddenCount} empty categor${hiddenCount === 1 ? 'y' : 'ies'} hidden
+            </button>
+        `;
+        container.appendChild(hiddenIndicator);
+    }
 
     allCategories.forEach((category) => {
         const transactions = analyzer.categoryDetails[category] || [];
@@ -995,15 +1088,6 @@ function executeMoveWithRule(transactionId, toCategory, monthKey) {
         return;
     }
 
-    // Set the override
-    if (!window.transactionOverrides) {
-        window.transactionOverrides = {};
-    }
-    if (!window.transactionOverrides[monthKey]) {
-        window.transactionOverrides[monthKey] = {};
-    }
-    window.transactionOverrides[monthKey][transactionId] = toCategory;
-
     // Load existing rules
     if (typeof loadRules === 'function') {
         loadRules();
@@ -1014,24 +1098,18 @@ function executeMoveWithRule(transactionId, toCategory, monthKey) {
         (r) => r.pattern === pattern && r.type === 'categorize' && r.active
     );
 
+    let ruleAction = 'created';
+
     if (existingRule) {
         if (existingRule.action !== toCategory) {
-            // Update existing rule
+            // Update existing rule to new category
             existingRule.action = toCategory;
             existingRule.name = `Auto: "${pattern}" → ${toCategory}`;
             existingRule.updatedAt = new Date().toISOString();
-            saveRules();
-
-            // Apply rule to all existing matching transactions
-            const appliedCount = applyCategorizationRuleToExisting(pattern, toCategory);
-            if (appliedCount > 1) {
-                showNotification(`Rule updated: "${pattern}" → ${toCategory} (applied to ${appliedCount} transactions)`, 'success');
-            } else {
-                showNotification(`Rule updated: "${pattern}" → ${toCategory}`, 'success');
-            }
-        } else {
-            showNotification(`Transaction moved (rule already exists)`, 'success');
+            ruleAction = 'updated';
         }
+        // If rule exists with same action, we still apply it below
+        saveRules();
     } else {
         // Create new rule
         const newRule = {
@@ -1047,14 +1125,27 @@ function executeMoveWithRule(transactionId, toCategory, monthKey) {
         };
         window.unifiedRules.push(newRule);
         saveRules();
+    }
 
-        // Apply rule to all existing matching transactions
-        const appliedCount = applyCategorizationRuleToExisting(pattern, toCategory);
-        if (appliedCount > 1) {
-            showNotification(`Rule created: "${pattern}" → ${toCategory} (applied to ${appliedCount} transactions)`, 'success');
-        } else {
-            showNotification(`Rule created: "${pattern}" → ${toCategory}`, 'success');
+    // Apply rule to ALL existing matching transactions (including the clicked one)
+    const appliedCount = applyCategorizationRuleToExisting(pattern, toCategory);
+
+    // Build notification message
+    if (appliedCount > 1) {
+        showNotification(`Rule ${ruleAction}: "${pattern}" → ${toCategory} (applied to ${appliedCount} transactions)`, 'success');
+    } else if (appliedCount === 1) {
+        showNotification(`Rule ${ruleAction}: "${pattern}" → ${toCategory}`, 'success');
+    } else {
+        // No transactions matched (shouldn't happen but handle gracefully)
+        // Still set override for the clicked transaction manually
+        if (!window.transactionOverrides) {
+            window.transactionOverrides = {};
         }
+        if (!window.transactionOverrides[monthKey]) {
+            window.transactionOverrides[monthKey] = {};
+        }
+        window.transactionOverrides[monthKey][transactionId] = toCategory;
+        showNotification(`Rule ${ruleAction}: "${pattern}" → ${toCategory}`, 'success');
     }
 
     saveData();

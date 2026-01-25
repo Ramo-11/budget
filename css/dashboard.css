@@ -1171,3 +1171,80 @@
     margin: 8px 0;
     font-size: 14px;
 }
+
+/* ==========================================
+   EMPTY CATEGORIES TOGGLE
+   ========================================== */
+.empty-toggle {
+    margin-left: 12px;
+    padding-left: 12px;
+    border-left: 1px solid var(--border);
+}
+
+.empty-toggle .sort-btn {
+    background: var(--white);
+    border: 1px solid var(--border);
+}
+
+.empty-toggle .sort-btn:hover {
+    background: var(--gray-100);
+    border-color: var(--gray-300);
+}
+
+.empty-toggle .sort-btn.active {
+    background: var(--primary-subtle);
+    color: var(--primary);
+    border-color: var(--primary);
+    box-shadow: none;
+}
+
+.hidden-categories-indicator {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+}
+
+.hidden-categories-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--gray-100);
+    border: 1px dashed var(--gray-300);
+    border-radius: var(--radius-lg);
+    color: var(--gray);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.hidden-categories-btn:hover {
+    background: var(--gray-200);
+    border-color: var(--gray-400);
+    color: var(--dark);
+}
+
+.hidden-categories-btn svg {
+    opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+    .empty-toggle {
+        margin-left: 0;
+        padding-left: 0;
+        border-left: none;
+        margin-top: 8px;
+        width: 100%;
+    }
+
+    .empty-toggle .sort-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .sort-controls {
+        gap: 8px;
+    }
+}
