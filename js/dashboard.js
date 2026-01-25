@@ -172,6 +172,101 @@ function sortCategories(categories, categoryTotals, sortType) {
     return [...income, ...rest, ...others];
 }
 
+// Get transaction sort preference for a category from localStorage
+function getTransactionSortPreference(category) {
+    return localStorage.getItem(`sahabBudget_transactionSort_${category}`) || 'default';
+}
+
+// Save transaction sort preference for a category to localStorage
+function setTransactionSortPreference(category, sortType) {
+    localStorage.setItem(`sahabBudget_transactionSort_${category}`, sortType);
+}
+
+// Sort transactions based on preference
+function sortTransactions(transactions, sortType) {
+    const sorted = [...transactions];
+    switch (sortType) {
+        case 'high-to-low':
+            sorted.sort((a, b) => b.amount - a.amount);
+            break;
+        case 'low-to-high':
+            sorted.sort((a, b) => a.amount - b.amount);
+            break;
+        case 'default':
+        default:
+            // Default chronological order (already sorted by date from analyzer)
+            break;
+    }
+    return sorted;
+}
+
+// Change transaction sort for a category
+function changeTransactionSort(category, sortType) {
+    setTransactionSortPreference(category, sortType);
+
+    // Re-render dashboard
+    if (currentMonth) {
+        if (currentMonth === 'ALL_DATA') {
+            const allTransactions = [];
+            monthlyData.forEach((monthData) => {
+                allTransactions.push(...monthData.transactions);
+            });
+            const analyzer = analyzeTransactions(allTransactions);
+            updateCategoryDetails(analyzer);
+        } else if (currentMonth === 'CUSTOM_RANGE' && window.customDateRange) {
+            const start = new Date(window.customDateRange.start);
+            const end = new Date(window.customDateRange.end);
+            const rangeTransactions = [];
+            monthlyData.forEach((data) => {
+                data.transactions.forEach((t) => {
+                    const date = new Date(t['Transaction Date'] || t.Date || t.date);
+                    if (date >= start && date <= end) {
+                        rangeTransactions.push(t);
+                    }
+                });
+            });
+            const analyzer = analyzeTransactions(rangeTransactions);
+            updateCategoryDetails(analyzer);
+        } else {
+            const monthData = monthlyData.get(currentMonth);
+            if (monthData) {
+                const analyzer = analyzeTransactions(monthData.transactions);
+                updateCategoryDetails(analyzer);
+            }
+        }
+    }
+}
+
+// Toggle transaction sort menu visibility
+function toggleTransactionSortMenu(category) {
+    const menuId = `sortMenu_${category.replace(/\s+/g, '_')}`;
+    const menu = document.getElementById(menuId);
+
+    if (!menu) return;
+
+    // Close all other menus first
+    document.querySelectorAll('.transaction-sort-menu.show').forEach(m => {
+        if (m.id !== menuId) {
+            m.classList.remove('show');
+        }
+    });
+
+    menu.classList.toggle('show');
+
+    // Close menu when clicking outside
+    if (menu.classList.contains('show')) {
+        setTimeout(() => {
+            const closeHandler = (e) => {
+                if (!menu.contains(e.target) && !e.target.closest('.transaction-sort-btn')) {
+                    menu.classList.remove('show');
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+            document.addEventListener('click', closeHandler);
+        }, 0);
+    }
+}
+
 // Change category sort
 function changeCategorySort(sortType) {
     setCategorySortPreference(sortType);
@@ -292,7 +387,11 @@ function updateCategoryDetails(analyzer) {
             card.dataset.expanded = 'true';
         }
 
-        const displayedTransactions = isExpanded ? transactions : transactions.slice(0, 5);
+        // Apply transaction sort preference
+        const transactionSortType = getTransactionSortPreference(category);
+        const sortedTransactions = sortTransactions(transactions, transactionSortType);
+
+        const displayedTransactions = isExpanded ? sortedTransactions : sortedTransactions.slice(0, 5);
         const remainingCount = transactions.length - 5;
 
         let transactionsHTML = '';
@@ -399,6 +498,31 @@ function updateCategoryDetails(analyzer) {
                             <line x1="6" y1="20" x2="6" y2="14"></line>
                         </svg>
                     </button>
+                    ${transactions.length > 1 ? `
+                        <div class="transaction-sort-dropdown">
+                            <button class="transaction-sort-btn ${transactionSortType !== 'default' ? 'active' : ''}"
+                                    onclick="event.stopPropagation(); toggleTransactionSortMenu('${category}')"
+                                    title="Sort transactions">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18M3 12h12M3 18h6"/>
+                                </svg>
+                            </button>
+                            <div class="transaction-sort-menu" id="sortMenu_${category.replace(/\s+/g, '_')}">
+                                <button class="${transactionSortType === 'default' ? 'active' : ''}"
+                                        onclick="event.stopPropagation(); changeTransactionSort('${category}', 'default')">
+                                    Default (Date)
+                                </button>
+                                <button class="${transactionSortType === 'high-to-low' ? 'active' : ''}"
+                                        onclick="event.stopPropagation(); changeTransactionSort('${category}', 'high-to-low')">
+                                    High to Low
+                                </button>
+                                <button class="${transactionSortType === 'low-to-high' ? 'active' : ''}"
+                                        onclick="event.stopPropagation(); changeTransactionSort('${category}', 'low-to-high')">
+                                    Low to High
+                                </button>
+                            </div>
+                        </div>
+                    ` : ''}
                     ${
                         transactions.length > 5
                             ? `<button class="btn-text" onclick="toggleCategoryExpansion('${category}')">${
@@ -476,7 +600,7 @@ function updateCharts(analyzer) {
     }
 
     const categories = Object.entries(analyzer.categoryTotals)
-        .filter(([_, value]) => value > 0)
+        .filter(([category, value]) => value > 0 && category !== 'Income')
         .sort((a, b) => b[1] - a[1]);
 
     // Show empty state if no data
@@ -897,7 +1021,14 @@ function executeMoveWithRule(transactionId, toCategory, monthKey) {
             existingRule.name = `Auto: "${pattern}" → ${toCategory}`;
             existingRule.updatedAt = new Date().toISOString();
             saveRules();
-            showNotification(`Rule updated: "${pattern}" → ${toCategory}`, 'success');
+
+            // Apply rule to all existing matching transactions
+            const appliedCount = applyCategorizationRuleToExisting(pattern, toCategory);
+            if (appliedCount > 1) {
+                showNotification(`Rule updated: "${pattern}" → ${toCategory} (applied to ${appliedCount} transactions)`, 'success');
+            } else {
+                showNotification(`Rule updated: "${pattern}" → ${toCategory}`, 'success');
+            }
         } else {
             showNotification(`Transaction moved (rule already exists)`, 'success');
         }
@@ -916,7 +1047,14 @@ function executeMoveWithRule(transactionId, toCategory, monthKey) {
         };
         window.unifiedRules.push(newRule);
         saveRules();
-        showNotification(`Rule created: "${pattern}" → ${toCategory}`, 'success');
+
+        // Apply rule to all existing matching transactions
+        const appliedCount = applyCategorizationRuleToExisting(pattern, toCategory);
+        if (appliedCount > 1) {
+            showNotification(`Rule created: "${pattern}" → ${toCategory} (applied to ${appliedCount} transactions)`, 'success');
+        } else {
+            showNotification(`Rule created: "${pattern}" → ${toCategory}`, 'success');
+        }
     }
 
     saveData();
@@ -974,6 +1112,34 @@ function countSimilarTransactions(pattern) {
             const desc = (t.Description || t.description || '').toUpperCase();
             if (desc.includes(upperPattern)) {
                 count++;
+            }
+        });
+    });
+
+    return count;
+}
+
+// Apply categorization rule to all matching transactions and return count
+function applyCategorizationRuleToExisting(pattern, toCategory) {
+    const upperPattern = pattern.toUpperCase();
+    let count = 0;
+
+    monthlyData.forEach((monthData, monthKey) => {
+        monthData.transactions.forEach((t) => {
+            const desc = (t.Description || t.description || '').toUpperCase();
+            if (desc.includes(upperPattern)) {
+                // Apply category override
+                if (!window.transactionOverrides) {
+                    window.transactionOverrides = {};
+                }
+                if (!window.transactionOverrides[monthKey]) {
+                    window.transactionOverrides[monthKey] = {};
+                }
+                // Check if not already overridden to this category
+                if (window.transactionOverrides[monthKey][t._id] !== toCategory) {
+                    window.transactionOverrides[monthKey][t._id] = toCategory;
+                    count++;
+                }
             }
         });
     });
@@ -1046,8 +1212,10 @@ function showDeleteConfirmationModal(category, transactionId, transaction, month
                         <div class="delete-option-content">
                             <div class="delete-option-title">Delete & create rule for future</div>
                             <div class="delete-option-desc">Also auto-delete similar transactions when imported</div>
-                            <div class="delete-pattern-preview">
-                                Pattern: <code>${escapeHtmlDashboard(merchantName)}</code>
+                            <div class="delete-pattern-input">
+                                <label for="deletePatternInput">Pattern to match:</label>
+                                <input type="text" id="deletePatternInput" value="${escapeHtmlDashboard(merchantName)}"
+                                       class="pattern-input" placeholder="Enter pattern...">
                             </div>
                         </div>
                     </label>
@@ -1092,6 +1260,10 @@ function closeDeleteConfirmModal() {
 function executeDelete(category, transactionId, monthKey, merchantPattern) {
     const selectedOption = document.querySelector('input[name="deleteOption"]:checked')?.value || 'single';
 
+    // Read pattern from input if rule option selected
+    const patternInput = document.getElementById('deletePatternInput');
+    const pattern = patternInput?.value?.trim()?.toUpperCase() || merchantPattern;
+
     // Handle "All Data" view
     if (currentMonth === 'ALL_DATA') {
         let deleted = false;
@@ -1129,22 +1301,25 @@ function executeDelete(category, transactionId, monthKey, merchantPattern) {
     }
 
     // Create deletion rule if requested
-    if (selectedOption === 'rule' && merchantPattern) {
+    if (selectedOption === 'rule' && pattern) {
         if (typeof loadRules === 'function') {
             loadRules();
         }
 
         // Check if rule already exists
         const existingRule = window.unifiedRules?.find(
-            (r) => r.pattern === merchantPattern && r.type === 'delete' && r.active
+            (r) => r.pattern === pattern && r.type === 'delete' && r.active
         );
 
         if (!existingRule) {
+            // Count matching transactions
+            const matchCount = countSimilarTransactions(pattern) - 1; // Subtract the one we just deleted
+
             const newRule = {
                 id: generateRuleId(),
-                name: `Delete: "${merchantPattern}"`,
+                name: `Delete: "${pattern}"`,
                 type: 'delete',
-                pattern: merchantPattern,
+                pattern: pattern,
                 matchType: 'contains',
                 action: null,
                 isAutomatic: true,
@@ -1153,7 +1328,12 @@ function executeDelete(category, transactionId, monthKey, merchantPattern) {
             };
             window.unifiedRules.push(newRule);
             saveRules();
-            showNotification(`Transaction deleted and rule created for "${merchantPattern}"`, 'success');
+
+            if (matchCount > 0) {
+                showNotification(`Transaction deleted and rule created for "${pattern}" (${matchCount} more will be auto-deleted on import)`, 'success');
+            } else {
+                showNotification(`Transaction deleted and rule created for "${pattern}"`, 'success');
+            }
         } else {
             showNotification('Transaction deleted (rule already exists)', 'success');
         }

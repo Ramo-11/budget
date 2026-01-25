@@ -627,6 +627,39 @@
     font-family: monospace;
 }
 
+.delete-pattern-input {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
+}
+
+.delete-pattern-input label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin-bottom: 8px;
+}
+
+.delete-pattern-input .pattern-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: uppercase;
+    transition: all var(--transition-fast);
+    box-sizing: border-box;
+}
+
+.delete-pattern-input .pattern-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-subtle);
+}
+
 /* ==========================================
    CATEGORY ANALYSIS MODAL
    ========================================== */

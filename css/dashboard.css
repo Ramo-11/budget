@@ -480,6 +480,90 @@
     gap: 4px;
 }
 
+/* Transaction Sort Dropdown */
+.transaction-sort-dropdown {
+    position: relative;
+}
+
+.transaction-sort-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: var(--gray-100);
+    color: var(--gray);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.transaction-sort-btn:hover {
+    background: var(--gray-200);
+    color: var(--dark);
+}
+
+.transaction-sort-btn.active {
+    background: var(--primary-subtle);
+    color: var(--primary);
+}
+
+.transaction-sort-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
+    min-width: 140px;
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: all var(--transition-fast);
+}
+
+.transaction-sort-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.transaction-sort-menu button {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    background: none;
+    text-align: left;
+    font-size: 13px;
+    color: var(--gray-700);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.transaction-sort-menu button:first-child {
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.transaction-sort-menu button:last-child {
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.transaction-sort-menu button:hover {
+    background: var(--gray-50);
+    color: var(--dark);
+}
+
+.transaction-sort-menu button.active {
+    background: var(--primary-subtle);
+    color: var(--primary);
+    font-weight: 600;
+}
+
 /* ==========================================
    TRANSACTIONS - Individual items
    ========================================== */
