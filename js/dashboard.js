@@ -1773,6 +1773,39 @@ function showCategoryAnalysis(category) {
                     </div>
                 </div>
 
+                <div class="analysis-monthly-breakdown">
+                    <h4>Monthly Breakdown</h4>
+                    <div class="monthly-breakdown-list">
+                        ${monthlyStats.slice().reverse().map((m, index, arr) => {
+                            const prevMonth = arr[index + 1];
+                            const change = prevMonth ? m.total - prevMonth.total : 0;
+                            const changePercent = prevMonth && prevMonth.total > 0 ? ((m.total - prevMonth.total) / prevMonth.total) * 100 : 0;
+                            const isUp = change > 0;
+                            const isDown = change < 0;
+                            const isHighest = m.total === stats.highest && m.total > 0;
+                            const isLowest = m.total === stats.lowest && m.total > 0 && nonZeroTotals.length > 1;
+
+                            return `
+                                <div class="monthly-breakdown-item ${isHighest ? 'highest' : ''} ${isLowest ? 'lowest' : ''} ${m.total === 0 ? 'zero' : ''}">
+                                    <div class="breakdown-month">
+                                        <span class="breakdown-month-name">${m.monthName}</span>
+                                        <span class="breakdown-count">${m.count} txn${m.count !== 1 ? 's' : ''}</span>
+                                    </div>
+                                    <div class="breakdown-values">
+                                        ${prevMonth ? `
+                                            <span class="breakdown-change ${isUp ? 'up' : ''} ${isDown ? 'down' : ''}">
+                                                ${isUp ? '↑' : isDown ? '↓' : '→'}
+                                                ${change !== 0 ? `$${Math.abs(change).toFixed(0)}` : ''}
+                                            </span>
+                                        ` : '<span class="breakdown-change first">—</span>'}
+                                        <span class="breakdown-total ${m.total === 0 ? 'zero' : ''}">$${m.total.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+
                 ${currentMonth && currentMonth !== 'ALL_DATA' && currentMonth !== 'CUSTOM_RANGE' ? `
                     <div class="analysis-comparison">
                         <h4>Current Month vs Average</h4>

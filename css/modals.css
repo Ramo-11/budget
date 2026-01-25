@@ -852,6 +852,144 @@
 }
 
 /* ==========================================
+   MONTHLY BREAKDOWN
+   ========================================== */
+.analysis-monthly-breakdown {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.analysis-monthly-breakdown h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--dark);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.analysis-monthly-breakdown h4::before {
+    content: '📅';
+    font-size: 16px;
+}
+
+.monthly-breakdown-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.monthly-breakdown-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.monthly-breakdown-list::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: var(--radius-full);
+}
+
+.monthly-breakdown-list::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: var(--radius-full);
+}
+
+.monthly-breakdown-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    border-left: 3px solid transparent;
+}
+
+.monthly-breakdown-item:hover {
+    background: var(--gray-100);
+}
+
+.monthly-breakdown-item.highest {
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.08) 0%, var(--gray-50) 100%);
+    border-left-color: var(--danger);
+}
+
+.monthly-breakdown-item.lowest {
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.08) 0%, var(--gray-50) 100%);
+    border-left-color: var(--success);
+}
+
+.monthly-breakdown-item.zero {
+    opacity: 0.6;
+}
+
+.breakdown-month {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.breakdown-month-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--dark);
+}
+
+.breakdown-count {
+    font-size: 11px;
+    color: var(--gray);
+}
+
+.breakdown-values {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.breakdown-change {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    min-width: 70px;
+    text-align: center;
+    background: var(--gray-100);
+    color: var(--gray);
+}
+
+.breakdown-change.up {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+}
+
+.breakdown-change.down {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+}
+
+.breakdown-change.first {
+    background: transparent;
+    color: var(--gray-300);
+}
+
+.breakdown-total {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--dark);
+    min-width: 90px;
+    text-align: right;
+}
+
+.breakdown-total.zero {
+    color: var(--gray-400);
+}
+
+/* ==========================================
    RESPONSIVE
    ========================================== */
 @media (max-width: 768px) {
@@ -962,5 +1100,32 @@
 
     .top-transaction-item {
         padding: 10px 14px;
+    }
+
+    .analysis-monthly-breakdown {
+        padding: 16px;
+    }
+
+    .monthly-breakdown-list {
+        max-height: 250px;
+    }
+
+    .monthly-breakdown-item {
+        padding: 10px 12px;
+    }
+
+    .breakdown-values {
+        gap: 10px;
+    }
+
+    .breakdown-change {
+        min-width: 60px;
+        font-size: 11px;
+        padding: 3px 6px;
+    }
+
+    .breakdown-total {
+        font-size: 14px;
+        min-width: 80px;
     }
 }
