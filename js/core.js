@@ -104,6 +104,7 @@ let categoryConfig = {
 let budgets = {};
 let charts = {};
 window.merchantRules = {};
+window.transactionIncomeOverrides = {}; // { monthKey: { transactionId: true/false } }
 
 // Income tracking settings
 window.incomeSettings = {
@@ -134,7 +135,9 @@ function loadSavedData() {
             categoryConfig = data.categoryConfig || categoryConfig;
             budgets = data.budgets || {};
             window.transactionOverrides = data.transactionOverrides || {};
+            window.transactionIncomeOverrides = data.transactionIncomeOverrides || {};
             window.unifiedRules = data.unifiedRules || [];
+            window.deletedTransactions = data.deletedTransactions || [];
 
             // Load income settings
             if (data.incomeSettings) {
@@ -170,8 +173,10 @@ function saveData() {
             categoryConfig: categoryConfig,
             budgets: budgets,
             transactionOverrides: window.transactionOverrides || {},
+            transactionIncomeOverrides: window.transactionIncomeOverrides || {},
             unifiedRules: window.unifiedRules || [],
             incomeSettings: window.incomeSettings || {},
+            deletedTransactions: window.deletedTransactions || [],
         };
         localStorage.setItem('sahabBudget_data', JSON.stringify(data));
     } catch (error) {
@@ -479,14 +484,26 @@ function analyzeTransactions(transactions) {
         const rawAmount = parseFloat(transaction.Amount) || 0;
         const description = transaction.Description || transaction.description || '';
         const category = categorizeTransaction(description, transaction._id); // Pass the ID
-        const isIncomeCategory = category === 'Income' || categoryConfig[category]?._isIncome;
+        const isIncomeCategory = categoryConfig[category]?._isIncome === true;
+
+        // Check per-transaction income override
+        const incomeOverrides = window.transactionIncomeOverrides || {};
+        let effectiveIsIncome = isIncomeCategory || transaction._isIncome;
+
+        // Per-transaction override takes precedence
+        for (const monthKey of Object.keys(incomeOverrides)) {
+            if (incomeOverrides[monthKey] && incomeOverrides[monthKey][transaction._id] !== undefined) {
+                effectiveIsIncome = incomeOverrides[monthKey][transaction._id];
+                break;
+            }
+        }
 
         // For income: use absolute value (income is stored as positive)
         // For expenses: negative amounts add to total, positive amounts (refunds) subtract
         let displayAmount;
         let effectOnTotal;
 
-        if (isIncomeCategory || transaction._isIncome) {
+        if (isIncomeCategory || effectiveIsIncome) {
             // Income transactions - always positive display and addition
             displayAmount = Math.abs(rawAmount);
             effectOnTotal = Math.abs(rawAmount);
@@ -501,7 +518,8 @@ function analyzeTransactions(transactions) {
         categoryDetails[category].push({
             name: description,
             amount: displayAmount,
-            isRefund: rawAmount > 0 && !isIncomeCategory && !transaction._isIncome,
+            isRefund: rawAmount > 0 && !isIncomeCategory && !effectiveIsIncome,
+            isIncome: effectiveIsIncome,
             date:
                 transaction['Transaction Date'] ||
                 transaction['Posting Date'] ||

@@ -8,6 +8,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
     loadSavedData();
 
+    // Load category view state from localStorage
+    try {
+        const savedViewState = localStorage.getItem('sahabBudget_categoryViewState');
+        if (savedViewState) {
+            window.categoryViewState = JSON.parse(savedViewState);
+        }
+    } catch(e) {}
+    if (!window.categoryViewState) window.categoryViewState = {};
+
     // Check if there's any data
     if (monthlyData.size > 0) {
         updateMonthSelector();
@@ -16,6 +25,11 @@ window.addEventListener('DOMContentLoaded', () => {
     } else {
         // Show empty state if no data
         showDashboardEmptyState();
+    }
+
+    // Update trash badge on load
+    if (typeof updateTrashBadge === 'function') {
+        updateTrashBadge();
     }
 });
 

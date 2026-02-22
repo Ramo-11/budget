@@ -404,6 +404,14 @@ function renderSortControls() {
                     ${showEmpty ? 'All' : 'Active'}
                 </button>
             </div>
+            <div class="collapse-toggle" style="margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--border); display: flex; gap: 4px;">
+                <button class="sort-btn" onclick="collapseAllCategories()" title="Collapse all categories">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                </button>
+                <button class="sort-btn" onclick="expandAllCategories()" title="Expand all categories">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                </button>
+            </div>
         </div>
     `;
 }
@@ -469,15 +477,18 @@ function updateCategoryDetails(analyzer) {
         const percentage = budget > 0 ? (total / budget) * 100 : 0;
 
         const card = document.createElement('div');
-        const isIncomeCategory = category === 'Income' || categoryConfig[category]?._isIncome;
+        const isIncomeCategory = categoryConfig[category]?._isIncome === true;
         card.className = 'category-card' + (isIncomeCategory ? ' income-category' : '');
         card.dataset.category = category;
-        card.dataset.expanded = 'false'; // Track expansion state
 
-        // Check if this category is expanded (from localStorage or default)
-        const isExpanded = window.expandedCategories && window.expandedCategories[category];
-        if (isExpanded) {
-            card.dataset.expanded = 'true';
+        // Tri-state view: 'collapsed' | 'default' | 'expanded'
+        if (!window.categoryViewState) window.categoryViewState = {};
+        const viewState = window.categoryViewState[category] || 'default';
+        const isCollapsed = viewState === 'collapsed';
+        const isExpanded = viewState === 'expanded';
+
+        if (isCollapsed) {
+            card.classList.add('collapsed');
         }
 
         // Apply transaction sort preference
@@ -489,9 +500,11 @@ function updateCategoryDetails(analyzer) {
 
         let transactionsHTML = '';
 
-        if (transactions.length === 0) {
+        if (isCollapsed) {
+            transactionsHTML = ''; // Hidden when collapsed
+        } else if (transactions.length === 0) {
             transactionsHTML = `
-                <div style="padding: 20px; text-align: center; color: var(--gray); font-size: 13px;">
+                <div style="padding: 12px; text-align: center; color: var(--gray); font-size: 12px;">
                     No transactions
                 </div>
             `;
@@ -504,15 +517,13 @@ function updateCategoryDetails(analyzer) {
                         <div class="transaction-item ${t.isRefund ? 'refund-transaction' : ''}"
                              draggable="true"
                              data-transaction-id="${t.id}"
-                             data-category="${category}">
+                             data-category="${escapeHtmlDashboard(category)}">
                             <span class="transaction-name clickable-transaction"
                                   title="Click to view raw data"
-                                  onclick="event.stopPropagation(); showRawTransactionData('${t.id}', '${category}')">${t.name}${t.isRefund ? ' <span class="refund-badge">Refund</span>' : ''}</span>
+                                  data-action="view-raw">${escapeHtmlDashboard(t.name)}${t.isRefund ? ' <span class="refund-badge">Refund</span>' : ''}${t.isIncome && !isIncomeCategory ? ' <span class="income-badge">Income</span>' : ''}</span>
                             <span style="display: flex; align-items: center;">
                                 <span class="transaction-amount ${t.isRefund ? 'refund-amount' : ''}">$${t.amount.toFixed(2)}</span>
-                                <button class="btn-icon" onclick="deleteTransaction('${category}', '${
-                                t.id
-                            }')">×</button>
+                                <button class="btn-icon" data-action="delete-transaction">×</button>
                             </span>
                         </div>
                     `
@@ -522,8 +533,8 @@ function updateCategoryDetails(analyzer) {
                 ${
                     remainingCount > 0 && !isExpanded
                         ? `
-                    <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" 
-                            onclick="toggleCategoryExpansion('${category}')">
+                    <button class="btn btn-secondary" style="width: 100%; margin-top: 8px; font-size: 12px; padding: 6px;"
+                            onclick="setCategoryViewState('${category}', 'expanded')">
                         Show ${remainingCount} more
                     </button>
                 `
@@ -532,8 +543,8 @@ function updateCategoryDetails(analyzer) {
                 ${
                     isExpanded && transactions.length > 5
                         ? `
-                    <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" 
-                            onclick="toggleCategoryExpansion('${category}')">
+                    <button class="btn btn-secondary" style="width: 100%; margin-top: 8px; font-size: 12px; padding: 6px;"
+                            onclick="setCategoryViewState('${category}', 'default')">
                         Show less
                     </button>
                 `
@@ -544,46 +555,45 @@ function updateCategoryDetails(analyzer) {
 
         // Build budget status HTML
         let budgetStatusHTML = '';
-        if (budget > 0) {
+        if (budget > 0 && !isCollapsed) {
             const statusColor = remaining >= 0 ? 'var(--success)' : 'var(--danger)';
             const progressClass = percentage > 100 ? 'danger' : percentage > 80 ? 'warning' : '';
 
             budgetStatusHTML = `
-                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);">
-                    <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
                         <span style="color: var(--gray);">Budget: $${budget.toFixed(2)}</span>
                         <span style="color: ${statusColor}; font-weight: 600;">
-                            ${remaining >= 0 ? 'Remaining: ' : 'Over by: '}$${Math.abs(
-                remaining
-            ).toFixed(2)}
+                            ${remaining >= 0 ? 'Remaining: ' : 'Over by: '}$${Math.abs(remaining).toFixed(2)}
                         </span>
                     </div>
                     <div class="budget-progress" style="height: 4px; background: var(--light); border-radius: 2px; overflow: hidden;">
-                        <div class="budget-progress-fill ${progressClass}" 
-                             style="width: ${Math.min(
-                                 percentage,
-                                 100
-                             )}%; height: 100%; transition: all 0.3s;
-                                    background: ${
-                                        progressClass === 'danger'
-                                            ? 'var(--danger)'
-                                            : progressClass === 'warning'
-                                            ? 'var(--warning)'
-                                            : 'var(--success)'
-                                    }"></div>
+                        <div class="budget-progress-fill ${progressClass}"
+                             style="width: ${Math.min(percentage, 100)}%; height: 100%; transition: all 0.3s;
+                                    background: ${progressClass === 'danger' ? 'var(--danger)' : progressClass === 'warning' ? 'var(--warning)' : 'var(--success)'}"></div>
                     </div>
                 </div>
             `;
         }
 
+        // Collapse chevron
+        const chevronSvg = isCollapsed
+            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>'
+            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+
         card.innerHTML = `
-            <div class="category-header">
-                <div class="category-title">
+            <div class="category-header" style="${isCollapsed ? 'margin-bottom: 0; padding-bottom: 0; border-bottom: none;' : ''}">
+                <div class="category-title" style="cursor: pointer;" data-action="toggle-collapse" data-category="${escapeHtmlDashboard(category)}">
+                    <button class="collapse-chevron" data-action="toggle-collapse" data-category="${escapeHtmlDashboard(category)}" style="background: none; border: none; padding: 2px; cursor: pointer; color: var(--gray); display: flex; align-items: center;">
+                        ${chevronSvg}
+                    </button>
                     <span>${config.icon}</span>
                     <h4>${category}</h4>
+                    ${isCollapsed && transactions.length > 0 ? `<span style="font-size: 11px; color: var(--gray); margin-left: 4px;">(${transactions.length})</span>` : ''}
                 </div>
-                <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
                     <span class="category-total">$${total.toFixed(2)}</span>
+                    ${!isCollapsed ? `
                     <button class="analysis-btn ${!localStorage.getItem('sahabBudget_seenAnalysis') ? 'first-use' : ''}" onclick="event.stopPropagation(); markAnalysisSeen(); showCategoryAnalysis('${category}')" title="View category trends">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -616,13 +626,7 @@ function updateCategoryDetails(analyzer) {
                             </div>
                         </div>
                     ` : ''}
-                    ${
-                        transactions.length > 5
-                            ? `<button class="btn-text" onclick="toggleCategoryExpansion('${category}')">${
-                                  isExpanded ? 'Collapse' : 'Expand'
-                              }</button>`
-                            : ''
-                    }
+                    ` : ''}
                 </div>
             </div>
             ${budgetStatusHTML}
@@ -634,51 +638,78 @@ function updateCategoryDetails(analyzer) {
         container.appendChild(card);
     });
 
+    // Event delegation for transaction actions (avoids inline onclick with user strings)
+    container.addEventListener('click', function(e) {
+        // Collapse toggle
+        const collapseTarget = e.target.closest('[data-action="toggle-collapse"]');
+        if (collapseTarget) {
+            e.stopPropagation();
+            const cat = collapseTarget.dataset.category;
+            if (cat) {
+                const currentState = (window.categoryViewState || {})[cat] || 'default';
+                const newState = currentState === 'collapsed' ? 'default' : 'collapsed';
+                setCategoryViewState(cat, newState);
+            }
+            return;
+        }
+
+        const viewRaw = e.target.closest('[data-action="view-raw"]');
+        if (viewRaw) {
+            e.stopPropagation();
+            const item = viewRaw.closest('.transaction-item');
+            if (item) {
+                showRawTransactionData(item.dataset.transactionId, item.dataset.category);
+            }
+            return;
+        }
+        const deleteBtn = e.target.closest('[data-action="delete-transaction"]');
+        if (deleteBtn) {
+            e.stopPropagation();
+            const item = deleteBtn.closest('.transaction-item');
+            if (item) {
+                deleteTransaction(item.dataset.category, item.dataset.transactionId);
+            }
+            return;
+        }
+    });
+
     // Initialize drag and drop
     initializeDragDrop();
 }
 
-// Toggle category expansion
+// Set category view state and persist
+function setCategoryViewState(category, state) {
+    if (!window.categoryViewState) window.categoryViewState = {};
+    window.categoryViewState[category] = state;
+    localStorage.setItem('sahabBudget_categoryViewState', JSON.stringify(window.categoryViewState));
+    // Refresh
+    if (currentMonth) switchToMonth(currentMonth);
+}
+
+// Legacy compat
 function toggleCategoryExpansion(category) {
-    // Initialize expanded categories tracking if not exists
-    if (!window.expandedCategories) {
-        window.expandedCategories = {};
-    }
+    const current = (window.categoryViewState || {})[category] || 'default';
+    setCategoryViewState(category, current === 'expanded' ? 'default' : 'expanded');
+}
 
-    // Toggle the state
-    window.expandedCategories[category] = !window.expandedCategories[category];
+// Collapse all categories
+function collapseAllCategories() {
+    if (!window.categoryViewState) window.categoryViewState = {};
+    Object.keys(categoryConfig).forEach(cat => {
+        window.categoryViewState[cat] = 'collapsed';
+    });
+    localStorage.setItem('sahabBudget_categoryViewState', JSON.stringify(window.categoryViewState));
+    if (currentMonth) switchToMonth(currentMonth);
+}
 
-    // Refresh the dashboard to show/hide transactions
-    if (currentMonth) {
-        if (currentMonth === 'ALL_DATA') {
-            const allTransactions = [];
-            monthlyData.forEach((monthData) => {
-                allTransactions.push(...monthData.transactions);
-            });
-            const analyzer = analyzeTransactions(allTransactions);
-            updateDashboard(analyzer);
-        } else if (currentMonth === 'CUSTOM_RANGE' && window.customDateRange) {
-            const start = new Date(window.customDateRange.start);
-            const end = new Date(window.customDateRange.end);
-            const rangeTransactions = [];
-            monthlyData.forEach((data) => {
-                data.transactions.forEach((t) => {
-                    const date = new Date(t['Transaction Date'] || t.Date || t.date);
-                    if (date >= start && date <= end) {
-                        rangeTransactions.push(t);
-                    }
-                });
-            });
-            const analyzer = analyzeTransactions(rangeTransactions);
-            updateDashboard(analyzer);
-        } else {
-            const monthData = monthlyData.get(currentMonth);
-            if (monthData) {
-                const analyzer = analyzeTransactions(monthData.transactions);
-                updateDashboard(analyzer);
-            }
-        }
-    }
+// Expand all categories
+function expandAllCategories() {
+    if (!window.categoryViewState) window.categoryViewState = {};
+    Object.keys(categoryConfig).forEach(cat => {
+        window.categoryViewState[cat] = 'default';
+    });
+    localStorage.setItem('sahabBudget_categoryViewState', JSON.stringify(window.categoryViewState));
+    if (currentMonth) switchToMonth(currentMonth);
 }
 
 // Update charts
@@ -1027,16 +1058,24 @@ function showMoveConfirmationModal(transactionId, fromCategory, toCategory, tran
             </div>
             <div class="modal-footer move-modal-footer">
                 <button class="btn btn-secondary" onclick="closeMoveConfirmModal()">Cancel</button>
-                <button class="btn btn-secondary" onclick="executeMoveOnly('${transactionId}', '${toCategory}', '${monthKey}')">
+                <button class="btn btn-secondary" id="moveOnlyBtn">
                     Move Only
                 </button>
-                <button class="btn btn-primary" onclick="executeMoveWithRule('${transactionId}', '${toCategory}', '${monthKey}')">
+                <button class="btn btn-primary" id="moveWithRuleBtn">
                     Move & Create Rule
                 </button>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
+
+    // Wire up buttons via addEventListener (avoids apostrophe injection)
+    document.getElementById('moveOnlyBtn').addEventListener('click', function() {
+        executeMoveOnly(transactionId, toCategory, monthKey);
+    });
+    document.getElementById('moveWithRuleBtn').addEventListener('click', function() {
+        executeMoveWithRule(transactionId, toCategory, monthKey);
+    });
 
     // Click outside to close
     modal.addEventListener('click', function(e) {
@@ -1314,13 +1353,18 @@ function showDeleteConfirmationModal(category, transactionId, transaction, month
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeDeleteConfirmModal()">Cancel</button>
-                <button class="btn btn-danger" onclick="executeDelete('${category}', '${transactionId}', '${monthKey}', '${escapeHtmlDashboard(merchantName)}')">
+                <button class="btn btn-danger" id="deleteConfirmBtn">
                     Delete
                 </button>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
+
+    // Wire up delete button via addEventListener (avoids apostrophe injection)
+    document.getElementById('deleteConfirmBtn').addEventListener('click', function() {
+        executeDelete(category, transactionId, monthKey, merchantName);
+    });
 
     // Click outside to close
     modal.addEventListener('click', function(e) {
@@ -1347,7 +1391,21 @@ function closeDeleteConfirmModal() {
     }
 }
 
-// Execute delete
+// Move a transaction to trash
+function moveToTrash(transaction, monthKey, category, reason) {
+    if (!window.deletedTransactions) {
+        window.deletedTransactions = [];
+    }
+    window.deletedTransactions.push({
+        transaction: { ...transaction },
+        monthKey: monthKey,
+        category: category,
+        deletedAt: new Date().toISOString(),
+        deleteReason: reason || 'manual',
+    });
+}
+
+// Execute delete (soft delete to trash)
 function executeDelete(category, transactionId, monthKey, merchantPattern) {
     const selectedOption = document.querySelector('input[name="deleteOption"]:checked')?.value || 'single';
 
@@ -1355,40 +1413,34 @@ function executeDelete(category, transactionId, monthKey, merchantPattern) {
     const patternInput = document.getElementById('deletePatternInput');
     const pattern = patternInput?.value?.trim()?.toUpperCase() || merchantPattern;
 
+    // Helper: soft-delete a single transaction by ID from a month
+    function softDeleteFromMonth(mk) {
+        const md = monthlyData.get(mk);
+        if (!md) return null;
+        const index = md.transactions.findIndex((t) => t._id === transactionId);
+        if (index === -1) return null;
+        const removed = md.transactions.splice(index, 1)[0];
+        moveToTrash(removed, mk, category, selectedOption === 'rule' ? `rule:${pattern}` : 'manual');
+        return removed;
+    }
+
     // Handle "All Data" view
     if (currentMonth === 'ALL_DATA') {
         let deleted = false;
-
-        monthlyData.forEach((monthData, key) => {
-            const index = monthData.transactions.findIndex((t) => t._id === transactionId);
-            if (index > -1) {
-                monthData.transactions.splice(index, 1);
-                deleted = true;
-            }
-        });
-
+        for (const [key] of monthlyData.entries()) {
+            if (softDeleteFromMonth(key)) { deleted = true; break; }
+        }
         if (!deleted) {
             showNotification('Transaction not found', 'error');
             closeDeleteConfirmModal();
             return;
         }
     } else {
-        // Single month view
-        const monthData = monthlyData.get(monthKey);
-        if (!monthData) {
+        if (!softDeleteFromMonth(monthKey)) {
             showNotification('Transaction not found', 'error');
             closeDeleteConfirmModal();
             return;
         }
-
-        const index = monthData.transactions.findIndex((t) => t._id === transactionId);
-        if (index === -1) {
-            showNotification('Transaction not found', 'error');
-            closeDeleteConfirmModal();
-            return;
-        }
-
-        monthData.transactions.splice(index, 1);
     }
 
     // Create deletion rule if requested
@@ -1397,7 +1449,6 @@ function executeDelete(category, transactionId, monthKey, merchantPattern) {
             loadRules();
         }
 
-        // Check if rule already exists
         const existingRule = window.unifiedRules?.find(
             (r) => r.pattern === pattern && r.type === 'delete' && r.active
         );
@@ -1416,53 +1467,171 @@ function executeDelete(category, transactionId, monthKey, merchantPattern) {
             };
             window.unifiedRules.push(newRule);
             saveRules();
+        }
 
-            // Apply delete rule to all matching transactions immediately
-            let deletedCount = 0;
-            monthlyData.forEach((monthData, monthKey) => {
-                const initialLength = monthData.transactions.length;
-                monthData.transactions = monthData.transactions.filter((t) => {
-                    const desc = (t.Description || t.description || '').toUpperCase();
-                    if (desc.includes(pattern) && t._id !== transactionId) {
-                        deletedCount++;
-                        return false; // Remove from array
-                    }
-                    return true;
-                });
+        // Soft-delete all matching transactions
+        let deletedCount = 0;
+        monthlyData.forEach((monthData, mk) => {
+            monthData.transactions = monthData.transactions.filter((t) => {
+                const desc = (t.Description || t.description || '').toUpperCase();
+                if (desc.includes(pattern) && t._id !== transactionId) {
+                    moveToTrash(t, mk, category, `rule:${pattern}`);
+                    deletedCount++;
+                    return false;
+                }
+                return true;
             });
+        });
 
-            if (deletedCount > 0) {
-                showNotification(`Deleted ${deletedCount + 1} transaction(s) matching "${pattern}" (rule created for future imports)`, 'success');
-            } else {
-                showNotification(`Transaction deleted and rule created for "${pattern}"`, 'success');
-            }
+        if (deletedCount > 0) {
+            showNotification(`Moved ${deletedCount + 1} transaction(s) to trash (rule ${existingRule ? 'already exists' : 'created'})`, 'success');
         } else {
-            // Rule exists - still apply it to existing matching transactions
-            let deletedCount = 0;
-            monthlyData.forEach((monthData, monthKey) => {
-                monthData.transactions = monthData.transactions.filter((t) => {
-                    const desc = (t.Description || t.description || '').toUpperCase();
-                    if (desc.includes(pattern) && t._id !== transactionId) {
-                        deletedCount++;
-                        return false;
-                    }
-                    return true;
-                });
-            });
-
-            if (deletedCount > 0) {
-                showNotification(`Deleted ${deletedCount + 1} transaction(s) matching "${pattern}" (rule already exists)`, 'success');
-            } else {
-                showNotification('Transaction deleted (rule already exists)', 'success');
-            }
+            showNotification(`Moved to trash${existingRule ? '' : ' and rule created'}`, 'success');
         }
     } else {
-        showNotification('Transaction deleted', 'success');
+        showNotification('Moved to trash', 'success');
     }
 
     saveData();
+    updateTrashBadge();
     closeDeleteConfirmModal();
     switchToMonth(currentMonth);
+}
+
+// Show trash modal
+function showTrashModal() {
+    const trashItems = window.deletedTransactions || [];
+
+    const modal = document.createElement('div');
+    modal.className = 'modal show';
+    modal.id = 'trashModal';
+
+    let itemsHTML = '';
+    if (trashItems.length === 0) {
+        itemsHTML = '<div style="padding: 40px; text-align: center; color: var(--gray);"><p>Trash is empty</p></div>';
+    } else {
+        itemsHTML = `
+            <div class="trash-list" style="max-height: 500px; overflow-y: auto;">
+                ${trashItems.map((item, index) => {
+                    const t = item.transaction;
+                    const desc = escapeHtmlDashboard(t.Description || t.description || '');
+                    const amount = Math.abs(parseFloat(t.Amount) || 0);
+                    const deletedDate = new Date(item.deletedAt).toLocaleDateString();
+                    return `
+                        <div class="trash-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; margin: 4px 0; background: var(--gray-50); border-radius: 8px; font-size: 13px;">
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${desc}</div>
+                                <div style="font-size: 11px; color: var(--gray); margin-top: 2px;">${escapeHtmlDashboard(item.category)} &middot; Deleted ${deletedDate}</div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-left: 12px; flex-shrink: 0;">
+                                <span style="font-weight: 600;">$${amount.toFixed(2)}</span>
+                                <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px;" data-action="restore-trash" data-index="${index}">Restore</button>
+                                <button class="btn-icon" style="color: var(--danger);" data-action="permanent-delete" data-index="${index}" title="Permanently delete">&times;</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    modal.innerHTML = `
+        <div class="modal-content" style="width: 600px;">
+            <div class="modal-header">
+                <h2>Trash (${trashItems.length})</h2>
+                <button class="close-btn" onclick="closeTrashModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                ${itemsHTML}
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                ${trashItems.length > 0 ? '<button class="btn btn-danger" id="emptyTrashBtn" style="font-size: 13px;">Empty Trash</button>' : '<span></span>'}
+                <button class="btn btn-secondary" onclick="closeTrashModal()">Close</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Wire up event delegation
+    modal.addEventListener('click', function(e) {
+        const restoreBtn = e.target.closest('[data-action="restore-trash"]');
+        if (restoreBtn) {
+            restoreTransaction(parseInt(restoreBtn.dataset.index));
+            return;
+        }
+        const permDeleteBtn = e.target.closest('[data-action="permanent-delete"]');
+        if (permDeleteBtn) {
+            permanentlyDeleteTransaction(parseInt(permDeleteBtn.dataset.index));
+            return;
+        }
+        if (e.target === modal) {
+            closeTrashModal();
+        }
+    });
+
+    const emptyBtn = document.getElementById('emptyTrashBtn');
+    if (emptyBtn) {
+        emptyBtn.addEventListener('click', emptyTrash);
+    }
+}
+
+function closeTrashModal() {
+    const modal = document.getElementById('trashModal');
+    if (modal) modal.remove();
+}
+
+function restoreTransaction(index) {
+    const trashItems = window.deletedTransactions || [];
+    if (index < 0 || index >= trashItems.length) return;
+
+    const item = trashItems.splice(index, 1)[0];
+    const monthKey = item.monthKey;
+
+    if (!monthlyData.has(monthKey)) {
+        monthlyData.set(monthKey, {
+            transactions: [],
+            monthName: new Date(monthKey + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        });
+    }
+    monthlyData.get(monthKey).transactions.push(item.transaction);
+
+    saveData();
+    updateTrashBadge();
+    showNotification('Transaction restored', 'success');
+    closeTrashModal();
+    showTrashModal(); // Refresh trash view
+    switchToMonth(currentMonth);
+}
+
+function permanentlyDeleteTransaction(index) {
+    const trashItems = window.deletedTransactions || [];
+    if (index < 0 || index >= trashItems.length) return;
+
+    trashItems.splice(index, 1);
+    saveData();
+    updateTrashBadge();
+    closeTrashModal();
+    showTrashModal(); // Refresh
+}
+
+function emptyTrash() {
+    if (!window.deletedTransactions || window.deletedTransactions.length === 0) return;
+    if (!confirm(`Permanently delete ${window.deletedTransactions.length} item(s) from trash? This cannot be undone.`)) return;
+
+    window.deletedTransactions = [];
+    saveData();
+    updateTrashBadge();
+    showNotification('Trash emptied', 'success');
+    closeTrashModal();
+}
+
+function updateTrashBadge() {
+    const badge = document.getElementById('trashBadge');
+    if (badge) {
+        const count = (window.deletedTransactions || []).length;
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'flex' : 'none';
+    }
 }
 
 // Delete transaction
@@ -1505,22 +1674,15 @@ function deleteTransactionFromModal(category, transactionId) {
 // Show raw transaction data in a modal
 function showRawTransactionData(transactionId, category) {
     let transaction = null;
+    let foundMonthKey = currentMonth;
 
-    // Find the transaction across all months if viewing all data
-    if (currentMonth === 'ALL_DATA') {
+    // Find the transaction and its month key
+    if (currentMonth === 'ALL_DATA' || currentMonth === 'CUSTOM_RANGE') {
         for (const [monthKey, monthData] of monthlyData.entries()) {
             const found = monthData.transactions.find((t) => t._id === transactionId);
             if (found) {
                 transaction = found;
-                break;
-            }
-        }
-    } else if (currentMonth === 'CUSTOM_RANGE' && window.customDateRange) {
-        // Search in custom range
-        for (const [monthKey, monthData] of monthlyData.entries()) {
-            const found = monthData.transactions.find((t) => t._id === transactionId);
-            if (found) {
-                transaction = found;
+                foundMonthKey = monthKey;
                 break;
             }
         }
@@ -1537,6 +1699,17 @@ function showRawTransactionData(transactionId, category) {
     }
 
     const rawData = transaction._rawCsvData;
+
+    // Check income override status
+    const incomeOverrides = window.transactionIncomeOverrides || {};
+    let isIncomeOverridden = false;
+    let incomeOverrideValue = null;
+    if (incomeOverrides[foundMonthKey] && incomeOverrides[foundMonthKey][transactionId] !== undefined) {
+        isIncomeOverridden = true;
+        incomeOverrideValue = incomeOverrides[foundMonthKey][transactionId];
+    }
+    const isIncomeCategory = categoryConfig[category]?._isIncome === true;
+    const effectiveIsIncome = isIncomeOverridden ? incomeOverrideValue : (isIncomeCategory || transaction._isIncome || false);
 
     // Build the raw data display
     let rawDataHTML = '';
@@ -1565,7 +1738,6 @@ function showRawTransactionData(transactionId, category) {
                 <code>${Object.values(rawData)
                     .map((v) => {
                         const val = String(v ?? '');
-                        // Quote if contains comma or quotes
                         if (val.includes(',') || val.includes('"')) {
                             return '"' + val.replace(/"/g, '""') + '"';
                         }
@@ -1597,7 +1769,16 @@ function showRawTransactionData(transactionId, category) {
                     <p><strong>Description:</strong> ${escapeHtmlDashboard(transaction.Description || '')}</p>
                     <p><strong>Amount:</strong> $${Math.abs(transaction.Amount || 0).toFixed(2)}</p>
                     <p><strong>Date:</strong> ${transaction['Transaction Date'] || ''}</p>
-                    <p><strong>Category:</strong> ${category}</p>
+                    <p><strong>Category:</strong> ${escapeHtmlDashboard(category)}</p>
+                </div>
+                <div class="income-toggle-section" style="margin: 16px 0; padding: 12px 16px; background: var(--gray-50); border-radius: 8px; display: flex; align-items: center; gap: 12px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                        <input type="checkbox" id="transactionIncomeToggle" ${effectiveIsIncome ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+                        Mark as Income
+                    </label>
+                    <span style="font-size: 12px; color: var(--gray);">
+                        ${isIncomeCategory ? '(Category is marked as income)' : effectiveIsIncome ? '(Overridden to income)' : 'Toggle to treat as income'}
+                    </span>
                 </div>
                 <hr style="margin: 20px 0; border: none; border-top: 1px solid var(--border);">
                 <h3 style="margin-bottom: 15px;">Original CSV Data</h3>
@@ -1609,6 +1790,26 @@ function showRawTransactionData(transactionId, category) {
         </div>
     `;
     document.body.appendChild(modal);
+
+    // Wire up income toggle
+    document.getElementById('transactionIncomeToggle').addEventListener('change', function() {
+        toggleTransactionIncome(foundMonthKey, transactionId, this.checked);
+        this.closest('.modal').remove();
+    });
+}
+
+// Toggle per-transaction income override
+function toggleTransactionIncome(monthKey, transactionId, isIncome) {
+    if (!window.transactionIncomeOverrides) {
+        window.transactionIncomeOverrides = {};
+    }
+    if (!window.transactionIncomeOverrides[monthKey]) {
+        window.transactionIncomeOverrides[monthKey] = {};
+    }
+    window.transactionIncomeOverrides[monthKey][transactionId] = isIncome;
+    saveData();
+    switchToMonth(currentMonth);
+    showNotification(isIncome ? 'Transaction marked as income' : 'Transaction marked as expense', 'success');
 }
 
 // Helper function to escape HTML for dashboard display
@@ -1941,6 +2142,7 @@ document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
         // Close modals in order of priority (most recent first)
         const modals = [
+            'trashModal',
             'categoryAnalysisModal',
             'deleteConfirmModal',
             'moveConfirmModal',
@@ -1954,7 +2156,9 @@ document.addEventListener('keydown', function(event) {
             const modal = document.getElementById(modalId);
             if (modal && modal.classList.contains('show')) {
                 // Find the appropriate close function
-                if (modalId === 'categoryAnalysisModal') {
+                if (modalId === 'trashModal') {
+                    closeTrashModal();
+                } else if (modalId === 'categoryAnalysisModal') {
                     closeCategoryAnalysisModal();
                 } else if (modalId === 'deleteConfirmModal') {
                     closeDeleteConfirmModal();

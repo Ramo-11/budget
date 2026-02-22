@@ -343,6 +343,22 @@ function updateBudgetViewForAllMonths() {
 
                     <div class="category-card-body">
                         <div class="category-field">
+                            <label class="field-label income-toggle-label">
+                                <input type="checkbox"
+                                       class="income-category-toggle"
+                                       id="income-${categoryId}"
+                                       ${config._isIncome ? 'checked' : ''}
+                                       onchange="toggleCategoryIncome('${category}', this.checked); markUnsavedChanges()">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                                </svg>
+                                Income Category
+                            </label>
+                            <span class="field-hint">Transactions in this category will be treated as income</span>
+                        </div>
+
+                        <div class="category-field">
                             <label class="field-label">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -546,6 +562,22 @@ function updateBudgetView(analyzer) {
                     </div>
 
                     <div class="category-card-body">
+                        <div class="category-field">
+                            <label class="field-label income-toggle-label">
+                                <input type="checkbox"
+                                       class="income-category-toggle"
+                                       id="income-${categoryId}"
+                                       ${config._isIncome ? 'checked' : ''}
+                                       onchange="toggleCategoryIncome('${category}', this.checked); markUnsavedChanges()">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="1" x2="12" y2="23"></line>
+                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                                </svg>
+                                Income Category
+                            </label>
+                            <span class="field-hint">Transactions in this category will be treated as income</span>
+                        </div>
+
                         <div class="category-field">
                             <label class="field-label">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -924,6 +956,17 @@ function renameCategory(oldName, newName) {
     }
 }
 
+// Toggle category income flag
+function toggleCategoryIncome(category, isIncome) {
+    if (categoryConfig[category]) {
+        if (isIncome) {
+            categoryConfig[category]._isIncome = true;
+        } else {
+            delete categoryConfig[category]._isIncome;
+        }
+    }
+}
+
 // Save all category changes
 function saveAllCategoryChanges() {
     // Collect all changes from the UI
@@ -939,6 +982,21 @@ function saveAllCategoryChanges() {
         if (iconInput && iconInput.value !== categoryConfig[category].icon) {
             categoryConfig[category].icon = iconInput.value || '📦';
             hasChanges = true;
+        }
+
+        // Update income toggle
+        const incomeToggle = document.getElementById(`income-${categoryId}`);
+        if (incomeToggle) {
+            const wasIncome = categoryConfig[category]._isIncome || false;
+            const nowIncome = incomeToggle.checked;
+            if (wasIncome !== nowIncome) {
+                if (nowIncome) {
+                    categoryConfig[category]._isIncome = true;
+                } else {
+                    delete categoryConfig[category]._isIncome;
+                }
+                hasChanges = true;
+            }
         }
 
         // Update keywords
