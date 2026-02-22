@@ -584,7 +584,7 @@ function updateCategoryDetails(analyzer) {
         card.innerHTML = `
             <div class="category-header" style="${isCollapsed ? 'margin-bottom: 0; padding-bottom: 0; border-bottom: none;' : ''}">
                 <div class="category-title" style="cursor: pointer;" data-action="toggle-collapse" data-category="${escapeHtmlDashboard(category)}">
-                    <button class="collapse-chevron" data-action="toggle-collapse" data-category="${escapeHtmlDashboard(category)}" style="background: none; border: none; padding: 2px; cursor: pointer; color: var(--gray); display: flex; align-items: center;">
+                    <button class="collapse-chevron" style="background: none; border: none; padding: 2px; cursor: pointer; color: var(--gray); display: flex; align-items: center;">
                         ${chevronSvg}
                     </button>
                     <span>${config.icon}</span>
@@ -643,6 +643,7 @@ function updateCategoryDetails(analyzer) {
         // Collapse toggle
         const collapseTarget = e.target.closest('[data-action="toggle-collapse"]');
         if (collapseTarget) {
+            e.preventDefault();
             e.stopPropagation();
             const cat = collapseTarget.dataset.category;
             if (cat) {
@@ -682,7 +683,49 @@ function setCategoryViewState(category, state) {
     if (!window.categoryViewState) window.categoryViewState = {};
     window.categoryViewState[category] = state;
     localStorage.setItem('sahabBudget_categoryViewState', JSON.stringify(window.categoryViewState));
-    // Refresh
+
+    // Try lightweight DOM toggle instead of full re-render
+    const container = document.getElementById('categoryDetails');
+    if (container) {
+        const cards = container.querySelectorAll('.category-card');
+        for (const card of cards) {
+            if (card.dataset.category === category) {
+                const isCollapsed = state === 'collapsed';
+                card.classList.toggle('collapsed', isCollapsed);
+
+                // Update chevron
+                const chevronBtn = card.querySelector('.collapse-chevron');
+                if (chevronBtn) {
+                    chevronBtn.innerHTML = isCollapsed
+                        ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>'
+                        : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+                }
+
+                // Update header style
+                const header = card.querySelector('.category-header');
+                if (header) {
+                    if (isCollapsed) {
+                        header.style.marginBottom = '0';
+                        header.style.paddingBottom = '0';
+                        header.style.borderBottom = 'none';
+                    } else {
+                        header.style.marginBottom = '';
+                        header.style.paddingBottom = '';
+                        header.style.borderBottom = '';
+                    }
+                }
+
+                // Show/hide analysis btn and sort dropdown when collapsing
+                const analysisBtn = card.querySelector('.analysis-btn');
+                const sortDropdown = card.querySelector('.transaction-sort-dropdown');
+                if (analysisBtn) analysisBtn.style.display = isCollapsed ? 'none' : '';
+                if (sortDropdown) sortDropdown.style.display = isCollapsed ? 'none' : '';
+
+                return;
+            }
+        }
+    }
+    // Fallback: full re-render
     if (currentMonth) switchToMonth(currentMonth);
 }
 
