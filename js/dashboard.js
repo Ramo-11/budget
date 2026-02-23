@@ -29,8 +29,8 @@ function updateDashboard(analyzer) {
     const avgTransaction =
         analyzer.transactionCount > 0 ? analyzer.totalExpenses / analyzer.transactionCount : 0;
 
-    // Calculate income and net if tracking is enabled
-    const incomeTotal = analyzer.categoryTotals['Income'] || 0;
+    // Calculate income and net if tracking is enabled (respect excluded categories)
+    const incomeTotal = (!categoryConfig['Income']?._isExcluded) ? (analyzer.categoryTotals['Income'] || 0) : 0;
     const expensesWithoutIncome = analyzer.totalExpenses - incomeTotal;
     const netAmount = incomeTotal - expensesWithoutIncome;
     const trackIncome = window.incomeSettings?.trackIncome === true;
@@ -478,7 +478,8 @@ function updateCategoryDetails(analyzer) {
 
         const card = document.createElement('div');
         const isIncomeCategory = categoryConfig[category]?._isIncome === true || category === 'Income';
-        card.className = 'category-card' + (isIncomeCategory ? ' income-category' : '');
+        const isExcluded = categoryConfig[category]?._isExcluded === true;
+        card.className = 'category-card' + (isIncomeCategory ? ' income-category' : '') + (isExcluded ? ' excluded-category' : '');
         card.dataset.category = category;
 
         // Tri-state view: 'collapsed' | 'default' | 'expanded'
@@ -753,7 +754,7 @@ function updateCharts(analyzer) {
     }
 
     const categories = Object.entries(analyzer.categoryTotals)
-        .filter(([category, value]) => value > 0 && category !== 'Income')
+        .filter(([category, value]) => value > 0 && category !== 'Income' && !categoryConfig[category]?._isExcluded)
         .sort((a, b) => b[1] - a[1]);
 
     // Show empty state if no data

@@ -359,6 +359,22 @@ function updateBudgetViewForAllMonths() {
                         </div>
 
                         <div class="category-field">
+                            <label class="field-label income-toggle-label">
+                                <input type="checkbox"
+                                       class="exclude-category-toggle"
+                                       id="exclude-${categoryId}"
+                                       ${config._isExcluded ? 'checked' : ''}
+                                       onchange="toggleCategoryExclude('${category}', this.checked); markUnsavedChanges()">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                                </svg>
+                                Exclude from Totals
+                            </label>
+                            <span class="field-hint">Transactions show but won't count toward spending totals or charts</span>
+                        </div>
+
+                        <div class="category-field">
                             <label class="field-label">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -576,6 +592,22 @@ function updateBudgetView(analyzer) {
                                 Income Category
                             </label>
                             <span class="field-hint">Transactions in this category will be treated as income</span>
+                        </div>
+
+                        <div class="category-field">
+                            <label class="field-label income-toggle-label">
+                                <input type="checkbox"
+                                       class="exclude-category-toggle"
+                                       id="exclude-${categoryId}"
+                                       ${config._isExcluded ? 'checked' : ''}
+                                       onchange="toggleCategoryExclude('${category}', this.checked); markUnsavedChanges()">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                                </svg>
+                                Exclude from Totals
+                            </label>
+                            <span class="field-hint">Transactions show but won't count toward spending totals or charts</span>
                         </div>
 
                         <div class="category-field">
@@ -967,6 +999,17 @@ function toggleCategoryIncome(category, isIncome) {
     }
 }
 
+// Toggle category exclude flag
+function toggleCategoryExclude(category, isExcluded) {
+    if (categoryConfig[category]) {
+        if (isExcluded) {
+            categoryConfig[category]._isExcluded = true;
+        } else {
+            delete categoryConfig[category]._isExcluded;
+        }
+    }
+}
+
 // Save all category changes
 function saveAllCategoryChanges() {
     // Collect all changes from the UI
@@ -994,6 +1037,21 @@ function saveAllCategoryChanges() {
                     categoryConfig[category]._isIncome = true;
                 } else {
                     delete categoryConfig[category]._isIncome;
+                }
+                hasChanges = true;
+            }
+        }
+
+        // Update exclude toggle
+        const excludeToggle = document.getElementById(`exclude-${categoryId}`);
+        if (excludeToggle) {
+            const wasExcluded = categoryConfig[category]._isExcluded || false;
+            const nowExcluded = excludeToggle.checked;
+            if (wasExcluded !== nowExcluded) {
+                if (nowExcluded) {
+                    categoryConfig[category]._isExcluded = true;
+                } else {
+                    delete categoryConfig[category]._isExcluded;
                 }
                 hasChanges = true;
             }

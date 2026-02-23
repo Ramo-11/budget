@@ -563,10 +563,15 @@ function analyzeTransactions(transactions) {
         }
     });
 
+    // Calculate totals excluding excluded categories
+    const totalExpenses = Object.entries(categoryTotals)
+        .filter(([cat]) => !categoryConfig[cat]?._isExcluded)
+        .reduce((sum, [, val]) => sum + val, 0);
+
     return {
         categoryTotals,
         categoryDetails,
-        totalExpenses: Object.values(categoryTotals).reduce((a, b) => a + b, 0),
+        totalExpenses,
         transactionCount: transactions.length,
     };
 }
