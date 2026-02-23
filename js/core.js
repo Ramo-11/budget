@@ -105,6 +105,7 @@ let budgets = {};
 let charts = {};
 window.merchantRules = {};
 window.transactionIncomeOverrides = {}; // { monthKey: { transactionId: true/false } }
+window.deletedFingerprints = []; // Fingerprints of deleted transactions to prevent re-import
 
 // Income tracking settings
 window.incomeSettings = {
@@ -138,6 +139,7 @@ function loadSavedData() {
             window.transactionIncomeOverrides = data.transactionIncomeOverrides || {};
             window.unifiedRules = data.unifiedRules || [];
             window.deletedTransactions = data.deletedTransactions || [];
+            window.deletedFingerprints = data.deletedFingerprints || [];
 
             // Load income settings
             if (data.incomeSettings) {
@@ -177,6 +179,7 @@ function saveData() {
             unifiedRules: window.unifiedRules || [],
             incomeSettings: window.incomeSettings || {},
             deletedTransactions: window.deletedTransactions || [],
+            deletedFingerprints: window.deletedFingerprints || [],
         };
         localStorage.setItem('sahabBudget_data', JSON.stringify(data));
     } catch (error) {
@@ -367,6 +370,9 @@ function splitByMonth(transactions) {
         // Check for duplicate
         if (isDuplicateTransaction(normalizedTransaction, monthData.transactions)) {
             duplicates++;
+        } else if (isDeletedTransaction(normalizedTransaction)) {
+            // Skip previously deleted transactions
+            skipped++;
         } else {
             // Add unique ID
             normalizedTransaction._id = Math.random().toString(36).substr(2, 9);
@@ -376,6 +382,22 @@ function splitByMonth(transactions) {
     });
 
     return { added, duplicates, skipped, rulesApplied, incomeAdded };
+}
+
+// Generate a fingerprint for a transaction (date + description + amount)
+function transactionFingerprint(transaction) {
+    const date = new Date(transaction['Transaction Date'] || transaction['Posting Date'] || transaction['Post Date'] || transaction.Date || transaction.date || '').toDateString();
+    const desc = (transaction.Description || transaction.description || '').trim().toUpperCase();
+    const amount = parseFloat(transaction.Amount || 0).toFixed(2);
+    return `${date}|${desc}|${amount}`;
+}
+
+// Check if a transaction was previously deleted
+function isDeletedTransaction(transaction) {
+    const fps = window.deletedFingerprints || [];
+    if (fps.length === 0) return false;
+    const fp = transactionFingerprint(transaction);
+    return fps.includes(fp);
 }
 
 // Check if a transaction is a duplicate

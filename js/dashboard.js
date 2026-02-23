@@ -1427,6 +1427,15 @@ function moveToTrash(transaction, monthKey, category, reason) {
         deletedAt: new Date().toISOString(),
         deleteReason: reason || 'manual',
     });
+
+    // Save fingerprint so the transaction won't come back on re-import
+    if (!window.deletedFingerprints) {
+        window.deletedFingerprints = [];
+    }
+    const fp = transactionFingerprint(transaction);
+    if (!window.deletedFingerprints.includes(fp)) {
+        window.deletedFingerprints.push(fp);
+    }
 }
 
 // Execute delete (soft delete to trash)
@@ -1610,6 +1619,13 @@ function restoreTransaction(index) {
 
     const item = trashItems.splice(index, 1)[0];
     const monthKey = item.monthKey;
+
+    // Remove fingerprint so it won't be blocked on re-import
+    const fp = transactionFingerprint(item.transaction);
+    if (window.deletedFingerprints) {
+        const fpIdx = window.deletedFingerprints.indexOf(fp);
+        if (fpIdx !== -1) window.deletedFingerprints.splice(fpIdx, 1);
+    }
 
     if (!monthlyData.has(monthKey)) {
         monthlyData.set(monthKey, {
