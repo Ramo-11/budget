@@ -988,26 +988,14 @@ function renameCategory(oldName, newName) {
     }
 }
 
-// Toggle category income flag
+// Toggle category income flag (actual save happens in saveAllCategoryChanges)
 function toggleCategoryIncome(category, isIncome) {
-    if (categoryConfig[category]) {
-        if (isIncome) {
-            categoryConfig[category]._isIncome = true;
-        } else {
-            delete categoryConfig[category]._isIncome;
-        }
-    }
+    // No-op: UI state is read by saveAllCategoryChanges
 }
 
-// Toggle category exclude flag
+// Toggle category exclude flag (actual save happens in saveAllCategoryChanges)
 function toggleCategoryExclude(category, isExcluded) {
-    if (categoryConfig[category]) {
-        if (isExcluded) {
-            categoryConfig[category]._isExcluded = true;
-        } else {
-            delete categoryConfig[category]._isExcluded;
-        }
-    }
+    // No-op: UI state is read by saveAllCategoryChanges
 }
 
 // Save all category changes
