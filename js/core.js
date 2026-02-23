@@ -484,7 +484,7 @@ function analyzeTransactions(transactions) {
         const rawAmount = parseFloat(transaction.Amount) || 0;
         const description = transaction.Description || transaction.description || '';
         const category = categorizeTransaction(description, transaction._id); // Pass the ID
-        const isIncomeCategory = categoryConfig[category]?._isIncome === true;
+        const isIncomeCategory = categoryConfig[category]?._isIncome === true || category === 'Income';
 
         // Check per-transaction income override
         const incomeOverrides = window.transactionIncomeOverrides || {};
