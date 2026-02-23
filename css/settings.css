@@ -477,23 +477,47 @@
     background: var(--warning);
 }
 
-/* Unsaved Notice */
+/* Unsaved Notice - sticky bottom bar */
 .unsaved-notice {
     display: none;
     align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
+    gap: 12px;
+    padding: 14px 24px;
     background: #fef3c7;
-    border: 1px solid #fbbf24;
-    border-radius: var(--radius-md);
+    border-top: 2px solid #fbbf24;
+    border-radius: 0;
     color: #92400e;
     font-size: 13px;
-    margin-bottom: 20px;
+    font-weight: 500;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+    justify-content: center;
 }
 
 .unsaved-notice svg {
     flex-shrink: 0;
     color: #f59e0b;
+}
+
+.unsaved-notice .unsaved-save-btn {
+    margin-left: auto;
+    padding: 8px 20px;
+    background: #92400e;
+    color: white;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.unsaved-notice .unsaved-save-btn:hover {
+    background: #78350f;
 }
 
 /* Categories Grid */

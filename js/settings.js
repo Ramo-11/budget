@@ -455,7 +455,8 @@ function updateBudgetViewForAllMonths() {
                 <line x1="12" y1="8" x2="12" y2="12"></line>
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
-            You have unsaved changes. Click "Save Changes" to apply updates.
+            You have unsaved changes
+            <button class="unsaved-save-btn" onclick="saveAllCategoryChanges()">Save Changes</button>
         </div>
         <div class="categories-grid">
             ${categoriesHTML}
@@ -691,7 +692,8 @@ function updateBudgetView(analyzer) {
                 <line x1="12" y1="8" x2="12" y2="12"></line>
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
-            You have unsaved changes. Click "Save Changes" to apply updates.
+            You have unsaved changes
+            <button class="unsaved-save-btn" onclick="saveAllCategoryChanges()">Save Changes</button>
         </div>
         <div class="categories-grid">
             ${categoriesHTML}
@@ -1082,9 +1084,11 @@ function saveAllCategoryChanges() {
             updateMerchantRulesDisplay();
         }
 
+        clearUnsavedChanges();
         let message = 'All changes saved successfully';
         showNotification(message, 'success');
     } else {
+        clearUnsavedChanges();
         showNotification('No changes to save', 'info');
     }
 }
@@ -1758,6 +1762,24 @@ function markUnsavedChanges() {
         const saveText = document.getElementById('saveChangesText');
         if (saveText) {
             saveText.textContent = 'Save Changes*';
+        }
+    }
+}
+
+// Clear unsaved changes indicator
+function clearUnsavedChanges() {
+    const notice = document.getElementById('unsavedNotice');
+    const saveBtn = document.getElementById('saveChangesBtn');
+
+    if (notice) {
+        notice.style.display = 'none';
+    }
+
+    if (saveBtn) {
+        saveBtn.classList.remove('pulse');
+        const saveText = document.getElementById('saveChangesText');
+        if (saveText) {
+            saveText.textContent = 'Save Changes';
         }
     }
 }
