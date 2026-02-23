@@ -363,12 +363,26 @@
     opacity: 1;
 }
 
-.category-card.collapsed .category-transactions {
+.category-card.collapsed > *:not(.category-header) {
     display: none;
 }
 
 .category-card.collapsed {
     padding-bottom: 12px;
+}
+
+.category-card.collapsed .category-header {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.category-card.collapsed .collapse-count {
+    display: inline !important;
+}
+
+.category-card.collapsed .collapse-hide {
+    display: none !important;
 }
 
 .collapse-chevron {

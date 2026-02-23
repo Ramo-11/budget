@@ -500,9 +500,7 @@ function updateCategoryDetails(analyzer) {
 
         let transactionsHTML = '';
 
-        if (isCollapsed) {
-            transactionsHTML = ''; // Hidden when collapsed
-        } else if (transactions.length === 0) {
+        if (transactions.length === 0) {
             transactionsHTML = `
                 <div style="padding: 12px; text-align: center; color: var(--gray); font-size: 12px;">
                     No transactions
@@ -555,7 +553,7 @@ function updateCategoryDetails(analyzer) {
 
         // Build budget status HTML
         let budgetStatusHTML = '';
-        if (budget > 0 && !isCollapsed) {
+        if (budget > 0) {
             const statusColor = remaining >= 0 ? 'var(--success)' : 'var(--danger)';
             const progressClass = percentage > 100 ? 'danger' : percentage > 80 ? 'warning' : '';
 
@@ -582,19 +580,18 @@ function updateCategoryDetails(analyzer) {
             : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
 
         card.innerHTML = `
-            <div class="category-header" style="${isCollapsed ? 'margin-bottom: 0; padding-bottom: 0; border-bottom: none;' : ''}">
+            <div class="category-header">
                 <div class="category-title" style="cursor: pointer;" data-action="toggle-collapse" data-category="${escapeHtmlDashboard(category)}">
                     <button class="collapse-chevron" style="background: none; border: none; padding: 2px; cursor: pointer; color: var(--gray); display: flex; align-items: center;">
                         ${chevronSvg}
                     </button>
                     <span>${config.icon}</span>
                     <h4>${category}</h4>
-                    ${isCollapsed && transactions.length > 0 ? `<span style="font-size: 11px; color: var(--gray); margin-left: 4px;">(${transactions.length})</span>` : ''}
+                    <span class="collapse-count" style="font-size: 11px; color: var(--gray); margin-left: 4px; display: none;">(${transactions.length})</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span class="category-total">$${total.toFixed(2)}</span>
-                    ${!isCollapsed ? `
-                    <button class="analysis-btn ${!localStorage.getItem('sahabBudget_seenAnalysis') ? 'first-use' : ''}" onclick="event.stopPropagation(); markAnalysisSeen(); showCategoryAnalysis('${category}')" title="View category trends">
+                    <button class="analysis-btn collapse-hide ${!localStorage.getItem('sahabBudget_seenAnalysis') ? 'first-use' : ''}" onclick="event.stopPropagation(); markAnalysisSeen(); showCategoryAnalysis('${category}')" title="View category trends">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="20" x2="18" y2="10"></line>
                             <line x1="12" y1="20" x2="12" y2="4"></line>
@@ -602,7 +599,7 @@ function updateCategoryDetails(analyzer) {
                         </svg>
                     </button>
                     ${transactions.length > 1 ? `
-                        <div class="transaction-sort-dropdown">
+                        <div class="transaction-sort-dropdown collapse-hide">
                             <button class="transaction-sort-btn ${transactionSortType !== 'default' ? 'active' : ''}"
                                     onclick="event.stopPropagation(); toggleTransactionSortMenu('${category}')"
                                     title="Sort transactions">
@@ -625,7 +622,6 @@ function updateCategoryDetails(analyzer) {
                                 </button>
                             </div>
                         </div>
-                    ` : ''}
                     ` : ''}
                 </div>
             </div>
@@ -685,8 +681,8 @@ function setCategoryViewState(category, state) {
     window.categoryViewState[category] = state;
     localStorage.setItem('sahabBudget_categoryViewState', JSON.stringify(window.categoryViewState));
 
-    // Lightweight DOM toggle only for collapsed <-> default (no new DOM elements needed)
-    const isCollapseToggle = (prevState === 'collapsed' && state === 'default') || (prevState === 'default' && state === 'collapsed');
+    // Lightweight DOM toggle for collapsed <-> default/expanded (CSS handles hiding)
+    const isCollapseToggle = (state === 'collapsed' || prevState === 'collapsed') && state !== 'expanded' && prevState !== 'expanded';
     if (isCollapseToggle) {
         const container = document.getElementById('categoryDetails');
         if (container) {
@@ -703,26 +699,6 @@ function setCategoryViewState(category, state) {
                             ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>'
                             : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
                     }
-
-                    // Update header style
-                    const header = card.querySelector('.category-header');
-                    if (header) {
-                        if (isCollapsed) {
-                            header.style.marginBottom = '0';
-                            header.style.paddingBottom = '0';
-                            header.style.borderBottom = 'none';
-                        } else {
-                            header.style.marginBottom = '';
-                            header.style.paddingBottom = '';
-                            header.style.borderBottom = '';
-                        }
-                    }
-
-                    // Show/hide analysis btn and sort dropdown when collapsing
-                    const analysisBtn = card.querySelector('.analysis-btn');
-                    const sortDropdown = card.querySelector('.transaction-sort-dropdown');
-                    if (analysisBtn) analysisBtn.style.display = isCollapsed ? 'none' : '';
-                    if (sortDropdown) sortDropdown.style.display = isCollapsed ? 'none' : '';
 
                     return;
                 }
