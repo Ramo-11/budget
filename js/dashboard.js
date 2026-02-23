@@ -477,7 +477,7 @@ function updateCategoryDetails(analyzer) {
         const percentage = budget > 0 ? (total / budget) * 100 : 0;
 
         const card = document.createElement('div');
-        const isIncomeCategory = categoryConfig[category]?._isIncome === true;
+        const isIncomeCategory = categoryConfig[category]?._isIncome === true || category === 'Income';
         card.className = 'category-card' + (isIncomeCategory ? ' income-category' : '');
         card.dataset.category = category;
 
@@ -1756,7 +1756,7 @@ function showRawTransactionData(transactionId, category) {
         isIncomeOverridden = true;
         incomeOverrideValue = incomeOverrides[foundMonthKey][transactionId];
     }
-    const isIncomeCategory = categoryConfig[category]?._isIncome === true;
+    const isIncomeCategory = categoryConfig[category]?._isIncome === true || category === 'Income';
     const effectiveIsIncome = isIncomeOverridden ? incomeOverrideValue : (isIncomeCategory || transaction._isIncome || false);
 
     // Build the raw data display
