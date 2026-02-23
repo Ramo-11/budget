@@ -681,51 +681,56 @@ function updateCategoryDetails(analyzer) {
 // Set category view state and persist
 function setCategoryViewState(category, state) {
     if (!window.categoryViewState) window.categoryViewState = {};
+    const prevState = window.categoryViewState[category] || 'default';
     window.categoryViewState[category] = state;
     localStorage.setItem('sahabBudget_categoryViewState', JSON.stringify(window.categoryViewState));
 
-    // Try lightweight DOM toggle instead of full re-render
-    const container = document.getElementById('categoryDetails');
-    if (container) {
-        const cards = container.querySelectorAll('.category-card');
-        for (const card of cards) {
-            if (card.dataset.category === category) {
-                const isCollapsed = state === 'collapsed';
-                card.classList.toggle('collapsed', isCollapsed);
+    // Lightweight DOM toggle only for collapsed <-> default (no new DOM elements needed)
+    const isCollapseToggle = (prevState === 'collapsed' && state === 'default') || (prevState === 'default' && state === 'collapsed');
+    if (isCollapseToggle) {
+        const container = document.getElementById('categoryDetails');
+        if (container) {
+            const cards = container.querySelectorAll('.category-card');
+            for (const card of cards) {
+                if (card.dataset.category === category) {
+                    const isCollapsed = state === 'collapsed';
+                    card.classList.toggle('collapsed', isCollapsed);
 
-                // Update chevron
-                const chevronBtn = card.querySelector('.collapse-chevron');
-                if (chevronBtn) {
-                    chevronBtn.innerHTML = isCollapsed
-                        ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>'
-                        : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-                }
-
-                // Update header style
-                const header = card.querySelector('.category-header');
-                if (header) {
-                    if (isCollapsed) {
-                        header.style.marginBottom = '0';
-                        header.style.paddingBottom = '0';
-                        header.style.borderBottom = 'none';
-                    } else {
-                        header.style.marginBottom = '';
-                        header.style.paddingBottom = '';
-                        header.style.borderBottom = '';
+                    // Update chevron
+                    const chevronBtn = card.querySelector('.collapse-chevron');
+                    if (chevronBtn) {
+                        chevronBtn.innerHTML = isCollapsed
+                            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>'
+                            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
                     }
+
+                    // Update header style
+                    const header = card.querySelector('.category-header');
+                    if (header) {
+                        if (isCollapsed) {
+                            header.style.marginBottom = '0';
+                            header.style.paddingBottom = '0';
+                            header.style.borderBottom = 'none';
+                        } else {
+                            header.style.marginBottom = '';
+                            header.style.paddingBottom = '';
+                            header.style.borderBottom = '';
+                        }
+                    }
+
+                    // Show/hide analysis btn and sort dropdown when collapsing
+                    const analysisBtn = card.querySelector('.analysis-btn');
+                    const sortDropdown = card.querySelector('.transaction-sort-dropdown');
+                    if (analysisBtn) analysisBtn.style.display = isCollapsed ? 'none' : '';
+                    if (sortDropdown) sortDropdown.style.display = isCollapsed ? 'none' : '';
+
+                    return;
                 }
-
-                // Show/hide analysis btn and sort dropdown when collapsing
-                const analysisBtn = card.querySelector('.analysis-btn');
-                const sortDropdown = card.querySelector('.transaction-sort-dropdown');
-                if (analysisBtn) analysisBtn.style.display = isCollapsed ? 'none' : '';
-                if (sortDropdown) sortDropdown.style.display = isCollapsed ? 'none' : '';
-
-                return;
             }
         }
     }
-    // Fallback: full re-render
+
+    // Full re-render for expanded/default transitions (need to add/remove transaction DOM elements)
     if (currentMonth) switchToMonth(currentMonth);
 }
 
