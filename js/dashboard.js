@@ -635,7 +635,11 @@ function updateCategoryDetails(analyzer) {
     });
 
     // Event delegation for transaction actions (avoids inline onclick with user strings)
-    container.addEventListener('click', function(e) {
+    // Remove previous listener to prevent stacking on re-render
+    if (container._categoryClickHandler) {
+        container.removeEventListener('click', container._categoryClickHandler);
+    }
+    container._categoryClickHandler = function(e) {
         // Collapse toggle
         const collapseTarget = e.target.closest('[data-action="toggle-collapse"]');
         if (collapseTarget) {
@@ -668,7 +672,8 @@ function updateCategoryDetails(analyzer) {
             }
             return;
         }
-    });
+    };
+    container.addEventListener('click', container._categoryClickHandler);
 
     // Initialize drag and drop
     initializeDragDrop();
@@ -1303,6 +1308,9 @@ function applyCategorizationRuleToExisting(pattern, toCategory) {
 
 // Show delete confirmation modal
 function showDeleteConfirmationModal(category, transactionId, transaction, monthKey) {
+    // Clean up any existing delete modal first
+    closeDeleteConfirmModal();
+
     const description = (transaction.Description || transaction.description || '').trim();
     const amount = Math.abs(parseFloat(transaction.Amount) || 0);
 
