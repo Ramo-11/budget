@@ -119,24 +119,31 @@ function updateIncomeToggleLabel(enabled) {
     }
 }
 
-// Switch settings tab
+// Switch settings tab (2-tab structure: setup, data)
 function switchSettingsTab(tab) {
     document.querySelectorAll('.settings-tab').forEach((t) => t.classList.remove('active'));
     document.querySelectorAll('.settings-content').forEach((c) => c.classList.remove('active'));
 
-    event.target.classList.add('active');
+    event.target.closest('.settings-tab').classList.add('active');
     document.getElementById(tab + 'Tab').classList.add('active');
 
-    if (tab === 'rules') {
-        // Load and display unified rules
-        if (typeof loadRules === 'function') {
-            loadRules();
-        }
-        if (typeof updateRulesDisplay === 'function') {
-            updateRulesDisplay();
-        }
+    if (tab === 'setup') {
+        // Rules now live inside Setup — refresh display
+        if (typeof loadRules === 'function') loadRules();
+        if (typeof updateRulesDisplay === 'function') updateRulesDisplay();
     } else if (tab === 'data') {
         updateStorageStats();
+    }
+}
+
+// Unified CSV export — reads scope from #exportMonthSelect ("all" or month key)
+function exportTransactionsUnified() {
+    const select = document.getElementById('exportMonthSelect');
+    const scope = select ? select.value : 'all';
+    if (scope === 'all' || !scope) {
+        exportCategorizedCSV();
+    } else {
+        exportMonthCSV();
     }
 }
 
@@ -1078,9 +1085,9 @@ function saveAllCategoryChanges() {
             updateBudgetView(analyzer);
         }
 
-        // Update merchant rules display if on that tab
-        const rulesTab = document.getElementById('rulesTab');
-        if (rulesTab && rulesTab.classList.contains('active')) {
+        // Update merchant rules display if the Setup tab (which contains Rules) is visible
+        const setupTab = document.getElementById('setupTab');
+        if (setupTab && setupTab.classList.contains('active')) {
             updateMerchantRulesDisplay();
         }
 

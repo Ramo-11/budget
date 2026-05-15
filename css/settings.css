@@ -483,10 +483,10 @@
     align-items: center;
     gap: 12px;
     padding: 14px 24px;
-    background: #fef3c7;
-    border-top: 2px solid #fbbf24;
+    background: var(--warning-bg);
+    border-top: 2px solid var(--warning-light);
     border-radius: 0;
-    color: #92400e;
+    color: var(--warning-text);
     font-size: 13px;
     font-weight: 500;
     position: fixed;
@@ -500,13 +500,13 @@
 
 .unsaved-notice svg {
     flex-shrink: 0;
-    color: #f59e0b;
+    color: var(--warning);
 }
 
 .unsaved-notice .unsaved-save-btn {
     margin-left: auto;
     padding: 8px 20px;
-    background: #92400e;
+    background: var(--warning-text);
     color: white;
     border: none;
     border-radius: var(--radius-md);
@@ -517,7 +517,7 @@
 }
 
 .unsaved-notice .unsaved-save-btn:hover {
-    background: #78350f;
+    background: var(--warning-text-deep);
 }
 
 /* Categories Grid */
@@ -808,12 +808,85 @@
     margin-top: 6px;
 }
 
+/* Collapsible Advanced block within Setup tab */
+.settings-advanced {
+    margin-top: 32px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+}
+
+.settings-advanced > summary {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 8px 0;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.settings-advanced > summary::-webkit-details-marker {
+    display: none;
+}
+
+.settings-advanced > summary::before {
+    content: '▸';
+    transition: transform var(--transition-fast);
+    color: var(--gray-400);
+    font-size: 11px;
+}
+
+.settings-advanced[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.settings-advanced > summary:hover {
+    color: var(--primary);
+}
+
+.settings-advanced > .settings-section {
+    margin-top: 16px;
+}
+
 /* Data Management Styles */
 .data-actions {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 24px;
     margin-bottom: 32px;
+}
+
+/* Wide variant for the unified Export card — left-aligned, single column */
+.data-actions:has(> .data-action-card-wide:only-child) {
+    grid-template-columns: 1fr;
+    max-width: 520px;
+}
+
+.data-action-card-wide {
+    text-align: left;
+}
+
+.data-action-card-wide .data-action-icon {
+    margin: 0 0 16px 0;
+}
+
+.export-scope-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.export-scope-row label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .data-action-card {
@@ -992,7 +1065,7 @@
 }
 
 .toggle-switch input:checked + .toggle-slider {
-    background-color: #10b981;
+    background-color: var(--success);
 }
 
 .toggle-switch input:checked + .toggle-slider:before {
@@ -1053,47 +1126,6 @@
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-subtle);
-}
-
-/* Focus States for Accessibility */
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
-    outline: 2px solid var(--primary);
-    outline-offset: 2px;
-}
-
-/* Smooth scrollbar */
-::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--gray-100);
-    border-radius: var(--radius-full);
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--gray-300);
-    border-radius: var(--radius-full);
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--gray-400);
-}
-
-/* Remove old styles that are no longer needed */
-.budget-item.expanded {
-    display: none !important;
-}
-
-.budget-actions {
-    display: none !important;
-}
-
-.settings-notice {
-    display: none !important;
 }
 
 /* Unsaved changes indicator */

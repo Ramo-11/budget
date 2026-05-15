@@ -205,12 +205,13 @@ function exportMonthCSV() {
     showNotification(`Exported ${monthData.transactions.length} transactions from ${monthData.monthName}`, 'success');
 }
 
-// Populate export month dropdown
+// Populate export month dropdown. Default option ("All transactions") is preserved
+// so the unified Export CSV control can choose between all-data and a single month.
 function populateExportMonthDropdown() {
     const select = document.getElementById('exportMonthSelect');
     if (!select) return;
 
-    select.innerHTML = '<option value="">Select a month...</option>';
+    select.innerHTML = '<option value="all">All transactions</option>';
 
     const months = Array.from(monthlyData.keys()).sort().reverse();
     months.forEach((monthKey) => {

@@ -7,19 +7,26 @@ let analyticsData = {
     searchResults: [],
 };
 
-// Initialize analytics
+// Initialize analytics — single scrollable view (tabs removed)
 window.addEventListener('DOMContentLoaded', () => {
     loadDataFromStorage();
 
-    // Check if there's any data
     if (!analyticsData.monthlyData || analyticsData.monthlyData.size === 0) {
         showAnalyticsGlobalEmptyState();
         return;
     }
 
     initializeDateRangeSelectors();
-    loadOverviewView();
+    renderAllAnalytics();
 });
+
+// Render every section of the analytics page (overview KPIs, trends, categories, merchants)
+function renderAllAnalytics() {
+    loadOverviewView();
+    loadTrendsView();
+    loadCategoriesView();
+    loadMerchantsView();
+}
 
 function showAnalyticsGlobalEmptyState() {
     const emptyStateHTML = `
@@ -84,67 +91,7 @@ function initializeDateRangeSelectors() {
     document.getElementById('endMonth').value = months[months.length - 1];
 }
 
-// Switch analytics tab
-function switchAnalyticsTab(tab) {
-    // Update tab buttons
-    document.querySelectorAll('.analytics-tab').forEach((b) => b.classList.remove('active'));
-    document.querySelector(`.analytics-tab[data-tab="${tab}"]`).classList.add('active');
-
-    // Update views
-    document.querySelectorAll('.analytics-view').forEach((v) => v.classList.remove('active'));
-    document.getElementById(tab + 'View').classList.add('active');
-
-    // Show/hide date controls based on tab
-    const controls = document.getElementById('analyticsControls');
-    if (controls) {
-        controls.style.display = tab === 'search' ? 'none' : 'block';
-    }
-
-    // Load the appropriate view
-    switch (tab) {
-        case 'overview':
-            loadOverviewView();
-            break;
-        case 'trends':
-            loadTrendsView();
-            break;
-        case 'categories':
-            loadCategoriesView();
-            break;
-        case 'merchants':
-            loadMerchantsView();
-            break;
-        case 'search':
-            showSearchPrompt();
-            document.getElementById('transactionSearch').focus();
-            break;
-    }
-}
-
-// Show search prompt
-function showSearchPrompt() {
-    const container = document.getElementById('searchResults');
-    container.innerHTML = `
-        <div class="search-empty-state">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <h3>Search Your Transactions</h3>
-            <p>Type in the search box above to find transactions by description or amount</p>
-            <div class="search-tips">
-                <h4>Try searching for:</h4>
-                <ul>
-                    <li>Merchant names (e.g., "Amazon", "Walmart")</li>
-                    <li>Transaction amounts (e.g., "25.99")</li>
-                    <li>Keywords (e.g., "food", "gas")</li>
-                </ul>
-            </div>
-        </div>
-    `;
-}
-
-// Apply date range filter
+// Apply date range filter — re-renders every section
 function applyDateRange() {
     const startMonth = document.getElementById('startMonth').value;
     const endMonth = document.getElementById('endMonth').value;
@@ -155,25 +102,14 @@ function applyDateRange() {
     }
 
     analyticsData.currentDateRange = { start: startMonth, end: endMonth };
-
-    // Reload current view with new date range
-    const activeTab = document.querySelector('.analytics-tab.active');
-    if (activeTab) {
-        const tabName = activeTab.dataset.tab;
-        switchAnalyticsTab(tabName);
-    }
+    renderAllAnalytics();
 }
 
-// Reset date range
+// Reset date range — re-renders every section
 function resetDateRange() {
     analyticsData.currentDateRange = null;
     initializeDateRangeSelectors();
-
-    const activeTab = document.querySelector('.analytics-tab.active');
-    if (activeTab) {
-        const tabName = activeTab.dataset.tab;
-        switchAnalyticsTab(tabName);
-    }
+    renderAllAnalytics();
 }
 
 // Get filtered months based on date range
@@ -467,7 +403,8 @@ function renderTopCategories(sortedCategories, totalSpending) {
         </div>
     `;
 
-    document.getElementById('topCategories').innerHTML = html;
+    const el = document.getElementById('topCategories');
+    if (el) el.innerHTML = html;
 }
 
 function renderRecentActivity(transactions) {
@@ -515,7 +452,8 @@ function renderTopMerchants(merchants) {
         </div>
     `;
 
-    document.getElementById('topMerchants').innerHTML = html;
+    const el = document.getElementById('topMerchants');
+    if (el) el.innerHTML = html;
 }
 
 function renderOverviewChart(monthlyTotals) {
@@ -524,7 +462,9 @@ function renderOverviewChart(monthlyTotals) {
         analyticsData.charts.overview.destroy();
     }
 
-    const ctx = document.getElementById('overviewChart').getContext('2d');
+    const canvas = document.getElementById('overviewChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     analyticsData.charts.overview = new Chart(ctx, {
         type: 'bar',
         data: {

@@ -64,13 +64,13 @@
 }
 
 .card.card-purple::before {
-    background: linear-gradient(135deg, var(--accent-purple) 0%, #a78bfa 100%);
+    background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-purple-light) 100%);
     opacity: 1;
 }
 
 /* Income card styling */
 .card.income-card {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: linear-gradient(135deg, var(--success) 0%, var(--success-dark) 100%);
     color: white;
 }
 
@@ -88,20 +88,20 @@
 
 /* Net positive/negative cards */
 .card.net-positive {
-    border-left: 4px solid #10b981;
+    border-left: 4px solid var(--success);
 }
 
 .card.net-positive::before {
-    background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+    background: linear-gradient(135deg, var(--success) 0%, var(--success-light) 100%);
     opacity: 1;
 }
 
 .card.net-negative {
-    border-left: 4px solid #ef4444;
+    border-left: 4px solid var(--danger);
 }
 
 .card.net-negative::before {
-    background: linear-gradient(135deg, #ef4444 0%, #f87171 100%);
+    background: linear-gradient(135deg, var(--danger) 0%, var(--danger-light) 100%);
     opacity: 1;
 }
 
@@ -292,12 +292,6 @@
     opacity: 0.6;
 }
 
-/* Category card entry animation */
-.category-card {
-    animation: cardSlideIn var(--transition-slow) ease-out;
-    animation-fill-mode: both;
-}
-
 @keyframes cardSlideIn {
     from {
         opacity: 0;
@@ -308,18 +302,6 @@
         transform: translateY(0);
     }
 }
-
-.category-card:nth-child(1) { animation-delay: 0ms; }
-.category-card:nth-child(2) { animation-delay: 30ms; }
-.category-card:nth-child(3) { animation-delay: 60ms; }
-.category-card:nth-child(4) { animation-delay: 90ms; }
-.category-card:nth-child(5) { animation-delay: 120ms; }
-.category-card:nth-child(6) { animation-delay: 150ms; }
-.category-card:nth-child(7) { animation-delay: 180ms; }
-.category-card:nth-child(8) { animation-delay: 210ms; }
-.category-card:nth-child(9) { animation-delay: 240ms; }
-.category-card:nth-child(10) { animation-delay: 270ms; }
-.category-card:nth-child(n+11) { animation-delay: 300ms; }
 
 /* ==========================================
    CATEGORY CARDS - Transaction breakdown
@@ -340,7 +322,20 @@
     box-shadow: var(--shadow-card);
     position: relative;
     overflow: hidden;
+    animation: cardSlideIn var(--transition-slow) ease-out both;
 }
+
+.category-card:nth-child(1) { animation-delay: 0ms; }
+.category-card:nth-child(2) { animation-delay: 30ms; }
+.category-card:nth-child(3) { animation-delay: 60ms; }
+.category-card:nth-child(4) { animation-delay: 90ms; }
+.category-card:nth-child(5) { animation-delay: 120ms; }
+.category-card:nth-child(6) { animation-delay: 150ms; }
+.category-card:nth-child(7) { animation-delay: 180ms; }
+.category-card:nth-child(8) { animation-delay: 210ms; }
+.category-card:nth-child(9) { animation-delay: 240ms; }
+.category-card:nth-child(10) { animation-delay: 270ms; }
+.category-card:nth-child(n+11) { animation-delay: 300ms; }
 
 .category-card::before {
     content: '';
@@ -397,21 +392,21 @@
 
 /* Income category card styling */
 .category-card.income-category {
-    background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
-    border: 1px solid #a7f3d0;
+    background: linear-gradient(135deg, var(--success-bg) 0%, var(--success-bg-deep) 100%);
+    border: 1px solid var(--success-border);
 }
 
 .category-card.income-category::before {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    background: linear-gradient(135deg, var(--success) 0%, var(--success-dark) 100%);
     opacity: 1;
 }
 
 .category-card.income-category .category-total {
-    color: #059669;
+    color: var(--success-dark);
 }
 
 .category-card.income-category .transaction-amount {
-    color: #059669;
+    color: var(--success-dark);
 }
 
 /* Excluded category card styling */
@@ -684,7 +679,7 @@
 .income-badge {
     display: inline-flex;
     align-items: center;
-    background: #0891b2;
+    background: var(--primary);
     color: white;
     padding: 2px 6px;
     border-radius: var(--radius-sm);

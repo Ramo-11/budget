@@ -1679,7 +1679,7 @@ function updateTrashBadge() {
     if (badge) {
         const count = (window.deletedTransactions || []).length;
         badge.textContent = count;
-        badge.style.display = count > 0 ? 'flex' : 'none';
+        badge.classList.toggle('visible', count > 0);
     }
 }
 

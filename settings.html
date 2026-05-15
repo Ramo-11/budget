@@ -15,9 +15,6 @@
         <link rel="stylesheet" href="css/modals.css" />
         <link rel="stylesheet" href="css/getting-started.css" />
         <link rel="icon" href="/images/logo.png" type="image/x-icon" />
-
-        <!-- External Libraries -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     </head>
     <body>
         <div class="container">
@@ -83,22 +80,14 @@
                 </div>
             </div>
 
-            <!-- Settings Tabs -->
+            <!-- Settings Tabs (2-tab split: Setup / Data) -->
             <div class="settings-tabs">
-                <button class="settings-tab active" onclick="switchSettingsTab('categories')">
+                <button class="settings-tab active" onclick="switchSettingsTab('setup')">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="14" width="7" height="7"></rect>
-                        <rect x="3" y="14" width="7" height="7"></rect>
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
-                    <span>Categories & Budgets</span>
-                </button>
-                <button class="settings-tab" onclick="switchSettingsTab('rules')">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
-                    </svg>
-                    <span>Auto-Categorization Rules</span>
+                    <span>Setup</span>
                 </button>
                 <button class="settings-tab" onclick="switchSettingsTab('data')">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -106,13 +95,16 @@
                         <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
                         <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
                     </svg>
-                    <span>Data Management</span>
+                    <span>Data</span>
                 </button>
             </div>
 
-            <!-- Categories Tab -->
-            <div class="settings-content active" id="categoriesTab">
+            <!-- Setup Tab: Categories & Budgets + Rules + (Advanced) Income tracking -->
+            <div class="settings-content active" id="setupTab">
+                <!-- Categories & Budgets -->
                 <div class="settings-section">
+                    <h3>Categories & Budgets</h3>
+                    <p>Set spending limits and customize categories per month</p>
                     <div class="settings-section-header">
                         <div class="month-selector">
                             <label>Budget Month:</label>
@@ -124,12 +116,10 @@
                     </div>
                     <div class="budget-grid" id="budgetGrid"></div>
                 </div>
-            </div>
 
-            <!-- Rules Tab -->
-            <div class="settings-content" id="rulesTab">
-                <div class="settings-section">
-                    <h3>Transaction Rules</h3>
+                <!-- Rules — id kept for back-compat -->
+                <div class="settings-section" id="rulesTab">
+                    <h3>Auto-Categorization Rules</h3>
                     <p>
                         Automatic and custom rules to categorize or delete transactions. Rules
                         marked with "AUTO" are created when you drag and drop transactions.
@@ -149,22 +139,52 @@
 
                     <div id="rulesList"></div>
                 </div>
+
+                <!-- Advanced — Income tracking (collapsed by default to reduce noise) -->
+                <details class="settings-advanced">
+                    <summary>Advanced settings</summary>
+                    <div class="settings-section">
+                        <h3>Income Tracking</h3>
+                        <p>Enable to import and track income transactions alongside your expenses</p>
+                        <div class="income-toggle-container">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="incomeToggle" onchange="toggleIncomeTracking(this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <div class="toggle-label">
+                                <span id="incomeToggleLabel">Income tracking is disabled</span>
+                                <span class="toggle-description">When enabled, income transactions (deposits, refunds, etc.) will be imported into an "Income" category</span>
+                            </div>
+                        </div>
+                    </div>
+                </details>
             </div>
 
-            <!-- Data Management Tab -->
+            <!-- Data Tab: Unified Export + Backup/Restore + Storage Stats + Danger -->
             <div class="settings-content" id="dataTab">
-                <!-- Income Tracking -->
+                <!-- Unified Export -->
                 <div class="settings-section">
-                    <h3>Income Tracking</h3>
-                    <p>Enable to import and track income transactions alongside your expenses</p>
-                    <div class="income-toggle-container">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="incomeToggle" onchange="toggleIncomeTracking(this.checked)">
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <div class="toggle-label">
-                            <span id="incomeToggleLabel">Income tracking is disabled</span>
-                            <span class="toggle-description">When enabled, income transactions (deposits, refunds, etc.) will be imported into an "Income" category</span>
+                    <h3>Export Transactions</h3>
+                    <p>Download your transaction data as CSV for spreadsheets or other tools</p>
+                    <div class="data-actions">
+                        <div class="data-action-card data-action-card-wide">
+                            <div class="data-action-icon">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                </svg>
+                            </div>
+                            <h4>Export to CSV</h4>
+                            <p>Choose a scope and download</p>
+                            <div class="export-scope-row">
+                                <label for="exportMonthSelect">Scope</label>
+                                <select id="exportMonthSelect" class="export-month-select">
+                                    <option value="all">All transactions</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" onclick="exportTransactionsUnified()" style="margin-top: 12px;">
+                                Download CSV
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -172,7 +192,7 @@
                 <!-- Backup & Restore -->
                 <div class="settings-section">
                     <h3>Backup & Restore</h3>
-                    <p>Keep your data safe with regular backups</p>
+                    <p>Keep your data safe with regular backups (JSON includes categories, rules and budgets)</p>
                     <div class="data-actions">
                         <div class="data-action-card">
                             <div class="data-action-icon">
@@ -205,48 +225,7 @@
                     </div>
                 </div>
 
-                <!-- Export Data -->
-                <div class="settings-section">
-                    <h3>Export Data</h3>
-                    <p>Export your transaction data with categories for use in spreadsheets</p>
-                    <div class="data-actions">
-                        <div class="data-action-card">
-                            <div class="data-action-icon">
-                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                                </svg>
-                            </div>
-                            <h4>Export All Transactions</h4>
-                            <p>Download CSV with all transactions and their categories</p>
-                            <button class="btn btn-primary" onclick="exportCategorizedCSV()">
-                                Export All to CSV
-                            </button>
-                        </div>
-                        <div class="data-action-card">
-                            <div class="data-action-icon">
-                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                                </svg>
-                            </div>
-                            <h4>Export by Month</h4>
-                            <p>Choose a specific month to export</p>
-                            <select id="exportMonthSelect" class="export-month-select">
-                                <option value="">Select a month...</option>
-                            </select>
-                            <button class="btn btn-secondary" onclick="exportMonthCSV()" style="margin-top: 12px;">
-                                Export Month to CSV
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Data Storage Info -->
+                <!-- Storage Stats -->
                 <div class="settings-section">
                     <h3>Storage Statistics</h3>
                     <div id="storageStats" class="storage-stats"></div>
@@ -255,7 +234,7 @@
                 <!-- Danger Zone -->
                 <div class="settings-section danger-zone">
                     <h3>Danger Zone</h3>
-                    <p>Irreversible actions - proceed with caution</p>
+                    <p>Irreversible actions — proceed with caution</p>
                     <button class="btn btn-danger" onclick="clearAllTransactions()">
                         Clear All Transactions
                     </button>

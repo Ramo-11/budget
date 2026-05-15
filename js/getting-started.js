@@ -91,23 +91,6 @@ function exitSampleMode() {
     location.reload();
 }
 
-// Show getting started section - UPDATE THIS
-function showGettingStarted() {
-    const section = document.getElementById('gettingStartedSection');
-
-    // Only proceed if the element exists (we're on dashboard)
-    if (!section) {
-        // If not on dashboard, redirect
-        goToDashboardGettingStarted();
-        return;
-    }
-
-    section.classList.remove('collapsed');
-    localStorage.removeItem('sahabBudget_hideGettingStarted');
-
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
 // Toggle getting started section
 function toggleGettingStarted() {
     const section = document.getElementById('gettingStartedSection');
@@ -266,24 +249,28 @@ window.addEventListener('DOMContentLoaded', () => {
             videoWrapper.style.paddingBottom = '100%';
         }
     } else if (monthlyData && monthlyData.size > 0) {
-        // User has their own data (not sample mode) - hide sample data card
+        // User has their own data — auto-hide the whole onboarding section.
+        // Tutorial remains accessible via Help icon → "Watch Tutorial".
+        const section = document.getElementById('gettingStartedSection');
+        if (section) {
+            section.classList.add('collapsed');
+        }
+        localStorage.setItem('sahabBudget_hideGettingStarted', 'true');
+
+        // Also collapse the sample-data card for when user re-opens via Help.
         const sampleDataCard = document.querySelector('.sample-data-card');
         if (sampleDataCard) {
             sampleDataCard.style.display = 'none';
         }
-
-        // Adjust grid to single column
         const gettingStartedGrid = document.querySelector('.getting-started-grid');
         if (gettingStartedGrid) {
             gettingStartedGrid.style.gridTemplateColumns = '1fr';
         }
-
         const tutorialCard = document.querySelector('.tutorial-card');
         if (tutorialCard) {
             tutorialCard.style.maxWidth = 'none';
             tutorialCard.style.margin = '0 auto';
         }
-
         const videoWrapper = document.getElementById('videoWrapper');
         if (videoWrapper) {
             videoWrapper.style.paddingBottom = '50%';

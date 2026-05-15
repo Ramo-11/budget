@@ -1,5 +1,8 @@
 /* css/base.css - Base styles and common components */
 
+/* Prevent tutorial flash on cold load (toggled by inline script in <head>) */
+.tutorial-hidden #gettingStartedSection { display: none !important; }
+
 * {
     margin: 0;
     padding: 0;
@@ -22,13 +25,23 @@
 
     --success: #10b981;
     --success-light: #34d399;
+    --success-dark: #059669;
     --success-subtle: rgba(16, 185, 129, 0.1);
+    --success-bg: #ecfdf5;
+    --success-bg-deep: #d1fae5;
+    --success-border: #a7f3d0;
     --warning: #f59e0b;
     --warning-light: #fbbf24;
+    --warning-dark: #d97706;
     --warning-subtle: rgba(245, 158, 11, 0.1);
+    --warning-bg: #fef3c7;
+    --warning-text: #92400e;
+    --warning-text-deep: #78350f;
     --danger: #ef4444;
     --danger-light: #f87171;
+    --danger-dark: #dc2626;
     --danger-subtle: rgba(239, 68, 68, 0.1);
+    --accent-purple-light: #a78bfa;
 
     /* Neutral palette - Refined grays */
     --dark: #0f172a;
@@ -208,6 +221,51 @@ body {
     align-items: center;
     gap: 8px;
     justify-self: end;
+}
+
+/* Dark-glass header icon buttons (e.g., Trash, Help). 44x44, supports badge. */
+.header-icon-btn {
+    position: relative;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--white);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-base);
+    backdrop-filter: blur(10px);
+}
+
+.header-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.header-icon-btn .icon-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--danger);
+    color: var(--white);
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: var(--radius-full);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.header-icon-btn .icon-badge.visible {
+    display: flex;
 }
 
 /* Mobile-only elements hidden on desktop */
@@ -530,59 +588,59 @@ img.logo {
     border-radius: var(--radius-lg);
 }
 
-/* Feature Button - For highlighting key actions */
+/* Feature Button - For highlighting key secondary actions. Compact single-line. */
 .btn-feature {
     background: var(--white);
     color: var(--dark);
     border: 1px solid var(--border);
-    padding: 16px 24px;
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-card);
-    display: flex;
+    padding: 10px 16px;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    display: inline-flex;
     align-items: center;
-    gap: 14px;
+    gap: 10px;
     transition: all var(--transition-base);
-    min-width: 180px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
 }
 
 .btn-feature:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
     border-color: var(--primary);
 }
 
 .btn-feature .btn-feature-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: var(--radius-lg);
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    background: var(--gray-100);
 }
 
 .btn-feature .btn-feature-icon svg {
-    width: 22px;
-    height: 22px;
+    width: 16px;
+    height: 16px;
 }
 
 .btn-feature .btn-feature-text {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
+    align-items: center;
 }
 
 .btn-feature .btn-feature-label {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--dark);
 }
 
+/* Sublabels hidden — kept in DOM for tooltip-like context but visually redundant */
 .btn-feature .btn-feature-sublabel {
-    font-size: 12px;
-    color: var(--gray);
-    font-weight: 400;
+    display: none;
 }
 
 .btn-feature.budget-goals .btn-feature-icon {
@@ -777,6 +835,26 @@ a:focus-visible {
     outline-offset: 2px;
 }
 
+/* Smooth scrollbar (applied app-wide) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-400);
+}
+
 /* ==========================================
    RESPONSIVE
    ========================================== */
@@ -929,13 +1007,18 @@ a:focus-visible {
     .btn-feature {
         flex: 1;
         min-width: 0;
-        padding: 14px 16px;
+        padding: 10px 14px;
+        justify-content: center;
     }
 
     .btn-feature .btn-feature-icon {
-        width: 36px;
-        height: 36px;
-        font-size: 16px;
+        width: 24px;
+        height: 24px;
+    }
+
+    .btn-feature .btn-feature-icon svg {
+        width: 14px;
+        height: 14px;
     }
 
     .section-header {
