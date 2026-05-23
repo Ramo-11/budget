@@ -106,6 +106,24 @@ function toggleGettingStarted() {
     }
 }
 
+// Load the tutorial video on demand (click-to-load facade).
+// The video player is a third-party embed; we only inject it after an
+// explicit user action so its controls are not present until requested.
+function loadTutorialVideo() {
+    const wrapper = document.getElementById('videoWrapper');
+    if (!wrapper) return;
+
+    const iframe = document.createElement('iframe');
+    iframe.title = 'Sahab Budget tutorial video';
+    iframe.src = 'https://embed.app.guidde.com/playbooks/gBx67acerFe4SV2D78jUn9?mode=videoOnly&autoplay=true';
+    iframe.setAttribute('frameborder', '0');
+    iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+    iframe.allowFullscreen = true;
+
+    wrapper.innerHTML = '';
+    wrapper.appendChild(iframe);
+}
+
 // Show help modal
 function showHelp() {
     const modal = document.createElement('div');

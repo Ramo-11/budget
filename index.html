@@ -119,13 +119,18 @@
                             <h3>Watch Tutorial</h3>
                             <p>Learn how to use Sahab Budget in just 3 minutes</p>
                             <div class="video-wrapper" id="videoWrapper">
-                                <iframe
-                                    src="https://embed.app.guidde.com/playbooks/gBx67acerFe4SV2D78jUn9?mode=videoOnly"
-                                    frameborder="0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowfullscreen
+                                <button
+                                    type="button"
+                                    class="video-facade"
+                                    id="videoFacade"
+                                    onclick="loadTutorialVideo()"
                                 >
-                                </iframe>
+                                    <svg class="video-facade-icon" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                                    </svg>
+                                    <span class="video-facade-label">Play tutorial video</span>
+                                </button>
                             </div>
                         </div>
 
@@ -162,8 +167,8 @@
             <!-- Upload Section -->
             <div class="upload-section">
                 <div class="upload-section-inner">
-                    <div class="file-input-wrapper">
-                        <svg class="upload-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <label class="file-input-wrapper" for="csvFile">
+                        <svg class="upload-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
@@ -176,10 +181,10 @@
                             onchange="handleFileUpload(event)"
                         />
                         <span>Upload CSV Files</span>
-                    </div>
+                    </label>
 
                     <div class="month-selector" id="monthSelector">
-                        <label>View:</label>
+                        <label for="monthDropdown">View:</label>
                         <select id="monthDropdown" onchange="switchToMonth(this.value)"></select>
                     </div>
 

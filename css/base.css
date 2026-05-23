@@ -11,7 +11,7 @@
 
 :root {
     /* Premium color palette - Deep blue/teal with vibrant accents */
-    --primary: #0891b2;
+    --primary: #0e7490;
     --primary-light: #22d3ee;
     --primary-dark: #0e7490;
     --primary-subtle: rgba(8, 145, 178, 0.08);
@@ -50,8 +50,8 @@
     --gray-800: #1e293b;
     --gray-700: #334155;
     --gray-600: #475569;
-    --gray: #64748b;
-    --gray-400: #94a3b8;
+    --gray: #5d6b7d;
+    --gray-400: #5d6b7d;
     --gray-300: #cbd5e1;
     --gray-200: #e2e8f0;
     --gray-100: #f1f5f9;
@@ -192,7 +192,7 @@ body {
 
 .nav-btn {
     background: transparent;
-    color: var(--gray-400);
+    color: var(--gray-300);
     border: none;
     padding: 8px 16px;
     border-radius: var(--radius-md);
