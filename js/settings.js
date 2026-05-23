@@ -1312,16 +1312,18 @@ function showKeywordConflictModal(newCategoryName, newIcon, newKeywords, conflic
                 </div>
                 
                 <div style="background: #e0f2fe; border: 1px solid #0284c7; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-                    <p style="color: #075985; font-size: 13px; margin: 0;">
-                        <strong>What will happen if you proceed:</strong><br>
-                        • The keyword${
-                            conflicts.length > 1 ? 's' : ''
-                        } will be <strong>moved</strong> to the new category "${newCategoryName}"<br>
-                        • Future transactions matching ${
-                            conflicts.length > 1 ? 'these keywords' : 'this keyword'
-                        } will be categorized as "${newCategoryName}"<br>
-                        • Existing categorized transactions will NOT be affected unless you reprocess them
+                    <p style="color: #075985; font-size: 13px; margin: 0 0 8px 0;">
+                        <strong>What will happen if you proceed:</strong>
                     </p>
+                    <ul style="color: #075985; font-size: 13px; margin: 0; padding-left: 20px;">
+                        <li>The keyword${
+                            conflicts.length > 1 ? 's' : ''
+                        } will be <strong>moved</strong> to the new category "${newCategoryName}"</li>
+                        <li>Future transactions matching ${
+                            conflicts.length > 1 ? 'these keywords' : 'this keyword'
+                        } will be categorized as "${newCategoryName}"</li>
+                        <li>Existing categorized transactions will NOT be affected unless you reprocess them</li>
+                    </ul>
                 </div>
                 
                 <div style="padding: 15px; background: var(--light); border-radius: 6px;">

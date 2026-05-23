@@ -834,10 +834,17 @@
 }
 
 .settings-advanced > summary::before {
-    content: '▸';
+    content: '';
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-right: 8px;
+    vertical-align: middle;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 5px solid var(--gray-400);
     transition: transform var(--transition-fast);
-    color: var(--gray-400);
-    font-size: 11px;
+    transform-origin: 2px 50%;
 }
 
 .settings-advanced[open] > summary::before {

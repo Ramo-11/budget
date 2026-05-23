@@ -422,7 +422,7 @@ function renderRecentActivity(transactions) {
                         <div class="activity-icon">${icon}</div>
                         <div class="activity-details">
                             <h5>${description.length > 30 ? description.substring(0, 30) + '...' : description}</h5>
-                            <span>${dateStr} • ${category}</span>
+                            <span>${dateStr} - ${category}</span>
                         </div>
                         <div class="activity-amount ${isIncome ? 'income' : ''}">
                             ${isIncome ? '+' : ''}$${tx.parsedAmount.toFixed(2)}
