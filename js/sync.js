@@ -30,6 +30,7 @@ function broadcastSync(eventType, payload = {}) {
         payload: payload,
         timestamp: Date.now(),
         source: window.location.pathname,
+        account: (typeof getActiveAccountId === 'function') ? getActiveAccountId() : null,
     };
 
     if (syncChannel) {
@@ -40,14 +41,16 @@ function broadcastSync(eventType, payload = {}) {
     }
 }
 
-// Handle incoming sync messages
+// Handle incoming sync messages. BroadcastChannel and storage events never fire
+// in the originating context, so we do NOT filter by source path (that wrongly
+// dropped updates from a sibling tab on the same page). We DO ignore changes
+// made in a different account than the one this tab is viewing.
 function handleSyncMessage(event) {
-    const { type, payload, source } = event.data;
+    const { type, payload, account } = event.data;
 
-    // Don't process messages from the same page
-    const currentPath = window.location.pathname;
-    if (source === currentPath) {
-        return;
+    const activeAccount = (typeof getActiveAccountId === 'function') ? getActiveAccountId() : null;
+    if (account && activeAccount && account !== activeAccount) {
+        return; // change belongs to another account
     }
 
     // Reload data from localStorage

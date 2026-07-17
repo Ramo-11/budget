@@ -2,20 +2,34 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+        <meta name="theme-color" content="#0f172a" />
+        <link rel="manifest" href="manifest.webmanifest" />
+        <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Budget" />
         <title>Analytics - Sahab Budget</title>
-        <!-- Google Fonts - Inter -->
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <script>
+            (function () {
+                try {
+                    var p = localStorage.getItem('sahabBudget_theme') || 'system';
+                    var d = p === 'dark' || (p === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                    document.documentElement.setAttribute('data-theme', d ? 'dark' : 'light');
+                } catch (e) {}
+            })();
+        </script>
+        <!-- Self-hosted Inter font (no external requests) -->
+        <link rel="stylesheet" href="css/fonts.css" />
         <!-- CSS Files -->
+        <link rel="stylesheet" href="css/theme.css" />
         <link rel="stylesheet" href="css/base.css" />
         <link rel="stylesheet" href="css/analytics.css" />
         <link rel="stylesheet" href="css/getting-started.css" />
         <link rel="icon" href="/images/logo.png" type="image/x-icon" />
 
         <!-- External Libraries -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+        <script src="js/vendor/chart.min.js"></script>
     </head>
     <body>
         <div class="container">
@@ -30,9 +44,7 @@
                         />
                         <div>
                             <h1 class="header-title">Analytics</h1>
-                            <p class="header-subtitle">
-                                Detailed insights into your spending patterns
-                            </p>
+                            <p class="header-subtitle">Spending insights</p>
                         </div>
                     </div>
 
@@ -81,38 +93,65 @@
                 </div>
             </div>
 
-            <!-- Date Range Controls (applies to whole analysis) -->
-            <div class="analytics-controls" id="analyticsControls">
-                <div class="date-range-selector">
-                    <label>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <main class="analytics-shell">
+                <!-- Tabs + date range toolbar -->
+                <div class="analytics-toolbar">
+                    <div class="analytics-tabs" id="analyticsTabs" role="tablist" aria-label="Analytics sections">
+                        <button type="button" class="tab-btn active" id="tabOverview" data-view="overview" role="tab" aria-selected="true" aria-controls="overviewView" onclick="switchView('overview')">Overview</button>
+                        <button type="button" class="tab-btn" id="tabCashflow" data-view="cashflow" role="tab" aria-selected="false" tabindex="-1" aria-controls="cashflowView" onclick="switchView('cashflow')">Cashflow</button>
+                        <button type="button" class="tab-btn" id="tabTrends" data-view="trends" role="tab" aria-selected="false" tabindex="-1" aria-controls="trendsView" onclick="switchView('trends')">Trends</button>
+                        <button type="button" class="tab-btn" id="tabCategories" data-view="categories" role="tab" aria-selected="false" tabindex="-1" aria-controls="categoriesView" onclick="switchView('categories')">Categories</button>
+                        <button type="button" class="tab-btn" id="tabMerchants" data-view="merchants" role="tab" aria-selected="false" tabindex="-1" aria-controls="merchantsView" onclick="switchView('merchants')">Merchants</button>
+                    </div>
+
+                    <div class="analytics-controls" id="analyticsControls">
+                        <div class="date-range-selector">
+                            <label class="date-range-label" for="startMonth">Range</label>
+                            <input type="month" id="startMonth" aria-label="Start month" />
+                            <span class="date-separator">to</span>
+                            <input type="month" id="endMonth" aria-label="End month" />
+                            <button type="button" class="btn btn-primary btn-sm" onclick="applyDateRange()">Apply</button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="resetDateRange()">All Time</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Global empty state (no data at all) -->
+                <div class="analytics-empty" id="analyticsEmpty" hidden>
+                    <span class="analytics-empty-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                        </svg>
+                    </span>
+                    <p class="analytics-empty-text">No data yet</p>
+                    <button type="button" class="btn btn-primary" onclick="window.location.href='index.html'">Go to Dashboard</button>
+                </div>
+
+                <!-- Range empty state (valid data, empty selection) -->
+                <div class="analytics-empty" id="rangeEmpty" hidden>
+                    <span class="analytics-empty-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
                             <line x1="16" y1="2" x2="16" y2="6"></line>
                             <line x1="8" y1="2" x2="8" y2="6"></line>
                             <line x1="3" y1="10" x2="21" y2="10"></line>
                         </svg>
-                        Date Range
-                    </label>
-                    <input type="month" id="startMonth" onchange="updateDateRange()" />
-                    <span class="date-separator">to</span>
-                    <input type="month" id="endMonth" onchange="updateDateRange()" />
-                    <button class="btn btn-primary btn-sm" onclick="applyDateRange()">Apply</button>
-                    <button class="btn btn-secondary btn-sm" onclick="resetDateRange()">All Time</button>
+                    </span>
+                    <p class="analytics-empty-text">No transactions in this range</p>
+                    <button type="button" class="btn btn-secondary" onclick="resetDateRange()">Show All Time</button>
                 </div>
-            </div>
 
-            <!-- Overview View -->
-            <div class="analytics-view active" id="overviewView">
-                <div class="overview-container">
-                    <!-- Quick Stats Row -->
+                <!-- Overview View -->
+                <section class="analytics-view active" id="overviewView" role="tabpanel" aria-labelledby="tabOverview">
                     <div class="quick-stats" id="quickStats"></div>
 
-                    <!-- Main Insights Grid (deduped: full Top Categories, Top Merchants & monthly chart live in their own sections below) -->
                     <div class="insights-grid">
-                        <div class="insight-card spending-summary">
+                        <div class="insight-card">
                             <div class="insight-header">
                                 <h3>
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                         <line x1="12" y1="1" x2="12" y2="23"></line>
                                         <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                                     </svg>
@@ -122,10 +161,10 @@
                             <div class="insight-content" id="spendingSummary"></div>
                         </div>
 
-                        <div class="insight-card recent-activity">
+                        <div class="insight-card">
                             <div class="insight-header">
                                 <h3>
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                         <circle cx="12" cy="12" r="10"></circle>
                                         <polyline points="12 6 12 12 16 14"></polyline>
                                     </svg>
@@ -135,48 +174,76 @@
                             <div class="insight-content" id="recentActivity"></div>
                         </div>
                     </div>
-                </div>
-            </div>
+                </section>
 
-            <!-- Trends View -->
-            <div class="analytics-view" id="trendsView">
-                <div class="stats-grid" id="trendsStats"></div>
-                <div class="chart-container">
-                    <h3>Monthly Spending by Category</h3>
-                    <canvas id="trendsChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Categories View -->
-            <div class="analytics-view" id="categoriesView">
-                <div class="categories-container">
-                    <div class="chart-container category-chart">
-                        <h3>Spending by Category</h3>
-                        <canvas id="categoryChart"></canvas>
+                <!-- Cashflow View -->
+                <section class="analytics-view" id="cashflowView" role="tabpanel" aria-labelledby="tabCashflow">
+                    <div class="cashflow-hero" id="cashflowHero"></div>
+                    <div class="chart-card">
+                        <h3>Income vs Spending</h3>
+                        <div class="chart-canvas">
+                            <canvas id="cashflowChart"></canvas>
+                        </div>
                     </div>
-                    <div class="category-breakdown" id="categoryBreakdown"></div>
-                </div>
-            </div>
+                </section>
 
-            <!-- Merchants View -->
-            <div class="analytics-view" id="merchantsView">
-                <div class="merchants-container">
-                    <div class="chart-container merchant-chart">
-                        <h3>Top 10 Merchants</h3>
-                        <canvas id="merchantChart"></canvas>
+                <!-- Trends View -->
+                <section class="analytics-view" id="trendsView" role="tabpanel" aria-labelledby="tabTrends">
+                    <div class="stats-grid" id="trendsStats"></div>
+                    <div class="chart-card">
+                        <h3>Monthly Spending by Category</h3>
+                        <div class="chart-canvas">
+                            <canvas id="trendsChart"></canvas>
+                        </div>
+                        <p class="chart-empty" hidden>No expenses in this range</p>
                     </div>
-                    <div class="merchant-list" id="merchantList"></div>
-                </div>
-            </div>
+                </section>
 
+                <!-- Categories View -->
+                <section class="analytics-view" id="categoriesView" role="tabpanel" aria-labelledby="tabCategories">
+                    <div class="categories-container">
+                        <div class="chart-card category-chart">
+                            <h3>Spending by Category</h3>
+                            <div class="chart-canvas">
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                            <p class="chart-empty" hidden>No expenses in this range</p>
+                        </div>
+                        <div class="category-breakdown" id="categoryBreakdown"></div>
+                    </div>
+                </section>
+
+                <!-- Merchants View -->
+                <section class="analytics-view" id="merchantsView" role="tabpanel" aria-labelledby="tabMerchants">
+                    <div class="merchants-container">
+                        <div class="chart-card merchant-chart">
+                            <h3>Top Merchants</h3>
+                            <div class="chart-canvas" id="merchantCanvasWrap">
+                                <canvas id="merchantChart"></canvas>
+                            </div>
+                            <p class="chart-empty" hidden>No expenses in this range</p>
+                        </div>
+                        <div class="merchant-list" id="merchantList"></div>
+                    </div>
+                </section>
+            </main>
         </div>
 
         <!-- JavaScript Files -->
+        <script src="js/theme.js"></script>
+        <script src="js/icons.js"></script>
+        <script src="js/accounts.js"></script>
+        <script src="js/lock.js"></script>
+        <script src="js/undo.js"></script>
         <script src="js/sync.js"></script>
         <script src="js/core.js"></script>
         <script src="js/utils.js"></script>
+        <script src="js/recurring.js"></script>
+        <script src="js/transfers.js"></script>
+        <script src="js/insights-ui.js"></script>
         <script src="js/analytics.js"></script>
         <script src="js/getting-started.js"></script>
         <script src="js/mobile.js"></script>
+        <script src="js/pwa.js"></script>
     </body>
 </html>

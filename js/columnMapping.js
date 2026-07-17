@@ -80,9 +80,9 @@ const knownBankFormats = {
 
 // Detect if CSV matches a known bank format
 function detectBankFormat(headers) {
-    // First check saved custom mappings
+    // First check saved custom mappings (copy before sorting; .sort() mutates)
     for (const [bankId, mapping] of Object.entries(window.savedBankMappings)) {
-        if (mapping.headers && arraysEqual(mapping.headers.sort(), headers.sort())) {
+        if (mapping.headers && arraysEqual(mapping.headers.slice().sort(), headers.slice().sort())) {
             return {
                 type: 'custom',
                 name: mapping.bankName,
@@ -256,17 +256,76 @@ function applyColumnMapping() {
     window.pendingCsvFiles = null;
 }
 
+// Parse a CSV amount cell robustly. Handles "$1,234.56", "(45.00)" (negative),
+// "1.234,56" (decimal comma), "45.00-" (trailing minus), and plain numbers.
+// Returns NaN when the cell cannot be read as a number.
+function parseCsvAmount(value) {
+    if (typeof value === 'number') return isFinite(value) ? value : NaN;
+    if (value == null) return NaN;
+
+    let s = String(value).trim();
+    if (!s) return NaN;
+
+    let negative = false;
+    if (/^\(.*\)$/.test(s)) {
+        negative = true;
+        s = s.slice(1, -1);
+    }
+    if (s.startsWith('-')) {
+        negative = true;
+        s = s.slice(1);
+    }
+    if (s.endsWith('-')) {
+        negative = true;
+        s = s.slice(0, -1);
+    }
+
+    // Strip currency symbols, spaces, and any other non-numeric characters
+    s = s.replace(/[^0-9.,]/g, '');
+    if (!s) return NaN;
+
+    const hasComma = s.includes(',');
+    const hasDot = s.includes('.');
+    if (hasComma && hasDot) {
+        // Whichever separator comes last is the decimal separator
+        if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+            s = s.replace(/\./g, '').replace(',', '.');
+        } else {
+            s = s.replace(/,/g, '');
+        }
+    } else if (hasComma) {
+        const parts = s.split(',');
+        if (parts.length === 2 && parts[1].length !== 3) {
+            s = parts.join('.'); // decimal comma: 1234,56
+        } else {
+            s = parts.join(''); // thousands: 1,234 or 1,234,567
+        }
+    }
+
+    const parsed = parseFloat(s);
+    if (!isFinite(parsed)) return NaN;
+    return negative ? -parsed : parsed;
+}
+
 // Process transactions using custom column mapping
 function processTransactionsWithMapping(transactions, mapping) {
     const normalizedTransactions = [];
+    let unreadable = 0;
 
     transactions.forEach(row => {
         const dateValue = row[mapping.dateColumn];
         const descValue = row[mapping.descriptionColumn];
-        let amountValue = parseFloat(row[mapping.amountColumn]) || 0;
+        let amountValue = parseCsvAmount(row[mapping.amountColumn]);
 
         // Skip if missing required fields
         if (!dateValue || !descValue) return;
+
+        // Do not silently drop rows: count unreadable amounts and report them
+        if (isNaN(amountValue)) {
+            unreadable++;
+            return;
+        }
+        if (amountValue === 0) return;
 
         // Handle amount sign based on bank convention
         if (mapping.negativeIsExpense) {
@@ -289,7 +348,8 @@ function processTransactionsWithMapping(transactions, mapping) {
     });
 
     if (normalizedTransactions.length === 0) {
-        showNotification('No valid expense transactions found', 'error');
+        const detail = unreadable > 0 ? ` (${unreadable} rows had unreadable amounts)` : '';
+        showNotification('No valid expense transactions found' + detail, 'error');
         const fileInput = document.getElementById('csvFile');
         if (fileInput) fileInput.value = '';
         return;
@@ -311,8 +371,11 @@ function processTransactionsWithMapping(transactions, mapping) {
     if (processResult.duplicates > 0) {
         message += ` (${processResult.duplicates} duplicates skipped)`;
     }
+    if (unreadable > 0) {
+        message += ` (${unreadable} rows had unreadable amounts)`;
+    }
     if (processResult.added > 0) {
-        message += ` - ${processResult.added} new expenses added`;
+        message += `: ${processResult.added} new expenses added`;
     }
     showNotification(message, 'success');
 
@@ -322,12 +385,8 @@ function processTransactionsWithMapping(transactions, mapping) {
     }, 1000);
 }
 
-// Helper to escape HTML
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
+// Note: HTML escaping uses the canonical window.escapeHtml from utils.js
+// (it also encodes quotes, so it is safe inside attribute values).
 
 // Initialize on load
 window.addEventListener('DOMContentLoaded', () => {
@@ -338,3 +397,4 @@ window.addEventListener('DOMContentLoaded', () => {
 window.detectBankFormat = detectBankFormat;
 window.showColumnMappingModal = showColumnMappingModal;
 window.findColumn = findColumn;
+window.parseCsvAmount = parseCsvAmount;

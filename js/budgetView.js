@@ -1,481 +1,294 @@
-// js/budgetview.js - Budget Goals View Module
-
-let budgetViewChart = null;
+// js/budgetView.js - Budget Goals modal (spending vs budget, per category)
+// Spending is computed via window.computeSpendingSummary (comparison.js),
+// which excludes income categories, income-flagged transactions, and
+// categories excluded from totals. Budgets and spending always use the same
+// basis: single month vs that month's budget, all months vs the sum of the
+// budgets for the months present.
 
 // Open budget goals view
 function openBudgetGoals() {
+    const existing = document.getElementById('budgetGoalsModal');
+    if (existing) existing.remove();
+
     const modal = document.createElement('div');
     modal.className = 'modal show';
     modal.id = 'budgetGoalsModal';
 
-    // Get current viewing context (month or all data)
-    const viewingMonth =
-        currentMonth === 'ALL_DATA'
-            ? 'ALL_DATA'
-            : currentMonth === 'CUSTOM_RANGE'
-            ? 'CUSTOM_RANGE'
-            : currentMonth;
+    // Current viewing context (specific month, all data, or custom range)
+    let viewingMonth = 'ALL_DATA';
+    if (currentMonth === 'CUSTOM_RANGE' && window.customDateRange) {
+        viewingMonth = 'CUSTOM_RANGE';
+    } else if (currentMonth && currentMonth !== 'ALL_DATA' && monthlyData.has(currentMonth)) {
+        viewingMonth = currentMonth;
+    }
 
     modal.innerHTML = `
-        <div class="modal-content" style="width: 90%; max-width: 1200px;">
+        <div class="modal-content bgv-modal">
             <div class="modal-header">
-                <h2>Budget Goals Overview</h2>
-                <button class="close-btn" onclick="closeBudgetGoalsModal()">&times;</button>
+                <h2>Budget Goals</h2>
+                <button class="close-btn" onclick="closeBudgetGoalsModal()" aria-label="Close">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="budget-view-controls">
-                    <div class="view-selector">
-                        <label>View:</label>
-                        <select id="budgetViewSelector" onchange="updateBudgetGoalsView(this.value)">
-                            ${generateBudgetViewOptions(viewingMonth)}
-                        </select>
-                    </div>
-                    <div class="budget-summary" id="budgetSummary"></div>
+                <div class="bgv-toolbar">
+                    <label class="bgv-toolbar-label" for="budgetViewSelector">Period</label>
+                    <select id="budgetViewSelector" class="bgv-select" onchange="updateBudgetGoalsView(this.value)">
+                        ${generateBudgetViewOptions(viewingMonth)}
+                    </select>
                 </div>
-                
-                <div class="budget-view-content">
-                    <div class="budget-charts-container">
-                        <div class="budget-chart-wrapper" style="max-width: 500px;">
-                            <canvas id="budgetProgressChart"></canvas>
-                        </div>
-                        <div class="budget-categories-overview" id="budgetCategoriesOverview"></div>
-                    </div>
-                    <div class="budget-details-table" id="budgetDetailsTable"></div>
-                </div>
+                <div id="budgetSummary"></div>
+                <div id="budgetCategoriesOverview" class="bgv-list"></div>
             </div>
         </div>
     `;
 
-    document.body.appendChild(modal);
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) closeBudgetGoalsModal();
+    });
 
-    // Initialize view
-    setTimeout(() => {
-        updateBudgetGoalsView(viewingMonth);
-    }, 100);
+    document.body.appendChild(modal);
+    updateBudgetGoalsView(viewingMonth);
 }
 
 // Generate budget view options
 function generateBudgetViewOptions(selectedValue) {
-    let options = '<option value="ALL_DATA">All Months Combined</option>';
-    options += '<option disabled>──────────</option>';
+    let options = `<option value="ALL_DATA" ${
+        selectedValue === 'ALL_DATA' ? 'selected' : ''
+    }>All Months Combined</option>`;
+
+    if (window.customDateRange) {
+        options += `<option value="CUSTOM_RANGE" ${
+            selectedValue === 'CUSTOM_RANGE' ? 'selected' : ''
+        }>Custom Date Range</option>`;
+    }
 
     const months = Array.from(monthlyData.keys()).sort().reverse();
     months.forEach((monthKey) => {
         const monthData = monthlyData.get(monthKey);
         const selected = monthKey === selectedValue ? 'selected' : '';
-        options += `<option value="${monthKey}" ${selected}>${monthData.monthName}</option>`;
+        options += `<option value="${escapeHtml(monthKey)}" ${selected}>${escapeHtml(
+            monthData.monthName
+        )}</option>`;
     });
 
     return options;
 }
 
+// Sum budgets per category across the given month keys, spending categories only.
+function sumBudgetsForMonths(monthKeys) {
+    const combined = {};
+    monthKeys.forEach((monthKey) => {
+        const monthBudgets = budgets[monthKey] || {};
+        Object.entries(monthBudgets).forEach(([category, amount]) => {
+            const value = Number(amount);
+            if (!Number.isFinite(value) || value <= 0) return;
+            if (!window.isSpendingCategory(category)) return;
+            combined[category] = (combined[category] || 0) + value;
+        });
+    });
+    return combined;
+}
+
 // Update budget goals view
 function updateBudgetGoalsView(viewKey) {
     let transactions = [];
-    let viewLabel = '';
     let monthlyBudgets = {};
+    let caption = '';
 
     if (viewKey === 'ALL_DATA') {
-        // Aggregate all transactions and budgets
+        const monthKeys = Array.from(monthlyData.keys());
         monthlyData.forEach((monthData) => {
             transactions.push(...monthData.transactions);
         });
-        viewLabel = 'All Data Combined';
-
-        // Aggregate budgets (use average or sum)
-        const allBudgets = {};
-        let monthCount = 0;
-
-        Object.keys(budgets).forEach((monthKey) => {
-            monthCount++;
-            Object.entries(budgets[monthKey]).forEach(([category, amount]) => {
-                if (!allBudgets[category]) allBudgets[category] = 0;
-                allBudgets[category] += amount;
-            });
-        });
-
-        // Use average monthly budget for all data view
-        Object.keys(allBudgets).forEach((category) => {
-            monthlyBudgets[category] = allBudgets[category] / Math.max(1, monthCount);
-        });
+        monthlyBudgets = sumBudgetsForMonths(monthKeys);
+        caption =
+            monthKeys.length > 1
+                ? 'Total spending vs budgets summed across ' + monthKeys.length + ' months'
+                : '';
     } else if (viewKey === 'CUSTOM_RANGE' && window.customDateRange) {
-        const start = new Date(window.customDateRange.start);
-        const end = new Date(window.customDateRange.end);
+        const start = window.parseLocalDate(window.customDateRange.start);
+        const end = window.parseLocalDate(window.customDateRange.end);
+        end.setHours(23, 59, 59, 999);
 
         monthlyData.forEach((data) => {
             data.transactions.forEach((t) => {
-                const date = new Date(t['Transaction Date'] || t.Date || t.date);
-                if (date >= start && date <= end) {
+                const date = window.parseLocalDate(t['Transaction Date'] || t.Date || t.date);
+                if (!isNaN(date.getTime()) && date >= start && date <= end) {
                     transactions.push(t);
                 }
             });
         });
 
-        viewLabel = `Custom Range: ${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
-        // Use most recent month's budget for custom range
-        const recentMonth = Array.from(monthlyData.keys()).sort().reverse()[0];
-        monthlyBudgets = budgets[recentMonth] || {};
+        // Budgets for the months the range touches (consistent basis)
+        const startKey = window.monthKeyFromDate(start);
+        const endKey = window.monthKeyFromDate(end);
+        const monthKeys = Array.from(monthlyData.keys()).filter(
+            (key) => key >= startKey && key <= endKey
+        );
+        monthlyBudgets = sumBudgetsForMonths(monthKeys);
+        caption =
+            monthKeys.length > 1
+                ? 'Range spending vs budgets summed across ' + monthKeys.length + ' months'
+                : '';
     } else {
-        // Single month view
         const monthData = monthlyData.get(viewKey);
         if (monthData) {
             transactions = monthData.transactions;
-            viewLabel = monthData.monthName;
-            monthlyBudgets = budgets[viewKey] || {};
+            const monthBudgets = {};
+            Object.entries(budgets[viewKey] || {}).forEach(([category, amount]) => {
+                const value = Number(amount);
+                if (Number.isFinite(value) && value > 0 && window.isSpendingCategory(category)) {
+                    monthBudgets[category] = value;
+                }
+            });
+            monthlyBudgets = monthBudgets;
         }
     }
 
-    const analyzer = analyzeTransactions(transactions);
+    const summary = window.computeSpendingSummary(transactions);
 
-    // Update summary
-    updateBudgetSummary(analyzer, monthlyBudgets, viewLabel);
-
-    // Update chart
-    updateBudgetProgressChart(analyzer, monthlyBudgets);
-
-    // Update categories overview
-    updateBudgetCategoriesOverview(analyzer, monthlyBudgets);
-
-    // Update details table
-    updateBudgetDetailsTable(analyzer, monthlyBudgets);
+    renderBudgetSummary(summary, monthlyBudgets, caption);
+    renderBudgetCategories(summary, monthlyBudgets);
 }
 
-// Update budget summary
-function updateBudgetSummary(analyzer, monthlyBudgets, viewLabel) {
+// Summary tiles + overall progress bar
+function renderBudgetSummary(summary, monthlyBudgets, caption) {
+    const container = document.getElementById('budgetSummary');
+    if (!container) return;
+
     const totalBudget = Object.values(monthlyBudgets).reduce((a, b) => a + b, 0);
-    const totalSpent = analyzer.totalExpenses;
+    const totalSpent = summary.total;
     const remaining = totalBudget - totalSpent;
     const percentUsed = totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
-    // Check if no budget is set
     if (totalBudget === 0) {
-        const summaryHTML = `
-            <div style="background: #fef3c7; border: 1px solid #fbbf24; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                    <span style="font-size: 24px;">⚠️</span>
-                    <strong style="color: #92400e; font-size: 16px;">No Budget Goals Set</strong>
-                </div>
-                <p style="color: #78350f; margin-bottom: 10px; font-size: 14px;">
-                    You haven't set any budget goals for this period. Budget goals help you track and control your spending.
-                </p>
-                <p style="color: #78350f; font-size: 13px;">
-                    <strong>How to set budget goals:</strong> Go to <strong>Settings → Categories & Budgets</strong>, 
-                    select the month you want to budget for, and enter budget amounts for each category.
-                </p>
-            </div>
-            <div class="summary-stats">
-                <div class="summary-stat">
-                    <span class="summary-label">Period:</span>
-                    <strong>${viewLabel}</strong>
-                </div>
-                <div class="summary-stat">
-                    <span class="summary-label">Total Spent:</span>
-                    <strong>$${totalSpent.toFixed(2)}</strong>
-                </div>
-                <div class="summary-stat">
-                    <span class="summary-label">Transactions:</span>
-                    <strong>${analyzer.transactionCount}</strong>
-                </div>
+        container.innerHTML = `
+            <div class="bgv-empty">
+                <p>No budget goals for this period. Spent so far: <strong>${formatMoney(
+                    totalSpent
+                )}</strong></p>
+                <a class="btn btn-primary btn-sm" href="settings.html">Set budgets</a>
             </div>
         `;
-
-        document.getElementById('budgetSummary').innerHTML = summaryHTML;
         return;
     }
 
-    // Original summary when budget exists
-    const summaryHTML = `
-        <div class="summary-stats">
-            <div class="summary-stat">
-                <span class="summary-label">Period:</span>
-                <strong>${viewLabel}</strong>
+    const usedClass = percentUsed > 100 ? 'negative' : percentUsed > 85 ? 'warning' : 'positive';
+    const barClass = percentUsed > 100 ? 'over' : percentUsed > 85 ? 'warn' : '';
+
+    container.innerHTML = `
+        <div class="bgv-stats">
+            <div class="bgv-stat">
+                <span>Budget</span>
+                <strong>${formatMoney(totalBudget)}</strong>
             </div>
-            <div class="summary-stat">
-                <span class="summary-label">Total Budget:</span>
-                <strong>$${totalBudget.toFixed(2)}</strong>
+            <div class="bgv-stat">
+                <span>Spent</span>
+                <strong>${formatMoney(totalSpent)}</strong>
             </div>
-            <div class="summary-stat">
-                <span class="summary-label">Total Spent:</span>
-                <strong>$${totalSpent.toFixed(2)}</strong>
+            <div class="bgv-stat">
+                <span>${remaining >= 0 ? 'Left' : 'Over'}</span>
+                <strong class="${remaining >= 0 ? 'positive' : 'negative'}">${formatMoney(
+        remaining
+    )}</strong>
             </div>
-            <div class="summary-stat">
-                <span class="summary-label">Remaining:</span>
-                <strong class="${remaining >= 0 ? 'positive' : 'negative'}">
-                    ${remaining >= 0 ? '+' : ''}$${Math.abs(remaining).toFixed(2)}
-                </strong>
-            </div>
-            <div class="summary-stat">
-                <span class="summary-label">Used:</span>
-                <strong class="${
-                    percentUsed > 100 ? 'negative' : percentUsed > 80 ? 'warning' : 'positive'
-                }">
-                    ${percentUsed.toFixed(1)}%
-                </strong>
+            <div class="bgv-stat">
+                <span>Used</span>
+                <strong class="${usedClass}">${percentUsed.toFixed(0)}%</strong>
             </div>
         </div>
+        <div class="bgv-overall">
+            <div class="bgv-overall-fill ${barClass}" style="width: ${Math.min(
+        percentUsed,
+        100
+    )}%"></div>
+        </div>
+        ${caption ? `<p class="bgv-caption">${caption}</p>` : ''}
     `;
-
-    document.getElementById('budgetSummary').innerHTML = summaryHTML;
 }
 
-// Update budget progress chart
-function updateBudgetProgressChart(analyzer, monthlyBudgets) {
-    // Destroy existing chart
-    if (budgetViewChart) {
-        budgetViewChart.destroy();
-    }
+// Per-category rows: icon chip + name + spent/budget + progress bar
+function renderBudgetCategories(summary, monthlyBudgets) {
+    const container = document.getElementById('budgetCategoriesOverview');
+    if (!container) return;
 
-    const categories = Object.keys(categoryConfig).sort((a, b) => {
-        if (a === 'Others') return 1;
-        if (b === 'Others') return -1;
-        return a.localeCompare(b);
-    });
-
-    const budgetData = [];
-    const spentData = [];
-    const labels = [];
-    const colors = [];
-
-    categories.forEach((category, index) => {
+    const categories = [
+        ...new Set([...Object.keys(summary.byCategory), ...Object.keys(monthlyBudgets)]),
+    ].filter((category) => {
+        if (!window.isSpendingCategory(category)) return false;
+        const spent = summary.byCategory[category] || 0;
         const budget = monthlyBudgets[category] || 0;
-        const spent = analyzer.categoryTotals[category] || 0;
+        return spent > 0 || budget > 0;
+    });
 
-        if (budget > 0 || spent > 0) {
-            labels.push(category);
-            budgetData.push(budget);
-            spentData.push(spent);
-
-            // Color based on budget status
-            if (spent > budget) {
-                colors.push('rgba(239, 68, 68, 0.7)'); // Red for over budget
-            } else if (spent > budget * 0.8) {
-                colors.push('rgba(245, 158, 11, 0.7)'); // Yellow for warning
-            } else {
-                colors.push('rgba(16, 185, 129, 0.7)'); // Green for good
-            }
+    // Budgeted categories first (most used first), then unbudgeted by spend.
+    categories.sort((a, b) => {
+        const budgetA = monthlyBudgets[a] || 0;
+        const budgetB = monthlyBudgets[b] || 0;
+        if (budgetA > 0 && budgetB > 0) {
+            const pctA = (summary.byCategory[a] || 0) / budgetA;
+            const pctB = (summary.byCategory[b] || 0) / budgetB;
+            return pctB - pctA;
         }
-    });
-
-    const ctx = document.getElementById('budgetProgressChart').getContext('2d');
-    budgetViewChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Budget',
-                    data: budgetData,
-                    backgroundColor: 'rgba(79, 70, 229, 0.3)',
-                    borderColor: 'rgba(79, 70, 229, 1)',
-                    borderWidth: 2,
-                },
-                {
-                    label: 'Spent',
-                    data: spentData,
-                    backgroundColor: colors,
-                    borderColor: colors.map((c) => c.replace('0.7', '1')),
-                    borderWidth: 2,
-                },
-            ],
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: {
-                    display: true,
-                    text: 'Budget vs Actual Spending',
-                },
-                legend: {
-                    position: 'bottom',
-                },
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: (value) => '$' + value.toFixed(0),
-                    },
-                },
-            },
-        },
-    });
-}
-
-// Update budget categories overview
-function updateBudgetCategoriesOverview(analyzer, monthlyBudgets) {
-    const categories = Object.keys(categoryConfig).sort((a, b) => {
-        if (a === 'Others') return 1;
-        if (b === 'Others') return -1;
-        return a.localeCompare(b);
-    });
-
-    const cardsHTML = categories
-        .map((category) => {
-            const budget = monthlyBudgets[category] || 0;
-            const spent = analyzer.categoryTotals[category] || 0;
-            const remaining = budget - spent;
-            const percentage = budget > 0 ? (spent / budget) * 100 : 0;
-            const icon = categoryConfig[category]?.icon || '📦';
-
-            if (budget === 0 && spent === 0) return ''; // Skip categories with no activity
-
-            const statusClass =
-                budget > 0
-                    ? percentage > 100
-                        ? 'over-budget'
-                        : percentage > 80
-                        ? 'warning-budget'
-                        : 'within-budget'
-                    : 'no-budget';
-
-            const noBudgetWarning =
-                budget === 0
-                    ? `
-    <div class="no-budget-warning" title="No budget set. Go to Settings → Categories & Budgets">
-        <span style="cursor: help;">⚠️</span>
-    </div>
-`
-                    : '';
-
-            return `
-            <div class="budget-category-card ${statusClass}">
-                ${noBudgetWarning}
-                <div class="category-header">
-                    <span class="category-icon">${icon}</span>
-                    <span class="category-name">${category}</span>
-                </div>
-                <div class="category-amounts">
-                    <div class="amount-row">
-                        <span>Budget:</span>
-                        <strong>${budget > 0 ? '$' + budget.toFixed(2) : 'Not set'}</strong>
-                    </div>
-                    <div class="amount-row">
-                        <span>Spent:</span>
-                        <strong>$${spent.toFixed(2)}</strong>
-                    </div>
-                    ${
-                        budget > 0
-                            ? `
-                        <div class="amount-row">
-                            <span>Remaining:</span>
-                            <strong class="${remaining >= 0 ? 'positive' : 'negative'}">
-                                $${Math.abs(remaining).toFixed(2)}
-                            </strong>
-                        </div>
-                    `
-                            : ''
-                    }
-                </div>
-                ${
-                    budget > 0
-                        ? `
-                    <div class="category-progress">
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${Math.min(
-                                percentage,
-                                100
-                            )}%"></div>
-                        </div>
-                        <span class="progress-text">${percentage.toFixed(0)}%</span>
-                    </div>
-                `
-                        : `
-                    <div style="font-size: 11px; color: var(--gray); font-style: italic; margin-top: 8px;">
-                        No budget goal set
-                    </div>
-                `
-                }
-            </div>
-        `;
-        })
-        .filter((html) => html !== '')
-        .join('');
-
-    document.getElementById('budgetCategoriesOverview').innerHTML =
-        cardsHTML ||
-        '<p style="text-align: center; color: var(--gray);">No budget data available</p>';
-}
-
-// Update budget details table
-function updateBudgetDetailsTable(analyzer, monthlyBudgets) {
-    const categories = Object.keys(categoryConfig).sort((a, b) => {
-        if (a === 'Others') return 1;
-        if (b === 'Others') return -1;
-        return a.localeCompare(b);
+        if (budgetA > 0) return -1;
+        if (budgetB > 0) return 1;
+        return (summary.byCategory[b] || 0) - (summary.byCategory[a] || 0);
     });
 
     const rows = categories
         .map((category) => {
+            const spent = summary.byCategory[category] || 0;
             const budget = monthlyBudgets[category] || 0;
-            const spent = analyzer.categoryTotals[category] || 0;
-            const remaining = budget - spent;
-            const percentage = budget > 0 ? (spent / budget) * 100 : 0;
-            const icon = categoryConfig[category]?.icon || '📦';
-            const transactionCount = analyzer.categoryDetails[category]?.length || 0;
 
-            if (budget === 0 && spent === 0) return ''; // Skip inactive categories
+            let statusClass = 'nobudget';
+            let fillColor = getCategoryColorVar(category);
+            let width = 0;
+            let deltaClass = 'muted';
+            let deltaText = 'No budget';
 
-            const statusColor = remaining >= 0 ? 'var(--success)' : 'var(--danger)';
+            if (budget > 0) {
+                const percentage = (spent / budget) * 100;
+                width = Math.min(percentage, 100);
+                if (spent > 0 && width < 2) width = 2;
+
+                if (percentage > 100) {
+                    statusClass = 'over';
+                    fillColor = 'var(--danger)';
+                    deltaClass = 'negative';
+                    deltaText = formatMoney(spent - budget) + ' over';
+                } else {
+                    statusClass = percentage > 85 ? 'warn' : 'ok';
+                    deltaClass = 'positive';
+                    deltaText = formatMoney(budget - spent) + ' left';
+                }
+            }
 
             return `
-            <tr>
-                <td><span class="table-icon">${icon}</span> ${category}</td>
-                <td class="amount">$${budget.toFixed(2)}</td>
-                <td class="amount">$${spent.toFixed(2)}</td>
-                <td class="amount" style="color: ${statusColor}; font-weight: 600;">
-                    ${remaining >= 0 ? '+' : '-'}$${Math.abs(remaining).toFixed(2)}
-                </td>
-                <td class="center">${transactionCount}</td>
-                <td class="center">
-                    <div class="inline-progress">
-                        <div class="inline-progress-bar">
-                            <div class="inline-progress-fill ${
-                                percentage > 100 ? 'danger' : percentage > 80 ? 'warning' : ''
-                            }" 
-                                 style="width: ${Math.min(percentage, 100)}%"></div>
-                        </div>
-                        <span class="progress-label">${percentage.toFixed(0)}%</span>
+            <div class="bgv-row ${statusClass}">
+                ${getCategoryIconChip(category, { size: 36, icon: 18 })}
+                <div class="bgv-row-main">
+                    <div class="bgv-row-top">
+                        <span class="bgv-name">${escapeHtml(category)}</span>
+                        <span class="bgv-nums">
+                            <strong>${formatMoney(spent)}</strong>${
+                budget > 0 ? '<span class="bgv-of"> of ' + formatMoney(budget) + '</span>' : ''
+            }
+                        </span>
                     </div>
-                </td>
-            </tr>
+                    <div class="bgv-bar">
+                        <div class="bgv-bar-fill" style="width: ${width}%; background: ${fillColor};"></div>
+                    </div>
+                </div>
+                <span class="bgv-delta ${deltaClass}">${deltaText}</span>
+            </div>
         `;
         })
-        .filter((row) => row !== '')
         .join('');
 
-    const tableHTML = `
-        <h3>Detailed Budget Breakdown</h3>
-        <table class="budget-table">
-            <thead>
-                <tr>
-                    <th>Category</th>
-                    <th>Budget</th>
-                    <th>Spent</th>
-                    <th>Difference</th>
-                    <th>Transactions</th>
-                    <th>Progress</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${
-                    rows ||
-                    '<tr><td colspan="6" style="text-align: center;">No budget data available</td></tr>'
-                }
-            </tbody>
-        </table>
-    `;
-
-    document.getElementById('budgetDetailsTable').innerHTML = tableHTML;
+    container.innerHTML = rows || '<p class="bgv-none">No spending in this period.</p>';
 }
 
 // Close budget goals modal
 function closeBudgetGoalsModal() {
-    if (budgetViewChart) {
-        budgetViewChart.destroy();
-        budgetViewChart = null;
-    }
-
     const modal = document.getElementById('budgetGoalsModal');
     if (modal) {
         modal.remove();

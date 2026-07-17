@@ -1,14 +1,54 @@
 // js/utils.js - Utility Functions
 
+// Canonical HTML escaper. Encodes &, <, >, ", ' so untrusted strings (CSV
+// descriptions, category names, rule fields, restored backups) are safe in both
+// text and quoted-attribute contexts. Use everywhere before interpolating
+// untrusted data into innerHTML.
+window.escapeHtml = function (value) {
+    if (value == null) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+};
+// Alias for readability when escaping specifically for an attribute value.
+window.escapeAttr = window.escapeHtml;
+
+// Collect the transactions currently in view, honoring ALL_DATA / CUSTOM_RANGE.
+function getTransactionsForCurrentView() {
+    if (currentMonth === 'ALL_DATA') {
+        const all = [];
+        monthlyData.forEach((m) => all.push(...m.transactions));
+        return all;
+    }
+    if (currentMonth === 'CUSTOM_RANGE' && window.customDateRange) {
+        const start = new Date(window.customDateRange.start);
+        const end = new Date(window.customDateRange.end);
+        end.setHours(23, 59, 59, 999);
+        const out = [];
+        monthlyData.forEach((m) => {
+            m.transactions.forEach((t) => {
+                const d = new Date(t['Transaction Date'] || t.Date || t.date);
+                if (d >= start && d <= end) out.push(t);
+            });
+        });
+        return out;
+    }
+    if (currentMonth && monthlyData.has(currentMonth)) {
+        return monthlyData.get(currentMonth).transactions;
+    }
+    return null;
+}
+
 // Export to CSV
 function exportToCSV() {
-    if (!currentMonth || !monthlyData.has(currentMonth)) {
+    const transactions = getTransactionsForCurrentView();
+    if (!transactions) {
         showNotification('No data to export', 'error');
         return;
     }
-
-    const monthData = monthlyData.get(currentMonth);
-    const transactions = monthData.transactions;
 
     if (transactions.length === 0) {
         showNotification('No transactions to export', 'error');
@@ -44,7 +84,8 @@ function exportToCSV() {
     });
 
     // Download file
-    const fileName = `budget_${currentMonth}.csv`;
+    const label = (currentMonth || 'export').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const fileName = `budget_${label}.csv`;
     downloadFile(csvContent, fileName, 'text/csv');
 }
 

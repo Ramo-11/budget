@@ -11,19 +11,19 @@ let monthlyData = new Map();
 let categoryConfig = {
     Transfers: {
         keywords: ['ZELLE', 'ONLINE TRANSFER', 'ACCT_XFER', 'WIRE', 'QUICKPAY', 'VENMO', 'CASHAPP'],
-        icon: '💸',
+        icon: '',
     },
     Banking: {
         keywords: ['FEE', 'INTEREST', 'OVERDRAFT', 'SERVICE CHARGE', 'ATM'],
-        icon: '🏦',
+        icon: '',
     },
     Groceries: {
         keywords: ['COSTCO', 'WALMART', 'KROGER', 'WHOLE FOODS', 'TARGET', 'ALDI'],
-        icon: '🛒',
+        icon: '',
     },
     Gas: {
         keywords: ['BP', 'SHELL', 'EXXON', 'FUEL', 'GAS'],
-        icon: '⛽',
+        icon: '',
     },
     Subscriptions: {
         keywords: [
@@ -40,64 +40,64 @@ let categoryConfig = {
             'MICROSOFT',
             'ADOBE',
         ],
-        icon: '🔄',
+        icon: '',
     },
     'Coffee and Tea': {
         keywords: ['CAFE', 'COFFEE', 'ESPRESSO', 'TEA HOUSE', 'JAVA'],
-        icon: '☕',
+        icon: '',
     },
     'Food & Drink': {
         keywords: ['RESTAURANT', 'PIZZA', 'BURGER', 'GRILL', 'TACO', 'SUSHI', 'DINER'],
-        icon: '🍽️',
+        icon: '',
     },
     Shopping: {
         keywords: ['AMAZON', 'AMZN', 'TARGET', 'WALMART', 'BEST BUY'],
-        icon: '🛍️',
+        icon: '',
     },
     Rent: {
         keywords: ['RENT', 'APARTMENT', 'HOUSING'],
-        icon: '🏠',
+        icon: '',
     },
     Insurance: {
         keywords: ['INSURANCE', 'STATE FARM', 'ALLSTATE', 'GEICO'],
-        icon: '🛡️',
+        icon: '',
     },
     Internet: {
         keywords: ['INTERNET', 'COMCAST', 'XFINITY', 'SPECTRUM', 'AT&T'],
-        icon: '🌐',
+        icon: '',
     },
     Parking: {
         keywords: ['PARKING', 'GARAGE', 'METER'],
-        icon: '🅿️',
+        icon: '',
     },
     Laundry: {
         keywords: ['LAUNDRY', 'DRY CLEAN'],
-        icon: '🧺',
+        icon: '',
     },
     Haircut: {
         keywords: ['BARBER', 'HAIRCUT', 'SALON'],
-        icon: '💇',
+        icon: '',
     },
     Car: {
         keywords: ['AUTO', 'CAR WASH', 'OIL', 'TIRE', 'MECHANIC', 'TOYOTA', 'HONDA'],
-        icon: '🚙',
+        icon: '',
     },
     Phone: {
         keywords: ['PHONE', 'MOBILE', 'WIRELESS', 'VERIZON', 'AT&T', 'VISIBLE'],
-        icon: '📱',
+        icon: '',
     },
     Entertainment: {
         keywords: ['MOVIE', 'CINEMA', 'MUSIC', 'CONCERT', 'GAME', 'HBO'],
-        icon: '🎬',
+        icon: '',
     },
     Income: {
         keywords: [],
-        icon: '💰',
+        icon: '',
         _isIncome: true,
     },
     Others: {
         keywords: [],
-        icon: '📦',
+        icon: '',
     },
 };
 
@@ -129,7 +129,7 @@ window.incomeSettings = {
 // Load saved data
 function loadSavedData() {
     try {
-        const saved = localStorage.getItem('sahabBudget_data');
+        const saved = localStorage.getItem(getActiveDataKey());
         if (saved) {
             const data = JSON.parse(saved);
             monthlyData = new Map(data.monthlyData || []);
@@ -181,11 +181,30 @@ function saveData() {
             deletedTransactions: window.deletedTransactions || [],
             deletedFingerprints: window.deletedFingerprints || [],
         };
-        localStorage.setItem('sahabBudget_data', JSON.stringify(data));
+        localStorage.setItem(getActiveDataKey(), JSON.stringify(data));
     } catch (error) {
         console.error('Error saving data:', error);
     }
 }
+
+// Parse a transaction date. Date-only strings (YYYY-MM-DD, MM/DD/YYYY) are
+// interpreted in LOCAL time so a first-of-month transaction never slips into
+// the previous month in UTC-negative timezones.
+function parseLocalDate(value) {
+    if (value == null) return new Date(NaN);
+    if (value instanceof Date) return value;
+    const s = String(value).trim();
+    let m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[T\s].*)?$/); // ISO-ish
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:[T\s].*)?$/); // US M/D/Y
+    if (m) return new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2]));
+    return new Date(s);
+}
+function monthKeyFromDate(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+window.parseLocalDate = parseLocalDate;
+window.monthKeyFromDate = monthKeyFromDate;
 
 // Split transactions by month
 function splitByMonth(transactions) {
@@ -207,7 +226,7 @@ function splitByMonth(transactions) {
     if (trackIncome && !categoryConfig['Income']) {
         categoryConfig['Income'] = {
             keywords: [],
-            icon: '💰',
+            icon: '',
             _isIncome: true,
         };
     }
@@ -296,10 +315,10 @@ function splitByMonth(transactions) {
                 const incomeAmount = Math.abs(amount);
                 if (incomeAmount === 0) return;
 
-                const date = new Date(dateField);
+                const date = parseLocalDate(dateField);
                 if (isNaN(date.getTime())) return;
 
-                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                const monthKey = monthKeyFromDate(date);
 
                 if (!monthlyData.has(monthKey)) {
                     monthlyData.set(monthKey, {
@@ -344,10 +363,10 @@ function splitByMonth(transactions) {
         if (!dateField) return;
         if (amount === 0) return;
 
-        const date = new Date(dateField);
+        const date = parseLocalDate(dateField);
         if (isNaN(date.getTime())) return;
 
-        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const monthKey = monthKeyFromDate(date);
 
         if (!monthlyData.has(monthKey)) {
             monthlyData.set(monthKey, {
@@ -503,9 +522,24 @@ function analyzeTransactions(transactions) {
     });
 
     transactions.forEach((transaction) => {
+        // Skip transactions the user confirmed are internal transfers between
+        // their own accounts, so they never count as spending or income.
+        if (typeof window.isFlaggedTransfer === 'function' && window.isFlaggedTransfer(transaction)) {
+            return;
+        }
+
         const rawAmount = parseFloat(transaction.Amount) || 0;
         const description = transaction.Description || transaction.description || '';
         const category = categorizeTransaction(description, transaction._id); // Pass the ID
+
+        // Guard: an override or rule may point at a category that no longer
+        // exists in categoryConfig (deleted/renamed). Initialize buckets on
+        // demand so rendering never crashes on a missing key.
+        if (categoryTotals[category] === undefined) {
+            categoryTotals[category] = 0;
+            categoryDetails[category] = [];
+        }
+
         const isIncomeCategory = categoryConfig[category]?._isIncome === true || category === 'Income';
 
         // Check per-transaction income override
@@ -610,13 +644,14 @@ function switchToMonth(monthKey) {
     if (monthKey === 'CUSTOM_RANGE' && window.customDateRange) {
         currentMonth = 'CUSTOM_RANGE';
 
-        const start = new Date(window.customDateRange.start);
-        const end = new Date(window.customDateRange.end);
+        const start = parseLocalDate(window.customDateRange.start);
+        const end = parseLocalDate(window.customDateRange.end);
+        end.setHours(23, 59, 59, 999); // inclusive of the end date
 
         const rangeTransactions = [];
         monthlyData.forEach((data) => {
             data.transactions.forEach((t) => {
-                const date = new Date(t['Transaction Date'] || t.Date || t.date);
+                const date = parseLocalDate(t['Transaction Date'] || t.Date || t.date);
                 if (date >= start && date <= end) {
                     rangeTransactions.push(t);
                 }
@@ -696,36 +731,31 @@ function updateMonthSelector() {
     dropdown.innerHTML = '';
     const months = Array.from(monthlyData.keys()).sort().reverse();
 
-    // Add "All Data" option first
+    // "All Data" and custom-range options, then the months, grouped so the
+    // list reads cleanly without decorative separators.
     const allOption = document.createElement('option');
     allOption.value = 'ALL_DATA';
     allOption.textContent = 'All Months Combined';
     dropdown.appendChild(allOption);
-
-    // Add separator
-    const separator = document.createElement('option');
-    separator.disabled = true;
-    separator.textContent = '──────────';
-    dropdown.appendChild(separator);
 
     const customRangeOption = document.createElement('option');
     customRangeOption.value = 'CUSTOM_RANGE_SELECT';
     customRangeOption.textContent = 'Custom Date Range';
     dropdown.appendChild(customRangeOption);
 
-    const separator2 = document.createElement('option');
-    separator2.disabled = true;
-    separator2.textContent = '──────────';
-    dropdown.appendChild(separator2);
-
-    // Add individual months
-    months.forEach((monthKey) => {
-        const monthData = monthlyData.get(monthKey);
-        const option = document.createElement('option');
-        option.value = monthKey;
-        option.textContent = monthData.monthName;
-        dropdown.appendChild(option);
-    });
+    // Add individual months under a labeled group
+    if (months.length) {
+        const group = document.createElement('optgroup');
+        group.label = 'Months';
+        months.forEach((monthKey) => {
+            const monthData = monthlyData.get(monthKey);
+            const option = document.createElement('option');
+            option.value = monthKey;
+            option.textContent = monthData.monthName;
+            group.appendChild(option);
+        });
+        dropdown.appendChild(group);
+    }
 
     selector.style.display = months.length > 0 ? 'block' : 'none';
 }

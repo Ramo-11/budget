@@ -1,6 +1,8 @@
 // js/settings.js - Settings View Functions
 
-// Initialize settings page
+// ---------------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------------
 window.addEventListener('DOMContentLoaded', () => {
     if (typeof loadSavedData === 'function') {
         loadSavedData();
@@ -8,13 +10,12 @@ window.addEventListener('DOMContentLoaded', () => {
     updateSettingsMonthSelector();
     updateStorageStats();
     initializeIncomeToggle();
+    ensureBudgetGridListeners();
 
     if (monthlyData.size > 0) {
-        const months = Array.from(monthlyData.keys()).sort().reverse();
-        if (months.length > 0) {
-            document.getElementById('settingsMonthDropdown').value = 'ALL_MONTHS';
-            switchSettingsMonth('ALL_MONTHS');
-        }
+        const dropdown = document.getElementById('settingsMonthDropdown');
+        if (dropdown) dropdown.value = 'ALL_MONTHS';
+        switchSettingsMonth('ALL_MONTHS');
     } else {
         // No data uploaded yet, but still show categories
         currentMonth = 'NO_DATA';
@@ -22,10 +23,71 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Initialize income toggle state
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+// Compact money label: whole dollars unless cents matter.
+function formatMoney(value) {
+    const v = Number(value) || 0;
+    const rounded = Math.round(v);
+    return Math.abs(v - rounded) < 0.005 ? rounded.toLocaleString() : v.toFixed(2);
+}
+
+// Categories sorted alphabetically with Others last.
+function sortedCategoryNames() {
+    return Object.keys(categoryConfig).sort((a, b) => {
+        if (a === 'Others') return 1;
+        if (b === 'Others') return -1;
+        return a.localeCompare(b);
+    });
+}
+
+// The month key budgets are edited against. Falls back to the real current
+// calendar month for a brand-new user, so budgets never land on a junk key.
+function getSettingsBudgetMonthKey() {
+    if (
+        currentMonth &&
+        currentMonth !== 'NO_DATA' &&
+        currentMonth !== 'ALL_MONTHS' &&
+        monthlyData.has(currentMonth)
+    ) {
+        return currentMonth;
+    }
+    if (typeof monthKeyFromDate === 'function') {
+        return monthKeyFromDate(new Date());
+    }
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Re-render whichever budget grid variant is active.
+function refreshBudgetGrid() {
+    if (currentMonth === 'ALL_MONTHS') {
+        updateBudgetViewForAllMonths();
+    } else if (currentMonth && monthlyData.has(currentMonth)) {
+        const monthData = monthlyData.get(currentMonth);
+        updateBudgetView(analyzeTransactions(monthData.transactions));
+    } else {
+        updateBudgetView(null);
+    }
+}
+
+// Locate a category card by its (untrusted) name via dataset comparison.
+function findCategoryCard(category) {
+    const cards = document.querySelectorAll('#budgetGrid .category-card');
+    for (const card of cards) {
+        if (card.dataset.category === category) return card;
+    }
+    return null;
+}
+
+// ---------------------------------------------------------------------------
+// Income tracking (Advanced)
+// ---------------------------------------------------------------------------
+
 function initializeIncomeToggle() {
     const toggle = document.getElementById('incomeToggle');
-    const label = document.getElementById('incomeToggleLabel');
 
     if (toggle && window.incomeSettings) {
         toggle.checked = window.incomeSettings.trackIncome === true;
@@ -33,7 +95,6 @@ function initializeIncomeToggle() {
     }
 }
 
-// Toggle income tracking
 function toggleIncomeTracking(enabled) {
     window.incomeSettings = window.incomeSettings || {};
     window.incomeSettings.trackIncome = enabled;
@@ -42,7 +103,7 @@ function toggleIncomeTracking(enabled) {
     if (enabled && !categoryConfig['Income']) {
         categoryConfig['Income'] = {
             keywords: [],
-            icon: '💰',
+            icon: '',
             _isIncome: true,
         };
     }
@@ -56,14 +117,16 @@ function toggleIncomeTracking(enabled) {
     saveData();
     updateIncomeToggleLabel(enabled);
 
-    // Broadcast sync to other tabs
     if (typeof broadcastSync === 'function') {
         broadcastSync('data_changed', { incomeTracking: enabled });
     }
 
     if (enabled) {
         if (movedCount > 0) {
-            showNotification(`Income tracking enabled. ${movedCount} existing transaction${movedCount > 1 ? 's' : ''} moved to Income.`, 'success');
+            showNotification(
+                `Income tracking enabled. ${movedCount} existing transaction${movedCount > 1 ? 's' : ''} moved to Income.`,
+                'success'
+            );
         } else {
             showNotification('Income tracking enabled.', 'success');
         }
@@ -83,18 +146,14 @@ function scanAndMoveIncomeTransactions() {
             const description = (transaction.Description || transaction.description || '').toUpperCase();
             const transactionId = transaction._id;
 
-            // Check if already categorized as Income
             const currentCategory = window.transactionOverrides?.[monthKey]?.[transactionId];
             if (currentCategory === 'Income') {
                 return; // Already income
             }
 
-            // Only pattern-based income detection
-            // Positive amounts (refunds/cashback) are NOT automatically moved to Income
             const isIncomePattern = incomePatterns.some((pattern) => description.includes(pattern));
 
             if (isIncomePattern) {
-                // Move to Income category
                 if (!window.transactionOverrides) {
                     window.transactionOverrides = {};
                 }
@@ -111,7 +170,6 @@ function scanAndMoveIncomeTransactions() {
     return movedCount;
 }
 
-// Update income toggle label
 function updateIncomeToggleLabel(enabled) {
     const label = document.getElementById('incomeToggleLabel');
     if (label) {
@@ -119,16 +177,24 @@ function updateIncomeToggleLabel(enabled) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Tabs
+// ---------------------------------------------------------------------------
+
 // Switch settings tab (2-tab structure: setup, data)
-function switchSettingsTab(tab) {
+function switchSettingsTab(tab, el) {
     document.querySelectorAll('.settings-tab').forEach((t) => t.classList.remove('active'));
     document.querySelectorAll('.settings-content').forEach((c) => c.classList.remove('active'));
 
-    event.target.closest('.settings-tab').classList.add('active');
-    document.getElementById(tab + 'Tab').classList.add('active');
+    const trigger = el || (typeof event !== 'undefined' && event.target);
+    if (trigger && trigger.closest) {
+        const btn = trigger.closest('.settings-tab');
+        if (btn) btn.classList.add('active');
+    }
+    const pane = document.getElementById(tab + 'Tab');
+    if (pane) pane.classList.add('active');
 
     if (tab === 'setup') {
-        // Rules now live inside Setup — refresh display
         if (typeof loadRules === 'function') loadRules();
         if (typeof updateRulesDisplay === 'function') updateRulesDisplay();
     } else if (tab === 'data') {
@@ -136,7 +202,11 @@ function switchSettingsTab(tab) {
     }
 }
 
-// Unified CSV export — reads scope from #exportMonthSelect ("all" or month key)
+// ---------------------------------------------------------------------------
+// Export / storage stats
+// ---------------------------------------------------------------------------
+
+// Unified CSV export - reads scope from #exportMonthSelect ("all" or month key)
 function exportTransactionsUnified() {
     const select = document.getElementById('exportMonthSelect');
     const scope = select ? select.value : 'all';
@@ -147,14 +217,12 @@ function exportTransactionsUnified() {
     }
 }
 
-// Update storage stats
 function updateStorageStats() {
     let transactionCount = 0;
-    let monthCount = monthlyData.size;
-    let categoryCount = Object.keys(categoryConfig).length;
+    const monthCount = monthlyData.size;
+    const categoryCount = Object.keys(categoryConfig).length;
     let rulesCount = 0;
 
-    // Count unified rules if available
     if (window.unifiedRules && Array.isArray(window.unifiedRules)) {
         rulesCount = window.unifiedRules.length;
     }
@@ -163,338 +231,47 @@ function updateStorageStats() {
         transactionCount += data.transactions.length;
     });
 
-    const storageSize = new Blob([JSON.stringify(localStorage.getItem('sahabBudget_data'))]).size;
+    const storageSize = new Blob([JSON.stringify(localStorage.getItem(getActiveDataKey()))]).size;
     const storageMB = (storageSize / (1024 * 1024)).toFixed(2);
 
-    document.getElementById('storageStats').innerHTML = `
-        <div class="stats-grid">
-            <div class="stat-item">
-                <div class="stat-value">${transactionCount.toLocaleString()}</div>
-                <div class="stat-label">Total Transactions</div>
+    const container = document.getElementById('storageStats');
+    if (container) {
+        container.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value">${transactionCount.toLocaleString()}</div>
+                    <div class="stat-label">Transactions</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${monthCount}</div>
+                    <div class="stat-label">Months</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${categoryCount}</div>
+                    <div class="stat-label">Categories</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${rulesCount}</div>
+                    <div class="stat-label">Rules</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">${storageMB} MB</div>
+                    <div class="stat-label">Storage Used</div>
+                </div>
             </div>
-            <div class="stat-item">
-                <div class="stat-value">${monthCount}</div>
-                <div class="stat-label">Months of Data</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value">${categoryCount}</div>
-                <div class="stat-label">Categories</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value">${rulesCount}</div>
-                <div class="stat-label">Rules</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value">${storageMB} MB</div>
-                <div class="stat-label">Storage Used</div>
-            </div>
-        </div>
-    `;
+        `;
+    }
 
-    // Populate export month dropdown
     if (typeof populateExportMonthDropdown === 'function') {
         populateExportMonthDropdown();
     }
-}
-
-// Update month selector for settings
-function updateSettingsMonthSelector() {
-    const dropdown = document.getElementById('settingsMonthDropdown');
-    dropdown.innerHTML = '';
-
-    const allOption = document.createElement('option');
-    allOption.value = 'ALL_MONTHS';
-    allOption.textContent = 'All Months (View/Edit)';
-    dropdown.appendChild(allOption);
-
-    const separator = document.createElement('option');
-    separator.disabled = true;
-    separator.textContent = '──────────';
-    dropdown.appendChild(separator);
-
-    const months = Array.from(monthlyData.keys()).sort().reverse();
-    months.forEach((monthKey) => {
-        const monthData = monthlyData.get(monthKey);
-        const option = document.createElement('option');
-        option.value = monthKey;
-        option.textContent = monthData.monthName;
-        dropdown.appendChild(option);
-    });
-}
-
-// Switch settings month
-function switchSettingsMonth(monthKey) {
-    if (monthKey === 'ALL_MONTHS') {
-        // Handle all months view
-        currentMonth = 'ALL_MONTHS';
-        updateBudgetViewForAllMonths();
-        return;
-    }
-
-    currentMonth = monthKey;
-
-    // Check if month exists
-    if (monthlyData.has(monthKey)) {
-        const monthData = monthlyData.get(monthKey);
-        const analyzer = analyzeTransactions(monthData.transactions);
-        updateBudgetView(analyzer);
-    } else {
-        updateBudgetView(null);
-    }
-}
-
-function updateBudgetViewForAllMonths() {
-    const container = document.getElementById('budgetGrid');
-    if (!container) return;
-
-    // Calculate budgets across all months
-    const budgetSummary = {};
-    const monthsList = Array.from(monthlyData.keys()).sort();
-
-    // Gather budget info for each category across all months
-    Object.keys(categoryConfig).forEach((category) => {
-        budgetSummary[category] = {
-            budgets: {},
-            hasAnyBudget: false,
-            isConsistent: true,
-            firstValue: null,
-        };
-    });
-
-    // Check each month's budgets
-    monthsList.forEach((monthKey) => {
-        const monthBudgets = budgets[monthKey] || {};
-
-        Object.keys(categoryConfig).forEach((category) => {
-            const budget = monthBudgets[category] || 0;
-            budgetSummary[category].budgets[monthKey] = budget;
-
-            if (budget > 0) {
-                budgetSummary[category].hasAnyBudget = true;
-
-                if (budgetSummary[category].firstValue === null) {
-                    budgetSummary[category].firstValue = budget;
-                } else if (budgetSummary[category].firstValue !== budget) {
-                    budgetSummary[category].isConsistent = false;
-                }
-            }
-        });
-    });
-
-    // Get all categories sorted alphabetically (Others at the end)
-    const allCategories = Object.keys(categoryConfig).sort((a, b) => {
-        if (a === 'Others') return 1;
-        if (b === 'Others') return -1;
-        return a.localeCompare(b);
-    });
-
-    const categoriesHTML = allCategories
-        .map((category) => {
-            const config = categoryConfig[category] || { icon: '📦', keywords: [] };
-            const categoryId = category.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
-            const summary = budgetSummary[category];
-
-            // Determine what to show for budget
-            let budgetStatusClass = 'no-budget';
-            let budgetStatusText = 'No monthly limit set';
-            let currentBudgetValue = '';
-
-            if (summary.hasAnyBudget) {
-                if (summary.isConsistent) {
-                    budgetStatusClass = 'has-budget';
-                    budgetStatusText = `$${summary.firstValue.toFixed(0)}/month`;
-                    currentBudgetValue = summary.firstValue;
-                } else {
-                    budgetStatusClass = 'varies';
-                    const validBudgets = Object.values(summary.budgets).filter((b) => b > 0);
-                    const average = validBudgets.reduce((a, b) => a + b, 0) / validBudgets.length;
-                    budgetStatusText = `Varies by month (avg: $${average.toFixed(0)})`;
-                }
-            }
-
-            const keywordsCount = config.keywords.length;
-            const keywordsPreview = keywordsCount > 0
-                ? config.keywords.slice(0, 3).join(', ') + (keywordsCount > 3 ? ` +${keywordsCount - 3} more` : '')
-                : 'No keywords set';
-
-            return `
-                <div class="category-card" data-category="${category}">
-                    <div class="category-card-header">
-                        <div class="category-identity">
-                            <input type="text"
-                                   class="category-icon-input"
-                                   id="icon-${categoryId}"
-                                   value="${config.icon}"
-                                   maxlength="2"
-                                   onchange="markUnsavedChanges()"
-                                   title="Change icon">
-                            <div class="category-name-wrapper">
-                                <input type="text"
-                                       class="category-name-input"
-                                       id="name-${categoryId}"
-                                       value="${category}"
-                                       ${category === 'Others' ? 'readonly title="Default category cannot be renamed"' : 'title="Click to rename"'}
-                                       onchange="renameCategory('${category}', this.value); markUnsavedChanges()">
-                                ${category === 'Others' ? '<span class="default-badge">Default</span>' : ''}
-                            </div>
-                        </div>
-                        ${category !== 'Others' ? `
-                            <button class="category-delete-btn" onclick="removeCategory('${category}')" title="Delete category">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                </svg>
-                            </button>
-                        ` : ''}
-                    </div>
-
-                    <div class="category-card-body">
-                        <div class="category-field">
-                            <label class="field-label income-toggle-label">
-                                <input type="checkbox"
-                                       class="income-category-toggle"
-                                       id="income-${categoryId}"
-                                       ${config._isIncome ? 'checked' : ''}
-                                       onchange="toggleCategoryIncome('${category}', this.checked); markUnsavedChanges()">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="12" y1="1" x2="12" y2="23"></line>
-                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                                </svg>
-                                Income Category
-                            </label>
-                            <span class="field-hint">Transactions in this category will be treated as income</span>
-                        </div>
-
-                        <div class="category-field">
-                            <label class="field-label income-toggle-label">
-                                <input type="checkbox"
-                                       class="exclude-category-toggle"
-                                       id="exclude-${categoryId}"
-                                       ${config._isExcluded ? 'checked' : ''}
-                                       onchange="toggleCategoryExclude('${category}', this.checked); markUnsavedChanges()">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-                                </svg>
-                                Exclude from Totals
-                            </label>
-                            <span class="field-hint">Transactions show but won't count toward spending totals or charts</span>
-                        </div>
-
-                        <div class="category-field">
-                            <label class="field-label">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="12" y1="1" x2="12" y2="23"></line>
-                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                                </svg>
-                                Monthly Budget
-                            </label>
-                            <div class="budget-input-group">
-                                <span class="currency-prefix">$</span>
-                                <input type="number"
-                                       id="budget-${categoryId}"
-                                       placeholder="${currentBudgetValue || '0.00'}"
-                                       value=""
-                                       step="1"
-                                       min="0"
-                                       class="budget-amount-input">
-                                <button class="apply-budget-btn" onclick="setBudgetForAllMonths('${category}')" title="Apply this budget to all months">
-                                    Apply to All Months
-                                </button>
-                            </div>
-                            <div class="budget-status ${budgetStatusClass}">
-                                <span class="status-indicator"></span>
-                                ${budgetStatusText}
-                            </div>
-                        </div>
-
-                        <div class="category-field">
-                            <label class="field-label">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                                    <line x1="7" y1="7" x2="7.01" y2="7"></line>
-                                </svg>
-                                Auto-Match Keywords
-                                <span class="keyword-count">${keywordsCount} keyword${keywordsCount !== 1 ? 's' : ''}</span>
-                            </label>
-                            <input type="text"
-                                   class="keywords-input"
-                                   id="keywords-${categoryId}"
-                                   value="${config.keywords.join(', ')}"
-                                   placeholder="e.g., AMAZON, WALMART, COSTCO"
-                                   onchange="markUnsavedChanges()"
-                                   onfocus="this.select()">
-                            <span class="field-hint">Transactions containing these keywords will auto-categorize here</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        })
-        .join('');
-
-    container.innerHTML = `
-        <div class="categories-header">
-            <div class="categories-header-content">
-                <h2>Manage Your Categories</h2>
-                <p>Organize transactions and set monthly spending limits for each category</p>
-            </div>
-            <div class="categories-header-actions">
-                <button class="btn-add-category" onclick="addNewCategory()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Add Category
-                </button>
-                <button class="btn-save-changes" id="saveChangesBtn" onclick="saveAllCategoryChanges()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                        <polyline points="7 3 7 8 15 8"></polyline>
-                    </svg>
-                    <span id="saveChangesText">Save Changes</span>
-                </button>
-            </div>
-        </div>
-        <div id="unsavedNotice" class="unsaved-notice">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-            You have unsaved changes
-            <button class="unsaved-save-btn" onclick="saveAllCategoryChanges()">Save Changes</button>
-        </div>
-        <div class="categories-grid">
-            ${categoriesHTML}
-        </div>
-    `;
-}
-
-function setBudgetForAllMonths(category) {
-    const inputId = `budget-${category.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}`;
-    const input = document.getElementById(inputId);
-    if (!input) return;
-
-    const value = parseFloat(input.value);
-
-    if (isNaN(value) || value < 0) {
-        showNotification('Please enter a valid budget amount', 'error');
-        return;
-    }
-
-    // Apply to all months directly
-    applyBudgetToAllMonthsForCategory(category, value);
-
-    // Refresh the view
-    updateBudgetViewForAllMonths();
 }
 
 // Export all data as CSV
 function exportAllToCSV() {
     let csvContent = 'Date,Description,Amount,Category,Month\n';
 
-    monthlyData.forEach((monthData, monthKey) => {
+    monthlyData.forEach((monthData) => {
         monthData.transactions.forEach((transaction) => {
             const date = transaction['Transaction Date'] || transaction.Date || transaction.date;
             const description = transaction.Description || transaction.description || '';
@@ -514,177 +291,234 @@ function exportAllToCSV() {
     showNotification('All data exported successfully', 'success');
 }
 
-// Update budget view in settings
-function updateBudgetView(analyzer) {
+// ---------------------------------------------------------------------------
+// Month selector
+// ---------------------------------------------------------------------------
+
+function updateSettingsMonthSelector() {
+    const dropdown = document.getElementById('settingsMonthDropdown');
+    if (!dropdown) return;
+    dropdown.innerHTML = '';
+
+    const months = Array.from(monthlyData.keys()).sort().reverse();
+    const wrapper = dropdown.closest('.month-selector');
+    if (wrapper) wrapper.style.display = months.length > 0 ? '' : 'none';
+    if (months.length === 0) return;
+
+    const allOption = document.createElement('option');
+    allOption.value = 'ALL_MONTHS';
+    allOption.textContent = 'All months';
+    dropdown.appendChild(allOption);
+
+    months.forEach((monthKey) => {
+        const monthData = monthlyData.get(monthKey);
+        const option = document.createElement('option');
+        option.value = monthKey;
+        option.textContent = monthData.monthName;
+        dropdown.appendChild(option);
+    });
+}
+
+function switchSettingsMonth(monthKey) {
+    if (monthKey === 'ALL_MONTHS') {
+        currentMonth = 'ALL_MONTHS';
+        updateBudgetViewForAllMonths();
+        return;
+    }
+
+    currentMonth = monthKey;
+
+    if (monthlyData.has(monthKey)) {
+        const monthData = monthlyData.get(monthKey);
+        const analyzer = analyzeTransactions(monthData.transactions);
+        updateBudgetView(analyzer);
+    } else {
+        updateBudgetView(null);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Category grid rendering (shared card + shell, delegated events)
+// ---------------------------------------------------------------------------
+
+// One-time delegated listeners for everything rendered inside #budgetGrid.
+// Category names never travel through inline handlers; they are read back
+// from data-category, which is quote-safe for any name.
+function ensureBudgetGridListeners() {
     const container = document.getElementById('budgetGrid');
-    if (!container) return;
+    if (!container || container.dataset.listenersBound) return;
+    container.dataset.listenersBound = 'true';
 
-    const monthKey = currentMonth;
+    container.addEventListener('click', (e) => {
+        const actionEl = e.target.closest('[data-action]');
+        if (!actionEl || !container.contains(actionEl)) return;
+        const card = actionEl.closest('.category-card');
+        const category = card ? card.dataset.category : null;
 
-    if (!budgets[monthKey]) {
-        budgets[monthKey] = {};
-    }
-
-    // Create empty analyzer if none provided (no data uploaded yet)
-    if (!analyzer) {
-        analyzer = {
-            categoryTotals: {},
-            categoryDetails: {},
-            totalExpenses: 0,
-            transactionCount: 0,
-        };
-    }
-
-    // Get all categories sorted alphabetically (Others at the end)
-    const allCategories = Object.keys(categoryConfig).sort((a, b) => {
-        if (a === 'Others') return 1;
-        if (b === 'Others') return -1;
-        return a.localeCompare(b);
+        switch (actionEl.dataset.action) {
+            case 'add-category':
+                addNewCategory();
+                break;
+            case 'save-changes':
+                saveAllCategoryChanges();
+                break;
+            case 'copy-budgets':
+                copyBudgetsToAllMonths();
+                break;
+            case 'delete-category':
+                if (category) removeCategory(category);
+                break;
+            case 'set-budget':
+                if (category) setBudgetWithOptions(category);
+                break;
+            case 'set-budget-all':
+                if (category) setBudgetForAllMonths(category);
+                break;
+        }
     });
 
-    const categoriesHTML = allCategories
-        .map((category) => {
-            const budget = budgets[monthKey][category] || 0;
-            const config = categoryConfig[category] || { icon: '📦', keywords: [] };
-            const categoryId = category.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+    container.addEventListener('change', (e) => {
+        const target = e.target;
+        if (target.id === 'carryUnusedToggle') {
+            toggleCarryUnused(target.checked);
+            return;
+        }
+        const card = target.closest('.category-card');
+        if (target.classList.contains('category-name-input')) {
+            if (card) renameCategory(card.dataset.category, target.value);
+            return;
+        }
+        if (
+            target.classList.contains('keywords-input') ||
+            target.classList.contains('income-category-toggle') ||
+            target.classList.contains('exclude-category-toggle')
+        ) {
+            markUnsavedChanges();
+        }
+    });
 
-            // Budget status
-            let budgetStatusClass = budget > 0 ? 'has-budget' : 'no-budget';
-            let budgetStatusText = budget > 0 ? `$${budget.toFixed(0)}/month` : 'No monthly limit set';
+    container.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+        if (e.target.classList && e.target.classList.contains('budget-amount-input')) {
+            const card = e.target.closest('.category-card');
+            const btn = card && card.querySelector('.apply-budget-btn');
+            if (btn) btn.click();
+        }
+    });
+}
 
-            const keywordsCount = config.keywords.length;
+// Render one category card. info:
+//   budgetValue (number|null), placeholder (string),
+//   statusClass ('no-budget'|'has-budget'|'varies'|'over'), statusText,
+//   progressPct (number|null), progressClass (''|'warning'|'danger'),
+//   applyAll (boolean)
+function renderCategoryCard(category, info) {
+    const esc = window.escapeHtml;
+    const config = categoryConfig[category] || { keywords: [] };
+    const keywords = Array.isArray(config.keywords) ? config.keywords : [];
+    const isOthers = category === 'Others';
+    const safeName = esc(category);
+    const chip = getCategoryIconChip(category, { size: 40, icon: 20 });
 
-            return `
-                <div class="category-card" data-category="${category}">
-                    <div class="category-card-header">
-                        <div class="category-identity">
-                            <input type="text"
-                                   class="category-icon-input"
-                                   id="icon-${categoryId}"
-                                   value="${config.icon}"
-                                   maxlength="2"
-                                   onchange="markUnsavedChanges()"
-                                   title="Change icon">
-                            <div class="category-name-wrapper">
-                                <input type="text"
-                                       class="category-name-input"
-                                       id="name-${categoryId}"
-                                       value="${category}"
-                                       ${category === 'Others' ? 'readonly title="Default category cannot be renamed"' : 'title="Click to rename"'}
-                                       onchange="renameCategory('${category}', this.value); markUnsavedChanges()">
-                                ${category === 'Others' ? '<span class="default-badge">Default</span>' : ''}
-                            </div>
-                        </div>
-                        ${category !== 'Others' ? `
-                            <button class="category-delete-btn" onclick="removeCategory('${category}')" title="Delete category">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="3 6 5 6 21 6"></polyline>
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                                </svg>
-                            </button>
-                        ` : ''}
+    const nameControl = isOthers
+        ? `<div class="category-name-static">
+               <span class="category-name-text">${safeName}</span>
+               <span class="default-badge">Default</span>
+           </div>`
+        : `<input type="text" class="category-name-input" value="${safeName}"
+                  aria-label="Category name" title="Click to rename" autocomplete="off">`;
+
+    const deleteBtn = isOthers
+        ? ''
+        : `<button class="category-delete-btn" data-action="delete-category"
+                   title="Delete category" aria-label="Delete ${safeName}">
+               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                   <polyline points="3 6 5 6 21 6"></polyline>
+                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+               </svg>
+           </button>`;
+
+    const progress =
+        info.progressPct === null || info.progressPct === undefined
+            ? ''
+            : `<div class="budget-progress">
+                   <div class="budget-progress-fill ${info.progressClass || ''}" style="width: ${info.progressPct}%"></div>
+               </div>`;
+
+    return `
+        <div class="category-card" data-category="${safeName}">
+            <div class="category-card-top">
+                ${chip}
+                ${nameControl}
+                ${deleteBtn}
+            </div>
+            <div class="category-card-body">
+                <div class="category-field">
+                    <span class="field-label">Budget</span>
+                    <div class="budget-input-group">
+                        <span class="currency-prefix">$</span>
+                        <input type="number" class="budget-amount-input" inputmode="decimal"
+                               value="${info.budgetValue !== null && info.budgetValue !== undefined ? info.budgetValue : ''}"
+                               placeholder="${esc(info.placeholder || '0')}" step="1" min="0"
+                               aria-label="Monthly budget for ${safeName}">
+                        <button class="apply-budget-btn" data-action="${info.applyAll ? 'set-budget-all' : 'set-budget'}"
+                                title="${info.applyAll ? 'Apply this budget to every month' : 'Set this budget'}">
+                            ${info.applyAll ? 'Set All' : 'Set'}
+                        </button>
                     </div>
-
-                    <div class="category-card-body">
-                        <div class="category-field">
-                            <label class="field-label income-toggle-label">
-                                <input type="checkbox"
-                                       class="income-category-toggle"
-                                       id="income-${categoryId}"
-                                       ${config._isIncome ? 'checked' : ''}
-                                       onchange="toggleCategoryIncome('${category}', this.checked); markUnsavedChanges()">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="12" y1="1" x2="12" y2="23"></line>
-                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                                </svg>
-                                Income Category
-                            </label>
-                            <span class="field-hint">Transactions in this category will be treated as income</span>
-                        </div>
-
-                        <div class="category-field">
-                            <label class="field-label income-toggle-label">
-                                <input type="checkbox"
-                                       class="exclude-category-toggle"
-                                       id="exclude-${categoryId}"
-                                       ${config._isExcluded ? 'checked' : ''}
-                                       onchange="toggleCategoryExclude('${category}', this.checked); markUnsavedChanges()">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-                                </svg>
-                                Exclude from Totals
-                            </label>
-                            <span class="field-hint">Transactions show but won't count toward spending totals or charts</span>
-                        </div>
-
-                        <div class="category-field">
-                            <label class="field-label">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="12" y1="1" x2="12" y2="23"></line>
-                                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                                </svg>
-                                Monthly Budget
-                            </label>
-                            <div class="budget-input-group">
-                                <span class="currency-prefix">$</span>
-                                <input type="number"
-                                       id="budget-${categoryId}"
-                                       placeholder="${budget || '0.00'}"
-                                       value="${budget || ''}"
-                                       step="1"
-                                       min="0"
-                                       class="budget-amount-input">
-                                <button class="apply-budget-btn" onclick="setBudgetWithOptions('${category}')" title="Set budget for this month or all months">
-                                    Set Budget
-                                </button>
-                            </div>
-                            <div class="budget-status ${budgetStatusClass}">
-                                <span class="status-indicator"></span>
-                                ${budgetStatusText}
-                            </div>
-                        </div>
-
-                        <div class="category-field">
-                            <label class="field-label">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                                    <line x1="7" y1="7" x2="7.01" y2="7"></line>
-                                </svg>
-                                Auto-Match Keywords
-                                <span class="keyword-count">${keywordsCount} keyword${keywordsCount !== 1 ? 's' : ''}</span>
-                            </label>
-                            <input type="text"
-                                   class="keywords-input"
-                                   id="keywords-${categoryId}"
-                                   value="${config.keywords.join(', ')}"
-                                   placeholder="e.g., AMAZON, WALMART, COSTCO"
-                                   onchange="markUnsavedChanges()"
-                                   onfocus="this.select()">
-                            <span class="field-hint">Transactions containing these keywords will auto-categorize here</span>
-                        </div>
+                    ${progress}
+                    <div class="budget-status ${info.statusClass}">
+                        <span class="status-indicator"></span>
+                        <span>${esc(info.statusText)}</span>
                     </div>
                 </div>
-            `;
-        })
-        .join('');
+                <div class="category-field">
+                    <span class="field-label">Keywords
+                        <span class="keyword-count">${keywords.length}</span>
+                    </span>
+                    <input type="text" class="keywords-input"
+                           value="${esc(keywords.join(', '))}"
+                           placeholder="AMAZON, WALMART"
+                           title="Comma-separated. Matching transactions land here automatically."
+                           aria-label="Keywords for ${safeName}" autocomplete="off">
+                </div>
+                <div class="category-toggles">
+                    <label class="mini-toggle" title="Amounts in this category count as income">
+                        <input type="checkbox" class="income-category-toggle" ${config._isIncome ? 'checked' : ''}>
+                        <span class="mini-track"></span>
+                        <span class="mini-toggle-text">Income</span>
+                    </label>
+                    <label class="mini-toggle" title="Shown in lists but left out of totals and charts">
+                        <input type="checkbox" class="exclude-category-toggle" ${config._isExcluded ? 'checked' : ''}>
+                        <span class="mini-track"></span>
+                        <span class="mini-toggle-text">Excluded</span>
+                    </label>
+                </div>
+            </div>
+        </div>`;
+}
 
-    container.innerHTML = `
+// Grid shell: header actions + budget tools + unsaved notice + cards.
+function renderCategoriesShell(cardsHtml, ctx) {
+    const esc = window.escapeHtml;
+    const carryOn = window.incomeSettings?.carryUnusedBudget === true;
+
+    return `
         <div class="categories-header">
             <div class="categories-header-content">
-                <h2>Manage Your Categories</h2>
-                <p>Organize transactions and set monthly spending limits for each category</p>
+                <h2>Categories</h2>
+                <p>${esc(ctx.subtitle || '')}</p>
             </div>
             <div class="categories-header-actions">
-                <button class="btn-add-category" onclick="addNewCategory()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <button class="btn btn-secondary" data-action="add-category">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                     Add Category
                 </button>
-                <button class="btn-save-changes" id="saveChangesBtn" onclick="saveAllCategoryChanges()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <button class="btn btn-primary" id="saveChangesBtn" data-action="save-changes">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                         <polyline points="17 21 17 13 7 13 7 21"></polyline>
                         <polyline points="7 3 7 8 15 8"></polyline>
@@ -693,139 +527,348 @@ function updateBudgetView(analyzer) {
                 </button>
             </div>
         </div>
+        <div class="budget-tools">
+            ${
+                ctx.showCopy
+                    ? `<button class="btn btn-secondary btn-sm budget-tool-copy" data-action="copy-budgets"
+                               title="Write this month's budgets into every month">
+                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                           </svg>
+                           Copy this month's budgets to all months
+                       </button>`
+                    : ''
+            }
+            <label class="mini-toggle budget-tool-carry" title="Unspent budget is added to the same category next month">
+                <input type="checkbox" id="carryUnusedToggle" ${carryOn ? 'checked' : ''}>
+                <span class="mini-track"></span>
+                <span class="mini-toggle-text">Carry unused budget to next month</span>
+            </label>
+        </div>
         <div id="unsavedNotice" class="unsaved-notice">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="12" y1="8" x2="12" y2="12"></line>
                 <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
-            You have unsaved changes
-            <button class="unsaved-save-btn" onclick="saveAllCategoryChanges()">Save Changes</button>
+            Unsaved changes
+            <button class="unsaved-save-btn" data-action="save-changes">Save</button>
         </div>
         <div class="categories-grid">
-            ${categoriesHTML}
+            ${cardsHtml}
         </div>
     `;
 }
 
-// Set budget with options (single month or all months)
-function setBudgetWithOptions(category) {
-    const inputId = `budget-${category.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}`;
-    const input = document.getElementById(inputId);
-    if (!input) return;
+// Single-month (or fresh user) view
+function updateBudgetView(analyzer) {
+    const container = document.getElementById('budgetGrid');
+    if (!container) return;
+    ensureBudgetGridListeners();
 
-    const value = parseFloat(input.value);
+    const monthKey = getSettingsBudgetMonthKey();
+    const monthBudgets = budgets[monthKey] || {};
+    const hasData = monthlyData.has(monthKey);
+    const monthName = hasData
+        ? monthlyData.get(monthKey).monthName
+        : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-    if (isNaN(value) || value < 0) {
-        showNotification('Please enter a valid budget amount', 'error');
-        return;
+    if (!analyzer) {
+        analyzer = { categoryTotals: {}, categoryDetails: {}, totalExpenses: 0, transactionCount: 0 };
     }
-    const currentMonthName = monthlyData.get(currentMonth).monthName;
 
-    if (currentMonthName === 'ALL_MONTHS') {
-        // When viewing all months, default action is to apply to all
+    const carryMap = computeCarryOverMap(monthKey);
+
+    const cardsHtml = sortedCategoryNames()
+        .map((category) => {
+            const budget = monthBudgets[category] || 0;
+            const carry = carryMap[category] || 0;
+            const effectiveBudget = budget + carry;
+            const spent = Math.max(0, analyzer.categoryTotals[category] || 0);
+
+            let statusClass = 'no-budget';
+            let statusText = 'No budget';
+            let progressPct = null;
+            let progressClass = '';
+
+            if (effectiveBudget > 0) {
+                if (!hasData) {
+                    statusClass = 'has-budget';
+                    statusText = `$${formatMoney(effectiveBudget)}/mo`;
+                } else {
+                    progressPct = Math.min(100, Math.round((spent / effectiveBudget) * 100));
+                    if (spent > effectiveBudget) {
+                        statusClass = 'over';
+                        progressClass = 'danger';
+                        statusText = `$${formatMoney(spent - effectiveBudget)} over $${formatMoney(effectiveBudget)}`;
+                    } else {
+                        statusClass = 'has-budget';
+                        progressClass = progressPct >= 80 ? 'warning' : '';
+                        statusText = `$${formatMoney(spent)} of $${formatMoney(effectiveBudget)}`;
+                    }
+                    if (carry > 0) {
+                        statusText += ` (+$${formatMoney(carry)} carried)`;
+                    }
+                }
+            }
+
+            return renderCategoryCard(category, {
+                budgetValue: budget > 0 ? budget : null,
+                placeholder: '0',
+                statusClass,
+                statusText,
+                progressPct,
+                progressClass,
+                applyAll: false,
+            });
+        })
+        .join('');
+
+    container.innerHTML = renderCategoriesShell(cardsHtml, {
+        subtitle: hasData ? monthName : `Budgets start with ${monthName}`,
+        showCopy: hasData && monthlyData.size > 1,
+    });
+}
+
+// All-months view
+function updateBudgetViewForAllMonths() {
+    const container = document.getElementById('budgetGrid');
+    if (!container) return;
+    ensureBudgetGridListeners();
+
+    const monthsList = Array.from(monthlyData.keys()).sort();
+    const budgetSummary = {};
+
+    Object.keys(categoryConfig).forEach((category) => {
+        budgetSummary[category] = {
+            hasAnyBudget: false,
+            isConsistent: true,
+            firstValue: null,
+            values: [],
+        };
+    });
+
+    monthsList.forEach((monthKey) => {
+        const monthBudgets = budgets[monthKey] || {};
+        Object.keys(categoryConfig).forEach((category) => {
+            const budget = monthBudgets[category] || 0;
+            if (budget > 0) {
+                const summary = budgetSummary[category];
+                summary.hasAnyBudget = true;
+                summary.values.push(budget);
+                if (summary.firstValue === null) {
+                    summary.firstValue = budget;
+                } else if (summary.firstValue !== budget) {
+                    summary.isConsistent = false;
+                }
+            }
+        });
+    });
+
+    const cardsHtml = sortedCategoryNames()
+        .map((category) => {
+            const summary = budgetSummary[category] || { hasAnyBudget: false };
+
+            let statusClass = 'no-budget';
+            let statusText = 'No budget';
+            let budgetValue = null;
+            let placeholder = '0';
+
+            if (summary.hasAnyBudget) {
+                if (summary.isConsistent) {
+                    statusClass = 'has-budget';
+                    statusText = `$${formatMoney(summary.firstValue)}/mo, every month`;
+                    budgetValue = summary.firstValue;
+                } else {
+                    statusClass = 'varies';
+                    const avg = summary.values.reduce((a, b) => a + b, 0) / summary.values.length;
+                    statusText = `Varies by month, avg $${formatMoney(avg)}`;
+                    placeholder = 'Varies';
+                }
+            }
+
+            return renderCategoryCard(category, {
+                budgetValue,
+                placeholder,
+                statusClass,
+                statusText,
+                progressPct: null,
+                progressClass: '',
+                applyAll: true,
+            });
+        })
+        .join('');
+
+    container.innerHTML = renderCategoriesShell(cardsHtml, {
+        subtitle: 'All months',
+        showCopy: false,
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Budget actions
+// ---------------------------------------------------------------------------
+
+// Read and validate the budget input for a category card.
+// Returns a number (0 clears the budget) or null when invalid.
+function readBudgetInput(category) {
+    const card = findCategoryCard(category);
+    const input = card ? card.querySelector('.budget-amount-input') : null;
+    if (!input) return null;
+
+    const raw = input.value.trim();
+    const value = raw === '' ? 0 : parseFloat(raw);
+    if (isNaN(value) || value < 0) {
+        showNotification('Enter a valid budget amount', 'error');
+        return null;
+    }
+    return value;
+}
+
+// All-months view button: apply to every month directly.
+function setBudgetForAllMonths(category) {
+    const value = readBudgetInput(category);
+    if (value === null) return;
+    applyBudgetToAllMonthsForCategory(category, value);
+}
+
+// Single-month view button. Works for a brand-new user (no imported data),
+// for a single stored month, and offers a scope chooser otherwise.
+function setBudgetWithOptions(category) {
+    const value = readBudgetInput(category);
+    if (value === null) return;
+
+    if (currentMonth === 'ALL_MONTHS') {
         applyBudgetToAllMonthsForCategory(category, value);
         return;
     }
 
-    // Get all months sorted
-    const months = Array.from(monthlyData.keys()).sort().reverse();
+    // Fresh user: store against the real current calendar month, no chooser.
+    if (!monthlyData.has(currentMonth)) {
+        applyBudgetToMonth(category, value, getSettingsBudgetMonthKey());
+        return;
+    }
 
-    // Create month options
-    const monthOptions = months
-        .map((monthKey) => {
-            const monthName = monthlyData.get(monthKey).monthName;
-            const isCurrentMonth = monthKey === currentMonth;
-            return `
-            <button class="btn ${isCurrentMonth ? 'btn-primary' : 'btn-secondary'}" 
-                    style="width: 100%; text-align: left; margin-bottom: 8px;" 
-                    onclick="applyBudgetToMonth('${category}', ${value}, '${monthKey}'); this.closest('.modal').remove();">
-                ${monthName} ${isCurrentMonth ? '(Current)' : ''}
-            </button>
-        `;
-        })
+    // Only one month of data: nothing to choose.
+    if (monthlyData.size === 1) {
+        applyBudgetToMonth(category, value, currentMonth);
+        return;
+    }
+
+    openBudgetScopeModal(category, value);
+}
+
+// Scope chooser: this month, every month, or a picked month.
+function openBudgetScopeModal(category, value) {
+    const esc = window.escapeHtml;
+    const monthName = monthlyData.get(currentMonth)?.monthName || 'This month';
+    const amountLabel = value > 0 ? `$${formatMoney(value)} per month` : 'Clear budget';
+
+    const monthOptions = Array.from(monthlyData.keys())
+        .sort()
+        .reverse()
+        .map(
+            (key) =>
+                `<option value="${esc(key)}" ${key === currentMonth ? 'selected' : ''}>${esc(
+                    monthlyData.get(key).monthName
+                )}</option>`
+        )
         .join('');
 
-    // Ask user if they want to apply to all months or specific month
-    const modal = document.createElement('div');
-    modal.className = 'modal show';
-    modal.innerHTML = `
-        <div class="modal-content" style="width: 450px;">
-            <div class="modal-header">
-                <h2>Set Budget for ${category}</h2>
-                <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+    const overlay = document.createElement('div');
+    overlay.className = 'app-modal-overlay';
+    overlay.innerHTML = `
+        <div class="app-modal budget-scope-modal" role="dialog" aria-modal="true" aria-label="Set budget">
+            <div class="app-modal-header">
+                <div class="app-modal-title">Set Budget</div>
+                <button class="app-modal-close" data-close aria-label="Close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
-            <div class="modal-body">
-                <p style="margin-bottom: 15px;">Budget amount: <strong>$${value.toFixed(
-                    2
-                )}</strong></p>
-                <p style="margin-bottom: 20px; font-weight: 600;">Apply to which month(s)?</p>
-                
-                <div style="margin-bottom: 20px;">
-                    <button class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 15px; font-weight: 600;" 
-                            onclick="applyBudgetToAllMonthsForCategory('${category}', ${value}); this.closest('.modal').remove();">
-                        🌐 Apply to ALL Months
-                    </button>
-                </div>
-                
-                <div style="border-top: 1px solid var(--border); padding-top: 15px; margin-bottom: 10px;">
-                    <p style="margin-bottom: 10px; font-size: 14px; color: var(--gray);">Or choose a specific month:</p>
-                    <div style="max-height: 300px; overflow-y: auto;">
-                        ${monthOptions}
+            <div class="app-modal-body">
+                <div class="budget-scope-summary">
+                    ${getCategoryIconChip(category, { size: 40, icon: 20 })}
+                    <div class="budget-scope-summary-text">
+                        <strong>${esc(category)}</strong>
+                        <span>${esc(amountLabel)}</span>
                     </div>
                 </div>
-                
-                <div style="border-top: 1px solid var(--border); padding-top: 15px;">
-                    <button class="btn btn-secondary" style="width: 100%;" onclick="this.closest('.modal').remove();">
-                        Cancel
-                    </button>
+                <div class="budget-scope-options">
+                    <button class="btn btn-primary" data-scope="current">${esc(monthName)} only</button>
+                    <button class="btn btn-secondary" data-scope="all">Every month</button>
+                </div>
+                <div class="budget-scope-month-row">
+                    <label class="app-label" for="budgetScopeMonth">Or a different month</label>
+                    <div class="budget-scope-month-controls">
+                        <select id="budgetScopeMonth" class="app-input">${monthOptions}</select>
+                        <button class="btn btn-secondary" data-scope="picked">Apply</button>
+                    </div>
                 </div>
             </div>
         </div>
     `;
-    document.body.appendChild(modal);
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay || e.target.closest('[data-close]')) {
+            overlay.remove();
+            return;
+        }
+        const scopeBtn = e.target.closest('[data-scope]');
+        if (!scopeBtn) return;
+        const scope = scopeBtn.dataset.scope;
+        if (scope === 'current') {
+            applyBudgetToMonth(category, value, currentMonth);
+        } else if (scope === 'all') {
+            applyBudgetToAllMonthsForCategory(category, value);
+        } else if (scope === 'picked') {
+            const sel = overlay.querySelector('#budgetScopeMonth');
+            if (sel && sel.value) applyBudgetToMonth(category, value, sel.value);
+        }
+        overlay.remove();
+    });
+
+    document.body.appendChild(overlay);
 }
 
-// Apply budget to a single month
+// Apply budget to a single month (0 clears it)
 function applyBudgetToMonth(category, value, monthKey) {
     if (!budgets[monthKey]) {
         budgets[monthKey] = {};
     }
 
-    if (value === 0 || value === '') {
+    const monthName =
+        monthlyData.get(monthKey)?.monthName ||
+        (monthKey === getSettingsBudgetMonthKey()
+            ? new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+            : monthKey);
+
+    if (!value || value === 0) {
         delete budgets[monthKey][category];
-        showNotification(
-            `Budget removed for ${category} in ${monthlyData.get(monthKey).monthName}`,
-            'success'
-        );
+        showNotification(`Budget cleared for ${category} in ${monthName}`, 'success');
     } else {
         budgets[monthKey][category] = value;
-        showNotification(
-            `Budget set for ${category} in ${monthlyData.get(monthKey).monthName}`,
-            'success'
-        );
+        showNotification(`Budget set for ${category} in ${monthName}`, 'success');
     }
 
     saveData();
-
-    // Refresh the view
-    const monthData = monthlyData.get(currentMonth);
-    if (monthData) {
-        const analyzer = analyzeTransactions(monthData.transactions);
-        updateBudgetView(analyzer);
-    }
+    refreshBudgetGrid();
 }
 
-// Apply budget to all months for a specific category
+// Apply budget to all months for a specific category (0 clears it)
 function applyBudgetToAllMonthsForCategory(category, value) {
-    const months = Array.from(monthlyData.keys());
+    let months = Array.from(monthlyData.keys());
+    if (months.length === 0) months = [getSettingsBudgetMonthKey()];
 
     months.forEach((monthKey) => {
         if (!budgets[monthKey]) {
             budgets[monthKey] = {};
         }
 
-        if (value === 0 || value === '') {
+        if (!value || value === 0) {
             delete budgets[monthKey][category];
         } else {
             budgets[monthKey][category] = value;
@@ -836,110 +879,97 @@ function applyBudgetToAllMonthsForCategory(category, value) {
 
     showNotification(
         value > 0
-            ? `Budget of $${value.toFixed(2)} set for ${category} in all months`
-            : `Budget removed for ${category} in all months`,
+            ? `$${formatMoney(value)} budget set for ${category} in every month`
+            : `Budget cleared for ${category} in every month`,
         'success'
     );
 
-    // Refresh the view
-    const monthData = monthlyData.get(currentMonth);
-    if (monthData) {
-        const analyzer = analyzeTransactions(monthData.transactions);
-        updateBudgetView(analyzer);
-    }
+    refreshBudgetGrid();
 }
 
-// Apply current month's budget to all months
-function applyBudgetToAllMonths() {
-    const currentBudgets = budgets[currentMonth] || {};
+// Budget template: copy the current month's per-category budgets to all months.
+function copyBudgetsToAllMonths() {
+    const sourceKey =
+        currentMonth && currentMonth !== 'ALL_MONTHS' && monthlyData.has(currentMonth) ? currentMonth : null;
+    if (!sourceKey) return;
 
-    if (Object.keys(currentBudgets).length === 0) {
-        showNotification('No budgets set for current month', 'error');
+    const source = budgets[sourceKey] || {};
+    const activeBudgets = Object.entries(source).filter(([, v]) => v > 0);
+    if (activeBudgets.length === 0) {
+        showNotification('No budgets set for this month yet', 'info');
         return;
     }
 
+    const monthName = monthlyData.get(sourceKey)?.monthName || sourceKey;
     if (
         !confirm(
-            `Apply all budget goals from ${
-                monthlyData.get(currentMonth).monthName
-            } to all other months?`
+            `Copy ${monthName} budgets (${activeBudgets.length} categories) to all months? Budgets in other months will be replaced.`
         )
     ) {
         return;
     }
 
-    const months = Array.from(monthlyData.keys());
-
-    months.forEach((monthKey) => {
-        if (monthKey !== currentMonth) {
-            budgets[monthKey] = { ...currentBudgets };
-        }
+    Array.from(monthlyData.keys()).forEach((monthKey) => {
+        budgets[monthKey] = { ...source };
     });
 
     saveData();
-    showNotification('Budget goals applied to all months', 'success');
+    refreshBudgetGrid();
+    showNotification(`Budgets copied to all ${monthlyData.size} months`, 'success');
 }
 
-// Set budget
+// Budget rollover: persist the "carry unused budget" preference.
+// Stored alongside incomeSettings because core.js persists and merges it.
+function toggleCarryUnused(enabled) {
+    window.incomeSettings = window.incomeSettings || {};
+    window.incomeSettings.carryUnusedBudget = enabled === true;
+    saveData();
+    showNotification(
+        enabled ? 'Unused budget now carries into the next month' : 'Budget carryover turned off',
+        'success'
+    );
+    refreshBudgetGrid();
+}
+
+// Per-category unused budget carried in from the previous month.
+function computeCarryOverMap(monthKey) {
+    const map = {};
+    if (window.incomeSettings?.carryUnusedBudget !== true) return map;
+
+    const parts = /^(\d{4})-(\d{2})$/.exec(monthKey || '');
+    if (!parts) return map;
+
+    const prevDate = new Date(Number(parts[1]), Number(parts[2]) - 2, 1);
+    const prevKey =
+        typeof monthKeyFromDate === 'function'
+            ? monthKeyFromDate(prevDate)
+            : `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+
+    const prevBudgets = budgets[prevKey];
+    if (!prevBudgets || !monthlyData.has(prevKey)) return map;
+
+    const prevAnalyzer = analyzeTransactions(monthlyData.get(prevKey).transactions);
+    Object.keys(prevBudgets).forEach((category) => {
+        if (!categoryConfig[category]) return;
+        const b = prevBudgets[category] || 0;
+        if (b <= 0) return;
+        const spent = Math.max(0, prevAnalyzer.categoryTotals[category] || 0);
+        const left = b - spent;
+        if (left > 0.005) map[category] = left;
+    });
+    return map;
+}
+
+// Back-compat alias
 function setBudget(category) {
     setBudgetWithOptions(category);
 }
 
-// Update categories view in settings
-function updateCategoriesView() {
-    const container = document.getElementById('categoriesList');
-    if (!container) return;
+// ---------------------------------------------------------------------------
+// Category editing (keywords / flags / rename / delete)
+// ---------------------------------------------------------------------------
 
-    // Sort categories alphabetically, but keep "Others" at the end
-    const sortedCategories = Object.entries(categoryConfig).sort((a, b) => {
-        if (a[0] === 'Others') return 1;
-        if (b[0] === 'Others') return -1;
-        return a[0].localeCompare(b[0]);
-    });
-
-    const html = sortedCategories
-        .map(([name, config]) => {
-            const nameId = name.replace(/\s+/g, '-');
-
-            return `
-                <div class="category-list-item">
-                    <div class="category-list-header">
-                        <div class="category-list-info">
-                            <input type="text" id="icon-${nameId}" value="${
-                config.icon
-            }" style="width: 40px;" />
-                            <h4>${name}</h4>
-                        </div>
-                        ${
-                            name !== 'Others'
-                                ? `<button class="btn btn-danger" onclick="removeCategory('${name}')">Remove</button>`
-                                : ''
-                        }
-                    </div>
-                    <div class="category-keywords">
-                        <label>Keywords:</label>
-                        <input type="text" id="keywords-${nameId}" value="${config.keywords.join(
-                ', '
-            )}" style="width: 100%;" />
-                    </div>
-                </div>
-            `;
-        })
-        .join('');
-
-    container.innerHTML = html;
-}
-
-// Update category icon
-function updateCategoryIcon(category, newIcon) {
-    if (!newIcon || newIcon.trim() === '') {
-        newIcon = '📦';
-    }
-    categoryConfig[category].icon = newIcon.trim();
-    // Don't save immediately, wait for "Save All Changes"
-}
-
-// Update category keywords
+// Update category keywords in memory (saved by saveAllCategoryChanges)
 function updateCategoryKeywords(category, keywordsString) {
     const keywords = keywordsString
         .split(',')
@@ -947,47 +977,136 @@ function updateCategoryKeywords(category, keywordsString) {
         .filter((k) => k.length > 0);
 
     categoryConfig[category].keywords = keywords;
-    // Don't save immediately, wait for "Save All Changes"
 }
 
-// Rename category
+// Harvest every card's editable state (keywords + flags) into categoryConfig.
+// Returns true when anything actually changed.
+function collectCategoryEditsFromDOM() {
+    let hasChanges = false;
+
+    document.querySelectorAll('#budgetGrid .category-card').forEach((card) => {
+        const category = card.dataset.category;
+        const config = categoryConfig[category];
+        if (!config) return;
+
+        const keywordsInput = card.querySelector('.keywords-input');
+        if (keywordsInput) {
+            const newKeywords = keywordsInput.value
+                .split(',')
+                .map((k) => k.trim().toUpperCase())
+                .filter((k) => k.length > 0);
+            if (JSON.stringify(newKeywords) !== JSON.stringify(config.keywords || [])) {
+                config.keywords = newKeywords;
+                hasChanges = true;
+            }
+        }
+
+        const incomeToggle = card.querySelector('.income-category-toggle');
+        if (incomeToggle) {
+            const wasIncome = config._isIncome === true;
+            if (wasIncome !== incomeToggle.checked) {
+                if (incomeToggle.checked) {
+                    config._isIncome = true;
+                } else {
+                    delete config._isIncome;
+                }
+                hasChanges = true;
+            }
+        }
+
+        const excludeToggle = card.querySelector('.exclude-category-toggle');
+        if (excludeToggle) {
+            const wasExcluded = config._isExcluded === true;
+            if (wasExcluded !== excludeToggle.checked) {
+                if (excludeToggle.checked) {
+                    config._isExcluded = true;
+                } else {
+                    delete config._isExcluded;
+                }
+                hasChanges = true;
+            }
+        }
+    });
+
+    return hasChanges;
+}
+
+// Save all category changes (keywords + flags)
+function saveAllCategoryChanges() {
+    const hasChanges = collectCategoryEditsFromDOM();
+
+    if (hasChanges) {
+        saveData();
+
+        if (typeof broadcastSync === 'function') {
+            broadcastSync('category_updated', {});
+        }
+
+        refreshBudgetGrid();
+        clearUnsavedChanges();
+        showNotification('Changes saved', 'success');
+    } else {
+        clearUnsavedChanges();
+        showNotification('No changes to save', 'info');
+    }
+}
+
+// Rename category: migrates config, budgets, overrides, merchant rules, and
+// unified rules to the new name, then persists immediately.
 function renameCategory(oldName, newName) {
-    newName = newName.trim();
+    newName = (newName || '').trim();
 
-    if (!newName || newName === oldName) return;
-
-    if (categoryConfig[newName]) {
-        showNotification('Category name already exists', 'error');
-        // Reset the input
-        const categoryId = oldName.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
-        document.getElementById(`name-${categoryId}`).value = oldName;
+    if (!newName || newName === oldName) {
+        refreshBudgetGrid();
         return;
     }
+
+    if (oldName === 'Others' || !categoryConfig[oldName]) {
+        refreshBudgetGrid();
+        return;
+    }
+
+    if (oldName === 'Income' && window.incomeSettings?.trackIncome) {
+        showNotification('Turn off income tracking before renaming Income', 'error');
+        refreshBudgetGrid();
+        return;
+    }
+
+    if (categoryConfig[newName]) {
+        showNotification('A category with that name already exists', 'error');
+        refreshBudgetGrid();
+        return;
+    }
+
+    // Keep any pending unsaved edits (keywords/flags) before re-rendering.
+    collectCategoryEditsFromDOM();
 
     // Move the category configuration
     categoryConfig[newName] = categoryConfig[oldName];
     delete categoryConfig[oldName];
 
-    // Update budgets
+    // Migrate budgets across every month
     Object.keys(budgets).forEach((monthKey) => {
-        if (budgets[monthKey][oldName] !== undefined) {
-            budgets[monthKey][newName] = budgets[monthKey][oldName];
-            delete budgets[monthKey][oldName];
+        const monthBudgets = budgets[monthKey];
+        if (monthBudgets && monthBudgets[oldName] !== undefined) {
+            monthBudgets[newName] = monthBudgets[oldName];
+            delete monthBudgets[oldName];
         }
     });
 
-    // Update transaction overrides
+    // Migrate transaction overrides
     if (window.transactionOverrides) {
         Object.keys(window.transactionOverrides).forEach((monthKey) => {
-            Object.keys(window.transactionOverrides[monthKey]).forEach((transId) => {
-                if (window.transactionOverrides[monthKey][transId] === oldName) {
-                    window.transactionOverrides[monthKey][transId] = newName;
+            const monthOverrides = window.transactionOverrides[monthKey];
+            Object.keys(monthOverrides).forEach((transId) => {
+                if (monthOverrides[transId] === oldName) {
+                    monthOverrides[transId] = newName;
                 }
             });
         });
     }
 
-    // Update merchant rules
+    // Migrate merchant rules
     if (window.merchantRules) {
         Object.keys(window.merchantRules).forEach((merchant) => {
             if (window.merchantRules[merchant] === oldName) {
@@ -995,244 +1114,194 @@ function renameCategory(oldName, newName) {
             }
         });
     }
-}
 
-// Toggle category income flag (actual save happens in saveAllCategoryChanges)
-function toggleCategoryIncome(category, isIncome) {
-    // No-op: UI state is read by saveAllCategoryChanges
-}
-
-// Toggle category exclude flag (actual save happens in saveAllCategoryChanges)
-function toggleCategoryExclude(category, isExcluded) {
-    // No-op: UI state is read by saveAllCategoryChanges
-}
-
-// Save all category changes
-function saveAllCategoryChanges() {
-    // Collect all changes from the UI
-    const allCategories = Object.keys(categoryConfig);
-    let hasChanges = false;
-    let keywordChanges = false;
-
-    allCategories.forEach((category) => {
-        const categoryId = category.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
-
-        // Update icon
-        const iconInput = document.getElementById(`icon-${categoryId}`);
-        if (iconInput && iconInput.value !== categoryConfig[category].icon) {
-            categoryConfig[category].icon = iconInput.value || '📦';
-            hasChanges = true;
-        }
-
-        // Update income toggle
-        const incomeToggle = document.getElementById(`income-${categoryId}`);
-        if (incomeToggle) {
-            const wasIncome = categoryConfig[category]._isIncome || false;
-            const nowIncome = incomeToggle.checked;
-            if (wasIncome !== nowIncome) {
-                if (nowIncome) {
-                    categoryConfig[category]._isIncome = true;
-                } else {
-                    delete categoryConfig[category]._isIncome;
+    // Migrate unified rules that move transactions into this category
+    if (Array.isArray(window.unifiedRules)) {
+        window.unifiedRules.forEach((rule) => {
+            if (rule.type === 'categorize' && rule.action === oldName) {
+                rule.action = newName;
+                if (rule.isAutomatic) {
+                    rule.name = `Auto: "${rule.pattern}" -> ${newName}`;
                 }
-                hasChanges = true;
             }
-        }
+        });
+    }
 
-        // Update exclude toggle
-        const excludeToggle = document.getElementById(`exclude-${categoryId}`);
-        if (excludeToggle) {
-            const wasExcluded = categoryConfig[category]._isExcluded || false;
-            const nowExcluded = excludeToggle.checked;
-            if (wasExcluded !== nowExcluded) {
-                if (nowExcluded) {
-                    categoryConfig[category]._isExcluded = true;
-                } else {
-                    delete categoryConfig[category]._isExcluded;
+    saveData();
+
+    if (typeof broadcastSync === 'function') {
+        broadcastSync('category_updated', { oldName: oldName, newName: newName });
+    }
+
+    clearUnsavedChanges();
+    refreshBudgetGrid();
+    if (typeof updateRulesDisplay === 'function') updateRulesDisplay();
+    updateStorageStats();
+    showNotification(`Renamed "${oldName}" to "${newName}"`, 'success');
+}
+
+// Remove category: transactions move to Others, rules and budgets are cleaned
+// up so nothing points at the deleted name.
+function removeCategory(name) {
+    if (!name || !categoryConfig[name] || name === 'Others') return;
+
+    if (name === 'Income' && window.incomeSettings?.trackIncome) {
+        showNotification('Cannot delete Income while income tracking is enabled', 'error');
+        return;
+    }
+
+    if (!confirm(`Delete "${name}"? Its transactions move to Others.`)) return;
+
+    // Snapshot for undo (in-place action, no reload).
+    const undoSnapshot = (typeof snapshotActiveData === 'function') ? snapshotActiveData() : null;
+
+    delete categoryConfig[name];
+
+    // Reassign this category's transaction overrides to Others
+    if (window.transactionOverrides) {
+        Object.keys(window.transactionOverrides).forEach((monthKey) => {
+            const monthOverrides = window.transactionOverrides[monthKey];
+            Object.keys(monthOverrides).forEach((transId) => {
+                if (monthOverrides[transId] === name) {
+                    monthOverrides[transId] = 'Others';
                 }
-                hasChanges = true;
-            }
-        }
+            });
+        });
+    }
 
-        // Update keywords
-        const keywordsInput = document.getElementById(`keywords-${categoryId}`);
-        if (keywordsInput) {
-            const newKeywords = keywordsInput.value
-                .split(',')
-                .map((k) => k.trim().toUpperCase())
-                .filter((k) => k.length > 0);
+    // Drop unified rules that move transactions into the deleted category
+    if (Array.isArray(window.unifiedRules)) {
+        window.unifiedRules = window.unifiedRules.filter(
+            (rule) => !(rule.type === 'categorize' && rule.action === name)
+        );
+    }
 
-            if (JSON.stringify(newKeywords) !== JSON.stringify(categoryConfig[category].keywords)) {
-                categoryConfig[category].keywords = newKeywords;
-                hasChanges = true;
-                keywordChanges = true;
+    // Drop learned merchant rules pointing at it
+    if (window.merchantRules) {
+        Object.keys(window.merchantRules).forEach((merchant) => {
+            if (window.merchantRules[merchant] === name) {
+                delete window.merchantRules[merchant];
             }
+        });
+    }
+
+    // Delete its budgets across every month
+    Object.keys(budgets).forEach((monthKey) => {
+        if (budgets[monthKey] && budgets[monthKey][name] !== undefined) {
+            delete budgets[monthKey][name];
         }
     });
 
-    if (hasChanges) {
-        saveData();
+    saveData();
 
-        // Broadcast sync event to other tabs
-        if (typeof broadcastSync === 'function') {
-            broadcastSync('category_updated', {});
-        }
+    if (typeof broadcastSync === 'function') {
+        broadcastSync('category_deleted', { name: name });
+    }
 
-        // Refresh current view immediately
-        if (currentMonth && monthlyData.has(currentMonth)) {
-            const monthData = monthlyData.get(currentMonth);
-            const analyzer = analyzeTransactions(monthData.transactions);
-            updateBudgetView(analyzer);
-        }
+    refreshBudgetGrid();
+    if (typeof updateRulesDisplay === 'function') updateRulesDisplay();
+    updateStorageStats();
 
-        // Update merchant rules display if the Setup tab (which contains Rules) is visible
-        const setupTab = document.getElementById('setupTab');
-        if (setupTab && setupTab.classList.contains('active')) {
-            updateMerchantRulesDisplay();
-        }
-
-        clearUnsavedChanges();
-        let message = 'All changes saved successfully';
-        showNotification(message, 'success');
+    if (undoSnapshot && typeof showUndo === 'function') {
+        showUndo(`"${name}" deleted`, () => { restoreActiveData(undoSnapshot); }, { reloadOnUndo: true });
     } else {
-        clearUnsavedChanges();
-        showNotification('No changes to save', 'info');
+        showNotification(`"${name}" deleted. Its transactions moved to Others.`, 'success');
     }
 }
 
-// Add new category with keywords
-function addNewCategory() {
-    const iconOptions = [
-        '📦',
-        '🛒',
-        '🍕',
-        '☕',
-        '🚗',
-        '⛽',
-        '🏠',
-        '💡',
-        '📱',
-        '💻',
-        '👕',
-        '👟',
-        '🎬',
-        '🎮',
-        '📚',
-        '✈️',
-        '🏥',
-        '💊',
-        '🎓',
-        '🏦',
-        '💳',
-        '🎁',
-        '🔧',
-        '🏪',
-        '🍔',
-        '🥗',
-        '🍺',
-        '🎵',
-        '📺',
-        '🏋️',
-        '💄',
-        '🧴',
-        '🐕',
-        '🌱',
-        '🎨',
-        '⚽',
-        '🏖️',
-        '🚕',
-        '🚇',
-        '🅿️',
-        '✂️',
-        '👔',
-        '💍',
-        '🏨',
-        '🎭',
-        '🎪',
-        '🏛️',
-        '⛪',
-        '🕹️',
-        '📷',
-    ];
+// ---------------------------------------------------------------------------
+// Add category (icons are automatic; no picker)
+// ---------------------------------------------------------------------------
 
-    const modal = document.createElement('div');
-    modal.className = 'modal show';
-    modal.innerHTML = `
-        <div class="modal-content" style="width: 500px;">
-            <div class="modal-header">
-                <h2>Add New Category</h2>
-                <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+function addNewCategory() {
+    const overlay = document.createElement('div');
+    overlay.className = 'app-modal-overlay';
+    overlay.innerHTML = `
+        <div class="app-modal" role="dialog" aria-modal="true" aria-label="New category">
+            <div class="app-modal-header">
+                <div class="app-modal-title">New Category</div>
+                <button class="app-modal-close" data-close aria-label="Close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
-            <div class="modal-body">
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Category Name:</label>
-                    <input type="text" id="newCategoryName" 
-                           style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 4px;"
-                           placeholder="e.g., Entertainment">
+            <div class="app-modal-body">
+                <div class="app-field">
+                    <label class="app-label" for="newCategoryName">Name</label>
+                    <input type="text" id="newCategoryName" class="app-input" placeholder="Entertainment" maxlength="40" autocomplete="off">
                 </div>
-                
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Choose Icon:</label>
-                    <div style="display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; padding: 10px; background: var(--light); border-radius: 4px; max-height: 200px; overflow-y: auto;">
-                        ${iconOptions
-                            .map(
-                                (icon, index) => `
-                            <button type="button" 
-                                    class="icon-option ${index === 0 ? 'selected' : ''}" 
-                                    onclick="selectCategoryIcon(this, '${icon}')"
-                                    style="padding: 10px; border: 2px solid ${
-                                        index === 0 ? 'var(--primary)' : 'transparent'
-                                    }; 
-                                           background: white; border-radius: 4px; cursor: pointer; font-size: 20px;
-                                           transition: all 0.2s;">
-                                ${icon}
-                            </button>
-                        `
-                            )
-                            .join('')}
+                <div class="category-preview" id="newCategoryPreview" hidden>
+                    <span class="category-preview-chip" id="newCategoryPreviewChip"></span>
+                    <div class="category-preview-text">
+                        <strong id="newCategoryPreviewName"></strong>
+                        <span>Icon and color are chosen automatically</span>
                     </div>
-                    <input type="hidden" id="selectedIcon" value="${iconOptions[0]}">
+                    <span class="category-preview-swatch" id="newCategoryPreviewSwatch"></span>
                 </div>
-                
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 500;">Keywords (comma-separated):</label>
-                    <input type="text" id="newCategoryKeywords" 
-                           style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 4px;"
-                           placeholder="e.g., NETFLIX, SPOTIFY, CINEMA">
-                    <small style="color: var(--gray); font-size: 12px;">Keywords will auto-categorize matching transactions</small>
+                <div class="app-field">
+                    <label class="app-label" for="newCategoryKeywords">Keywords (optional)</label>
+                    <input type="text" id="newCategoryKeywords" class="app-input" placeholder="NETFLIX, SPOTIFY" autocomplete="off">
+                    <p class="app-hint">Comma-separated. Matching transactions land here automatically.</p>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
-                <button class="btn btn-primary" onclick="saveNewCategory()">Create Category</button>
+                <div class="app-modal-actions">
+                    <button class="btn btn-secondary" data-close>Cancel</button>
+                    <button class="btn btn-primary" data-create>Create Category</button>
+                </div>
             </div>
         </div>
     `;
 
-    document.body.appendChild(modal);
-    document.getElementById('newCategoryName').focus();
-}
+    const nameInput = overlay.querySelector('#newCategoryName');
+    const preview = overlay.querySelector('#newCategoryPreview');
 
-function selectCategoryIcon(button, icon) {
-    // Remove selected class from all icons
-    document.querySelectorAll('.icon-option').forEach((btn) => {
-        btn.style.border = '2px solid transparent';
-        btn.classList.remove('selected');
+    const updatePreview = () => {
+        const name = nameInput.value.trim();
+        if (!name) {
+            preview.hidden = true;
+            return;
+        }
+        preview.hidden = false;
+        overlay.querySelector('#newCategoryPreviewChip').innerHTML = getCategoryIconChip(name, {
+            size: 40,
+            icon: 20,
+        });
+        overlay.querySelector('#newCategoryPreviewName').textContent = name;
+        overlay.querySelector('#newCategoryPreviewSwatch').style.background = getCategoryColorVar(name);
+    };
+    nameInput.addEventListener('input', updatePreview);
+
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay || e.target.closest('[data-close]')) {
+            overlay.remove();
+            return;
+        }
+        if (e.target.closest('[data-create]')) {
+            saveNewCategory(overlay);
+        }
     });
 
-    // Add selected class to clicked icon
-    button.style.border = '2px solid var(--primary)';
-    button.classList.add('selected');
-    document.getElementById('selectedIcon').value = icon;
+    overlay.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.target === nameInput) {
+            e.preventDefault();
+            saveNewCategory(overlay);
+        }
+        if (e.key === 'Escape') overlay.remove();
+    });
+
+    document.body.appendChild(overlay);
+    nameInput.focus();
 }
 
-function saveNewCategory() {
-    const name = document.getElementById('newCategoryName').value.trim();
-    const icon = document.getElementById('selectedIcon').value;
-    const keywordsInput = document.getElementById('newCategoryKeywords').value;
+function saveNewCategory(overlay) {
+    const scope = overlay || document;
+    const nameInput = scope.querySelector('#newCategoryName');
+    const keywordsInput = scope.querySelector('#newCategoryKeywords');
+    const name = nameInput ? nameInput.value.trim() : '';
 
     if (!name) {
-        showNotification('Please enter a category name', 'error');
+        showNotification('Enter a category name', 'error');
         return;
     }
 
@@ -1241,172 +1310,115 @@ function saveNewCategory() {
         return;
     }
 
-    const keywords = keywordsInput
+    const keywords = (keywordsInput ? keywordsInput.value : '')
         .split(',')
         .map((k) => k.trim().toUpperCase())
         .filter((k) => k.length > 0);
 
-    // Check for keyword conflicts
+    // Check for keyword conflicts with existing categories
     const conflicts = [];
     keywords.forEach((keyword) => {
         for (const [categoryName, config] of Object.entries(categoryConfig)) {
             if (config.keywords && config.keywords.includes(keyword)) {
-                conflicts.push({
-                    keyword: keyword,
-                    existingCategory: categoryName,
-                    icon: config.icon,
-                });
+                conflicts.push({ keyword: keyword, existingCategory: categoryName });
             }
         }
     });
 
-    // If there are conflicts, show confirmation modal
     if (conflicts.length > 0) {
-        showKeywordConflictModal(name, icon, keywords, conflicts);
+        showKeywordConflictModal(name, keywords, conflicts, overlay);
         return;
     }
 
-    // No conflicts, proceed with creation
-    proceedWithCategoryCreation(name, icon, keywords);
+    proceedWithCategoryCreation(name, keywords);
+    if (overlay) overlay.remove();
 }
 
-function showKeywordConflictModal(newCategoryName, newIcon, newKeywords, conflicts) {
-    const modal = document.createElement('div');
-    modal.className = 'modal show';
-    modal.style.zIndex = '2000'; // Higher z-index for nested modal
+function showKeywordConflictModal(newCategoryName, newKeywords, conflicts, parentOverlay) {
+    const esc = window.escapeHtml;
+    const overlay = document.createElement('div');
+    overlay.className = 'app-modal-overlay';
 
     const conflictsList = conflicts
         .map(
             (conflict) => `
-        <div style="padding: 10px; background: var(--light); margin: 8px 0; border-radius: 4px; border-left: 3px solid var(--warning);">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <strong style="color: var(--dark);">"${conflict.keyword}"</strong>
-                    <span style="color: var(--gray); margin: 0 8px;">is currently in</span>
-                    <span style="background: white; padding: 3px 8px; border-radius: 3px; border: 1px solid var(--border);">
-                        ${conflict.icon} ${conflict.existingCategory}
-                    </span>
-                </div>
-            </div>
-        </div>
-    `
+        <div class="conflict-row">
+            <code class="conflict-keyword">${esc(conflict.keyword)}</code>
+            <svg class="conflict-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+            <span class="conflict-category">
+                ${getCategoryIconChip(conflict.existingCategory, { size: 24, icon: 13 })}
+                ${esc(conflict.existingCategory)}
+            </span>
+        </div>`
         )
         .join('');
 
-    const conflictsJson = JSON.stringify(conflicts).replace(/"/g, '&quot;');
-
-    modal.innerHTML = `
-        <div class="modal-content" style="width: 550px;">
-            <div class="modal-header" style="background: #fef3c7; border-bottom: 2px solid #fbbf24;">
-                <h2 style="color: #92400e;">⚠️ Keyword Conflict Detected</h2>
-                <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div style="margin-bottom: 20px;">
-                    <p style="font-size: 14px; color: var(--dark); margin-bottom: 15px;">
-                        The following keyword${
-                            conflicts.length > 1 ? 's are' : ' is'
-                        } already assigned to other categories:
-                    </p>
-                    ${conflictsList}
-                </div>
-                
-                <div style="background: #e0f2fe; border: 1px solid #0284c7; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-                    <p style="color: #075985; font-size: 13px; margin: 0 0 8px 0;">
-                        <strong>What will happen if you proceed:</strong>
-                    </p>
-                    <ul style="color: #075985; font-size: 13px; margin: 0; padding-left: 20px;">
-                        <li>The keyword${
-                            conflicts.length > 1 ? 's' : ''
-                        } will be <strong>moved</strong> to the new category "${newCategoryName}"</li>
-                        <li>Future transactions matching ${
-                            conflicts.length > 1 ? 'these keywords' : 'this keyword'
-                        } will be categorized as "${newCategoryName}"</li>
-                        <li>Existing categorized transactions will NOT be affected unless you reprocess them</li>
-                    </ul>
-                </div>
-                
-                <div style="padding: 15px; background: var(--light); border-radius: 6px;">
-                    <p style="font-size: 13px; color: var(--gray); margin: 0;">
-                        <strong>Tip:</strong> If you want to keep the keyword in both categories, consider using more specific keywords. 
-                        For example, instead of "AMAZON", use "AMAZON PRIME" for subscriptions and "AMAZON.COM" for shopping.
-                    </p>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
-                <button 
-                    class="btn btn-warning"
-                    data-category="${newCategoryName}"
-                    data-icon="${newIcon}"
-                    data-keywords="${newKeywords.join(',')}"
-                    data-conflicts='${conflictsJson}'
-                    onclick="handleConflictOverrideClick(this)"
-                    style="background: #f59e0b; border-color: #f59e0b;">
-                    Override & Move Keywords
+    overlay.innerHTML = `
+        <div class="app-modal" role="dialog" aria-modal="true" aria-label="Keyword conflict">
+            <div class="app-modal-header">
+                <div class="app-modal-title">Keywords Already In Use</div>
+                <button class="app-modal-close" data-close aria-label="Close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
                 </button>
+            </div>
+            <div class="app-modal-body">
+                <div class="conflict-list">${conflictsList}</div>
+                <p class="app-hint">Move them and future matches go to "${esc(newCategoryName)}" instead. Already-categorized transactions stay put.</p>
+                <div class="app-modal-actions">
+                    <button class="btn btn-secondary" data-close>Cancel</button>
+                    <button class="btn btn-warning" data-override>Move Keywords</button>
+                </div>
             </div>
         </div>
     `;
 
-    document.body.appendChild(modal);
-}
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay || e.target.closest('[data-close]')) {
+            overlay.remove();
+            return;
+        }
+        if (e.target.closest('[data-override]')) {
+            conflicts.forEach((conflict) => {
+                const existing = categoryConfig[conflict.existingCategory];
+                if (existing && existing.keywords) {
+                    existing.keywords = existing.keywords.filter((k) => k !== conflict.keyword);
+                }
+            });
 
-// 🔹 new safe handler
-function handleConflictOverrideClick(btn) {
-    const category = btn.dataset.category;
-    const icon = btn.dataset.icon;
-    const keywords = btn.dataset.keywords;
-    const conflictsJson = btn.dataset.conflicts;
+            proceedWithCategoryCreation(newCategoryName, newKeywords);
+            overlay.remove();
+            if (parentOverlay) parentOverlay.remove();
 
-    proceedWithConflictOverride(category, icon, keywords, conflictsJson);
-    btn.closest('.modal').remove();
-}
-
-function proceedWithConflictOverride(categoryName, icon, keywordsString, conflictsJson) {
-    const keywords = keywordsString.split(',');
-    const conflicts = JSON.parse(conflictsJson.replace(/\\'/g, "'"));
-
-    // Remove conflicting keywords from their current categories
-    conflicts.forEach((conflict) => {
-        const existingCategory = categoryConfig[conflict.existingCategory];
-        if (existingCategory && existingCategory.keywords) {
-            existingCategory.keywords = existingCategory.keywords.filter(
-                (k) => k !== conflict.keyword
+            const movedFrom = [...new Set(conflicts.map((c) => c.existingCategory))].join(', ');
+            showNotification(
+                `Category "${newCategoryName}" created. Keywords moved from ${movedFrom}`,
+                'success'
             );
         }
     });
 
-    // Close the original add category modal if it exists
-    const originalModal = document.querySelector('.modal:not([style*="z-index"])');
-    if (originalModal) {
-        originalModal.remove();
-    }
-
-    // Proceed with creation
-    proceedWithCategoryCreation(categoryName, icon, keywords);
-
-    // Show confirmation with details about what was moved
-    const movedFrom = [...new Set(conflicts.map((c) => c.existingCategory))].join(', ');
-    showNotification(
-        `Category "${categoryName}" created. Keywords moved from: ${movedFrom}`,
-        'success'
-    );
+    document.body.appendChild(overlay);
 }
 
-function proceedWithCategoryCreation(name, icon, keywords) {
-    // Add the new category
+function proceedWithCategoryCreation(name, keywords) {
+    // Icon and color are derived automatically from the name (icons.js).
+    // The icon field stays in the data shape for back-compat but is unused.
     categoryConfig[name] = {
         keywords: keywords,
-        icon: icon,
+        icon: '',
     };
 
-    // Reprocess all transactions if keywords were provided
+    // Count transactions the new keywords will re-categorize
     let reprocessedCount = 0;
     if (keywords.length > 0) {
         monthlyData.forEach((monthData, monthKey) => {
             monthData.transactions.forEach((transaction) => {
-                // Skip if there's already an override for this transaction
                 if (
                     window.transactionOverrides &&
                     window.transactionOverrides[monthKey] &&
@@ -1421,10 +1433,8 @@ function proceedWithCategoryCreation(name, icon, keywords) {
                     ''
                 ).toUpperCase();
 
-                // Check if any of the new keywords match
                 for (const keyword of keywords) {
                     if (description.includes(keyword)) {
-                        // This transaction should be in the new category
                         const oldCategory = categorizeTransaction(description, transaction._id);
                         if (oldCategory !== name) {
                             reprocessedCount++;
@@ -1438,192 +1448,95 @@ function proceedWithCategoryCreation(name, icon, keywords) {
 
     saveData();
 
-    // Broadcast sync event to other tabs
     if (typeof broadcastSync === 'function') {
-        broadcastSync('category_added', { name: name, icon: icon });
+        broadcastSync('category_added', { name: name });
     }
 
-    // Refresh the budget view - handle ALL_MONTHS case
-    if (currentMonth === 'ALL_MONTHS') {
-        updateBudgetViewForAllMonths();
-    } else if (currentMonth && monthlyData.has(currentMonth)) {
-        const monthData = monthlyData.get(currentMonth);
-        const analyzer = analyzeTransactions(monthData.transactions);
-        updateBudgetView(analyzer);
-    } else {
-        // No data case - still refresh the view to show new category
-        updateBudgetView(null);
-    }
+    refreshBudgetGrid();
+    updateStorageStats();
 
-    // Close modal
-    const modal = document.querySelector('.modal:not([style*="z-index"])');
-    if (modal) {
-        modal.remove();
-    }
-
-    // Show success message
-    let message = `Category "${name}" created successfully`;
+    let message = `Category "${name}" created`;
     if (reprocessedCount > 0) {
         message += ` (${reprocessedCount} transactions will be re-categorized)`;
     }
     showNotification(message, 'success');
 }
 
-// Remove category
-function removeCategory(name) {
-    // Prevent deletion of Income category while tracking is enabled
-    if (name === 'Income' && window.incomeSettings?.trackIncome) {
-        showNotification('Cannot delete Income category while income tracking is enabled', 'error');
-        return;
-    }
-
-    if (!confirm(`Remove category "${name}"? Transactions will be moved to "Others".`)) return;
-
-    delete categoryConfig[name];
-    saveData();
-
-    // Broadcast sync event to other tabs
-    if (typeof broadcastSync === 'function') {
-        broadcastSync('category_deleted', { name: name });
-    }
-
-    // Refresh views - handle ALL_MONTHS case
-    if (currentMonth === 'ALL_MONTHS') {
-        updateBudgetViewForAllMonths();
-    } else if (currentMonth && monthlyData.has(currentMonth)) {
-        const monthData = monthlyData.get(currentMonth);
-        const analyzer = analyzeTransactions(monthData.transactions);
-        updateBudgetView(analyzer);
-    } else {
-        // No data case - still refresh the view
-        updateBudgetView(null);
-    }
-
-    updateCategoriesView();
-    updateSettingsView();
-
-    showNotification(`Category "${name}" removed`, 'success');
-}
-
-// Update settings view
-function updateSettingsView() {
-    const container = document.getElementById('categoryConfig');
-    if (!container) return;
-
-    const html = Object.entries(categoryConfig)
-        .map(
-            ([name, config]) => `
-        <div class="config-item">
-            <h4>${name}</h4>
-            <div class="config-inputs">
-                <input type="text" 
-                       id="icon-${name.replace(/\s+/g, '-')}" 
-                       value="${config.icon}" 
-                       placeholder="Icon">
-                <input type="text" 
-                       id="keywords-${name.replace(/\s+/g, '-')}" 
-                       value="${config.keywords.join(', ')}" 
-                       placeholder="Keywords (comma-separated)">
-            </div>
-        </div>
-    `
-        )
-        .join('');
-
-    container.innerHTML = html;
-
-    // ADD THIS: Update merchant rules display
-    updateMerchantRulesDisplay();
-}
-
-// Save category configuration
+// Back-compat alias
 function saveCategoryConfig() {
     saveAllCategoryChanges();
 }
 
-// Show merchant rules in settings (optional - call this from settings view)
-function showMerchantRules() {
-    if (!window.merchantRules || Object.keys(window.merchantRules).length === 0) {
-        return '<p style="color: var(--gray); font-size: 13px;">No learned merchant rules yet. Drag transactions to different categories to teach the app.</p>';
-    }
+// ---------------------------------------------------------------------------
+// Learned merchant rules (legacy display, kept for pages that include it)
+// ---------------------------------------------------------------------------
 
-    const rulesHtml = Object.entries(window.merchantRules)
-        .map(
-            ([merchant, category]) => `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--light); margin: 5px 0; border-radius: 4px;">
-                <span style="font-size: 13px;">
-                    <strong>${merchant}</strong> → ${category}
-                </span>
-                <button class="btn-icon" onclick="removeMerchantRule('${merchant}')">×</button>
-            </div>
-        `
-        )
-        .join('');
-
-    return `
-        <div>
-            <h4 style="font-size: 14px; margin-bottom: 10px;">Learned Merchant Rules:</h4>
-            ${rulesHtml}
-        </div>
-    `;
-}
-
-// Update merchant rules display
 function updateMerchantRulesDisplay() {
     const container = document.getElementById('merchantRulesList');
     if (!container) return;
 
-    // Ensure merchantRules exists
     if (!window.merchantRules) {
         window.merchantRules = {};
     }
 
-    if (Object.keys(window.merchantRules).length === 0) {
+    const esc = window.escapeHtml;
+    const entries = Object.entries(window.merchantRules).sort((a, b) => a[0].localeCompare(b[0]));
+
+    if (entries.length === 0) {
         container.innerHTML =
-            '<p style="color: var(--gray); font-size: 13px;">No learned rules yet. Drag transactions to different categories and the app will learn patterns.</p>';
+            '<p class="rules-empty-hint">No learned rules yet. Drag transactions between categories to teach the app.</p>';
         return;
     }
 
-    const rulesHtml = Object.entries(window.merchantRules)
-        .sort((a, b) => a[0].localeCompare(b[0])) // Sort alphabetically
-        .map(([merchant, category]) => {
-            const icon = categoryConfig[category]?.icon || '📦';
-            return `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--light); margin: 8px 0; border-radius: 4px; border: 1px solid var(--border);">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="font-size: 13px; color: var(--gray);">If contains:</span>
-                        <strong style="font-size: 13px; color: var(--dark);">"${merchant}"</strong>
-                        <span style="font-size: 13px; color: var(--gray);">→</span>
-                        <span style="font-size: 13px; background: var(--white); padding: 3px 8px; border-radius: 3px; border: 1px solid var(--border);">
-                            ${icon} ${category}
-                        </span>
-                    </div>
-                    <button class="btn-icon" onclick="removeMerchantRule('${merchant.replace(
-                        /'/g,
-                        "\\'"
-                    )}')" title="Remove rule">×</button>
+    const rowsHtml = entries
+        .map(
+            ([merchant, category]) => `
+            <div class="merchant-rule-row">
+                <div class="merchant-rule-text">
+                    <code>${esc(merchant)}</code>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                    <span>${esc(category)}</span>
                 </div>
-            `;
-        })
+                <button class="btn-icon merchant-rule-remove" data-merchant="${esc(merchant)}" title="Remove rule" aria-label="Remove rule for ${esc(merchant)}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>`
+        )
         .join('');
 
     container.innerHTML = `
-        <div style="margin-bottom: 10px;">
-            <button class="btn btn-secondary" onclick="clearAllMerchantRules()">Clear All Rules</button>
+        <div class="merchant-rules-toolbar">
+            <button class="btn btn-secondary btn-sm" data-merchant-clear>Clear All</button>
         </div>
-        ${rulesHtml}
+        ${rowsHtml}
     `;
+
+    if (!container.dataset.listenersBound) {
+        container.dataset.listenersBound = 'true';
+        container.addEventListener('click', (e) => {
+            if (e.target.closest('[data-merchant-clear]')) {
+                clearAllMerchantRules();
+                return;
+            }
+            const btn = e.target.closest('.merchant-rule-remove');
+            if (btn) removeMerchantRule(btn.dataset.merchant);
+        });
+    }
 }
 
-// Remove a merchant rule
 function removeMerchantRule(merchant) {
     if (confirm(`Remove rule for "${merchant}"?`)) {
         delete window.merchantRules[merchant];
         saveData();
         updateMerchantRulesDisplay();
 
-        // Refresh current view if needed
-        if (currentMonth) {
+        if (currentMonth && monthlyData.has(currentMonth)) {
             switchToMonth(currentMonth);
         }
 
@@ -1631,7 +1544,6 @@ function removeMerchantRule(merchant) {
     }
 }
 
-// Clear all merchant rules
 function clearAllMerchantRules() {
     if (!window.merchantRules || Object.keys(window.merchantRules).length === 0) {
         showNotification('No rules to clear', 'error');
@@ -1640,17 +1552,14 @@ function clearAllMerchantRules() {
 
     if (
         confirm(
-            `Clear all ${
-                Object.keys(window.merchantRules).length
-            } learned rules? This cannot be undone.`
+            `Clear all ${Object.keys(window.merchantRules).length} learned rules? This cannot be undone.`
         )
     ) {
         window.merchantRules = {};
         saveData();
         updateMerchantRulesDisplay();
 
-        // Refresh current view
-        if (currentMonth) {
+        if (currentMonth && monthlyData.has(currentMonth)) {
             switchToMonth(currentMonth);
         }
 
@@ -1658,7 +1567,10 @@ function clearAllMerchantRules() {
     }
 }
 
-// Clear all data
+// ---------------------------------------------------------------------------
+// Danger zone
+// ---------------------------------------------------------------------------
+
 function clearAllData() {
     if (
         !confirm(
@@ -1668,48 +1580,30 @@ function clearAllData() {
         return;
     }
 
-    if (confirm('Are you absolutely sure? This cannot be undone.')) {
-        try {
-            // Clear localStorage
-            localStorage.removeItem('sahabBudget_data');
-            localStorage.removeItem('sahabBudget_sampleMode');
-            localStorage.removeItem('sahabBudget_hideGettingStarted');
+    try {
+        // Snapshot for undo before removing anything.
+        const snapshot = (typeof snapshotActiveData === 'function') ? snapshotActiveData() : null;
 
-            // Clear in-memory data
-            if (typeof monthlyData !== 'undefined' && monthlyData) {
-                monthlyData.clear();
-            }
-            if (typeof budgets !== 'undefined') {
-                budgets = {};
-            }
-            if (typeof window.transactionOverrides !== 'undefined') {
-                window.transactionOverrides = {};
-            }
-            if (typeof window.unifiedRules !== 'undefined') {
-                window.unifiedRules = [];
-            }
+        localStorage.removeItem(getActiveDataKey());
+        localStorage.removeItem('sahabBudget_sampleMode');
+        localStorage.removeItem('sahabBudget_hideGettingStarted');
 
-            // Remove widget if exists
-            const widget = document.getElementById('quickStatsWidget');
-            if (widget) {
-                widget.remove();
-            }
+        if (typeof monthlyData !== 'undefined' && monthlyData) monthlyData.clear();
+        if (typeof budgets !== 'undefined') budgets = {};
+        if (typeof window.transactionOverrides !== 'undefined') window.transactionOverrides = {};
+        if (typeof window.unifiedRules !== 'undefined') window.unifiedRules = [];
 
-            // Show notification before reload
-            showNotification('All data cleared. Reloading...', 'success');
-
-            // Reload after short delay
-            setTimeout(() => {
-                location.reload();
-            }, 500);
-        } catch (error) {
-            console.error('Error clearing data:', error);
-            showNotification('Error clearing data. Please try again.', 'error');
+        if (snapshot && typeof showUndoAfterReload === 'function') {
+            showUndoAfterReload('All data cleared', snapshot);
         }
+
+        setTimeout(() => { location.reload(); }, 150);
+    } catch (error) {
+        console.error('Error clearing data:', error);
+        showNotification('Error clearing data. Please try again.', 'error');
     }
 }
 
-// Clear all transactions only
 function clearAllTransactions() {
     if (
         !confirm(
@@ -1719,45 +1613,29 @@ function clearAllTransactions() {
         return;
     }
 
-    if (confirm('Are you absolutely sure? This cannot be undone.')) {
-        try {
-            // Clear only transactions
-            if (typeof monthlyData !== 'undefined' && monthlyData) {
-                monthlyData.clear();
-            }
+    try {
+        const snapshot = (typeof snapshotActiveData === 'function') ? snapshotActiveData() : null;
 
-            // Clear transaction overrides since transactions are gone
-            if (typeof window.transactionOverrides !== 'undefined') {
-                window.transactionOverrides = {};
-            }
+        if (typeof monthlyData !== 'undefined' && monthlyData) monthlyData.clear();
+        if (typeof window.transactionOverrides !== 'undefined') window.transactionOverrides = {};
 
-            // Keep everything else: categoryConfig, budgets, unifiedRules
-            saveData();
+        saveData();
 
-            // Remove widget if exists
-            const widget = document.getElementById('quickStatsWidget');
-            if (widget) {
-                widget.remove();
-            }
-
-            // Show notification before reload
-            showNotification(
-                'All transactions cleared. Categories, budgets, and rules preserved. Reloading...',
-                'success'
-            );
-
-            // Reload after short delay
-            setTimeout(() => {
-                location.reload();
-            }, 500);
-        } catch (error) {
-            console.error('Error clearing transactions:', error);
-            showNotification('Error clearing transactions. Please try again.', 'error');
+        if (snapshot && typeof showUndoAfterReload === 'function') {
+            showUndoAfterReload('All transactions cleared', snapshot);
         }
+
+        setTimeout(() => { location.reload(); }, 150);
+    } catch (error) {
+        console.error('Error clearing transactions:', error);
+        showNotification('Error clearing transactions. Please try again.', 'error');
     }
 }
 
-// Mark that there are unsaved changes
+// ---------------------------------------------------------------------------
+// Unsaved changes indicator
+// ---------------------------------------------------------------------------
+
 function markUnsavedChanges() {
     const notice = document.getElementById('unsavedNotice');
     const saveBtn = document.getElementById('saveChangesBtn');
@@ -1775,7 +1653,6 @@ function markUnsavedChanges() {
     }
 }
 
-// Clear unsaved changes indicator
 function clearUnsavedChanges() {
     const notice = document.getElementById('unsavedNotice');
     const saveBtn = document.getElementById('saveChangesBtn');
@@ -1796,7 +1673,6 @@ function clearUnsavedChanges() {
 // Show notification function (if not already defined elsewhere)
 if (typeof showNotification === 'undefined') {
     window.showNotification = function (message, type = 'success') {
-        // Remove any existing notifications
         const existing = document.querySelectorAll('.notification');
         existing.forEach((n) => n.remove());
 

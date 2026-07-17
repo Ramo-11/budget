@@ -108,24 +108,34 @@ async function handleFileUpload(event) {
             const processResult = splitByMonth(transactionsToProcess);
             saveData();
 
-            // Show detailed upload result
-            let message = `Processed ${transactionsToProcess.length} transactions`;
+            // Report what was actually imported across all files, not the raw
+            // row count (rows can be skipped, deduplicated, or removed by rules)
+            const importedCount = (processResult.added || 0) + (processResult.incomeAdded || 0);
+            let message =
+                importedCount > 0
+                    ? `Imported ${importedCount} transaction${importedCount === 1 ? '' : 's'}` +
+                      (files.length > 1 ? ` from ${files.length} files` : '')
+                    : 'No new transactions imported';
             if (detectedFormat.name) {
                 message = `${detectedFormat.name} format detected. ` + message;
             }
-            if (processResult.rulesApplied > 0) {
-                message += ` (${processResult.rulesApplied} removed by custom rules)`;
-            }
-            if (processResult.skipped > 0) {
-                message += ` (${processResult.skipped} income/credits skipped)`;
+            const details = [];
+            if (processResult.incomeAdded > 0) {
+                details.push(`${processResult.incomeAdded} income`);
             }
             if (processResult.duplicates > 0) {
-                message += ` (${processResult.duplicates} duplicates skipped)`;
+                details.push(`${processResult.duplicates} duplicate${processResult.duplicates === 1 ? '' : 's'} skipped`);
             }
-            if (processResult.added > 0) {
-                message += ` - ${processResult.added} new expenses added`;
+            if (processResult.skipped > 0) {
+                details.push(`${processResult.skipped} skipped`);
             }
-            showNotification(message, 'success');
+            if (processResult.rulesApplied > 0) {
+                details.push(`${processResult.rulesApplied} removed by rules`);
+            }
+            if (details.length > 0) {
+                message += ` (${details.join(', ')})`;
+            }
+            showNotification(message, importedCount > 0 ? 'success' : 'info');
 
             // Reload the page after a short delay
             setTimeout(() => {
@@ -147,49 +157,10 @@ async function handleFileUpload(event) {
         event.target.value = ''; // Reset file input
     }
 }
-// Switch view
-function switchView(viewName) {
-    document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
-    document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
-
-    document.getElementById(viewName + 'View').classList.add('active');
-    event.target.classList.add('active');
-
-    if (viewName === 'settings') {
-        // Filter out ALL_DATA option for settings view
-        const dropdown = document.getElementById('monthDropdown');
-        const currentValue = dropdown.value;
-
-        // Temporarily remove ALL_DATA option
-        const allDataOption = dropdown.querySelector('option[value="ALL_DATA"]');
-        if (allDataOption) {
-            allDataOption.style.display = 'none';
-        }
-
-        // If currently on ALL_DATA, switch to most recent month
-        if (currentMonth === 'ALL_DATA') {
-            const months = Array.from(monthlyData.keys()).sort().reverse();
-            if (months.length > 0) {
-                dropdown.value = months[0];
-                switchToMonth(months[0]);
-            }
-        } else if (currentMonth) {
-            const monthData = monthlyData.get(currentMonth);
-            if (monthData) {
-                const analyzer = analyzeTransactions(monthData.transactions);
-                updateBudgetView(analyzer);
-            }
-        }
-        updateMerchantRulesDisplay();
-    } else {
-        // Show ALL_DATA option for other views
-        const dropdown = document.getElementById('monthDropdown');
-        const allDataOption = dropdown.querySelector('option[value="ALL_DATA"]');
-        if (allDataOption) {
-            allDataOption.style.display = '';
-        }
-    }
-}
+// Note: navigation between pages is plain links (index/analytics/settings are
+// separate pages). The old switchView() helper was removed: it dereferenced
+// DOM nodes that do not exist on this page, relied on the implicit `event`
+// global, and called functions defined only on other pages.
 
 // Apply merchant rules to all data when viewing "All Data"
 function applyMerchantRulesToAllData() {
@@ -289,22 +260,25 @@ function displayDashboardSearchResults(results, searchTerm) {
     const categoryDetails = document.getElementById('categoryDetails');
     const summaryCards = document.getElementById('summaryCards');
     const chartsContainer = document.querySelector('.charts-container');
-    const sectionHeader = document.querySelector('.section-header');
+    const breakdownHeader = document.querySelector('.breakdown-header');
+    const insights = document.getElementById('dashboardInsights');
 
-    // Hide normal dashboard elements
+    // Hide normal dashboard elements (updateDashboard restores them on the
+    // next normal render, so a month switch mid-search recovers cleanly)
     if (summaryCards) summaryCards.style.display = 'none';
     if (chartsContainer) chartsContainer.style.display = 'none';
-    if (sectionHeader) sectionHeader.style.display = 'none';
+    if (breakdownHeader) breakdownHeader.style.display = 'none';
+    if (insights) insights.style.display = 'none';
 
     if (results.length === 0) {
         categoryDetails.innerHTML = `
             <div class="search-results-empty">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="11" cy="11" r="8"></circle>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
-                <h3>No transactions found</h3>
-                <p>No transactions match "${highlightSearchText(searchTerm, searchTerm)}"</p>
+                <h3>No matches for "${escapeHtml(searchTerm)}"</h3>
+                <button class="btn btn-secondary btn-sm" onclick="clearDashboardSearch()">Clear search</button>
             </div>
         `;
         return;
@@ -314,13 +288,15 @@ function displayDashboardSearchResults(results, searchTerm) {
     results.sort((a, b) => b.parsedDate - a.parsedDate);
 
     const totalAmount = results.reduce((sum, tx) => sum + tx.parsedAmount, 0);
+    const totalLabel =
+        '$' + totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     categoryDetails.innerHTML = `
         <div class="search-results-container">
             <div class="search-results-header-bar">
                 <div class="search-results-info">
                     <h3>Found ${results.length} transaction${results.length === 1 ? '' : 's'}</h3>
-                    <span class="search-results-total">Total: $${totalAmount.toFixed(2)}</span>
+                    <span class="search-results-total">Total: ${totalLabel}</span>
                 </div>
                 <button class="btn btn-secondary btn-sm" onclick="clearDashboardSearch()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -338,17 +314,18 @@ function displayDashboardSearchResults(results, searchTerm) {
                                  transaction['Posting Date'] ||
                                  transaction.Date ||
                                  transaction.date;
-                    const category = categorizeTransaction(description, transaction._id, transaction.monthKey);
-                    const categoryInfo = categoryConfig[category] || { icon: '', color: 'var(--gray)' };
+                    const parsedDate = window.parseLocalDate ? window.parseLocalDate(date) : new Date(date);
+                    const dateLabel = isNaN(parsedDate.getTime()) ? '' : parsedDate.toLocaleDateString();
+                    const category = categorizeTransaction(description, transaction._id);
 
                     return `
                         <div class="search-result-row">
-                            <div class="search-result-category" style="background: ${categoryInfo.color}20; color: ${categoryInfo.color}">
-                                ${category}
+                            <div class="search-result-category" style="--cat: ${getCategoryColorVar(category)}">
+                                ${escapeHtml(category)}
                             </div>
-                            <div class="search-result-date">${new Date(date).toLocaleDateString()}</div>
-                            <div class="search-result-description" title="${description}">${highlightedDesc}</div>
-                            <div class="search-result-month">${transaction.monthName}</div>
+                            <div class="search-result-date">${escapeHtml(dateLabel)}</div>
+                            <div class="search-result-description" title="${escapeHtml(description)}">${highlightedDesc}</div>
+                            <div class="search-result-month">${escapeHtml(transaction.monthName || '')}</div>
                             <div class="search-result-amount">$${transaction.parsedAmount.toFixed(2)}</div>
                         </div>
                     `;
@@ -358,10 +335,21 @@ function displayDashboardSearchResults(results, searchTerm) {
     `;
 }
 
+// Escapes every segment of the text; only the matched term is wrapped in <mark>
 function highlightSearchText(text, searchTerm) {
-    if (!searchTerm) return text;
-    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    return text.replace(regex, '<mark class="search-highlight">$1</mark>');
+    const source = String(text == null ? '' : text);
+    if (!searchTerm) return escapeHtml(source);
+    const safePattern = String(searchTerm).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${safePattern})`, 'gi');
+    // split with a capturing group: odd indices are the matched segments
+    return source
+        .split(regex)
+        .map((segment, index) =>
+            index % 2 === 1
+                ? `<mark class="search-highlight">${escapeHtml(segment)}</mark>`
+                : escapeHtml(segment)
+        )
+        .join('');
 }
 
 function clearDashboardSearch() {
@@ -370,15 +358,21 @@ function clearDashboardSearch() {
 
     const summaryCards = document.getElementById('summaryCards');
     const chartsContainer = document.querySelector('.charts-container');
+    const breakdownHeader = document.querySelector('.breakdown-header');
     const sectionHeader = document.querySelector('.section-header');
+    const insights = document.getElementById('dashboardInsights');
 
     // Show normal dashboard elements
     if (summaryCards) summaryCards.style.display = '';
     if (chartsContainer) chartsContainer.style.display = '';
+    if (breakdownHeader) breakdownHeader.style.display = '';
     if (sectionHeader) sectionHeader.style.display = '';
+    if (insights) insights.style.display = '';
 
     // Re-render the current view
     if (currentMonth) {
         switchToMonth(currentMonth);
+    } else if (typeof showDashboardEmptyState === 'function') {
+        showDashboardEmptyState();
     }
 }

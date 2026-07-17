@@ -2,6 +2,46 @@
 
 window.unifiedRules = window.unifiedRules || [];
 
+// ---------------------------------------------------------------------------
+// Safety limits for user/backup-supplied patterns
+// ---------------------------------------------------------------------------
+const RULE_PATTERN_MAX_LENGTH = 200;
+const RULE_REGEX_INPUT_MAX = 400;
+const safeRegexCache = new Map();
+
+// Compile a user-supplied regex defensively. Returns a RegExp or null when the
+// pattern is too long, syntactically invalid, or shaped like a catastrophic
+// backtracking pattern (nested/overlapping quantifiers). Results are cached so
+// each pattern is vetted once.
+function getSafeRuleRegex(pattern) {
+    if (safeRegexCache.has(pattern)) return safeRegexCache.get(pattern);
+
+    let compiled = null;
+    const nestedQuantifier = /([*+]\??|\{\d+,?\d*\}\??)\)\s*[*+?{]/;
+    const quantifiedAlternation = /\([^()]*\|[^()]*\)\s*([*+]|\{\d+,?\d*\})/;
+
+    if (
+        typeof pattern === 'string' &&
+        pattern.length > 0 &&
+        pattern.length <= RULE_PATTERN_MAX_LENGTH &&
+        !nestedQuantifier.test(pattern) &&
+        !quantifiedAlternation.test(pattern)
+    ) {
+        try {
+            compiled = new RegExp(pattern, 'i');
+        } catch (e) {
+            compiled = null;
+        }
+    }
+
+    safeRegexCache.set(pattern, compiled);
+    return compiled;
+}
+
+// ---------------------------------------------------------------------------
+// Persistence
+// ---------------------------------------------------------------------------
+
 // Initialize rules from saved data
 function initializeRules() {
     // Convert old merchant rules to new format
@@ -9,7 +49,7 @@ function initializeRules() {
         Object.entries(window.merchantRules).forEach(([pattern, category]) => {
             unifiedRules.push({
                 id: generateRuleId(),
-                name: `Auto: ${pattern} → ${category}`,
+                name: `Auto: ${pattern} -> ${category}`,
                 type: 'categorize',
                 pattern: pattern,
                 matchType: 'contains',
@@ -40,7 +80,6 @@ function initializeRules() {
         });
     }
 
-    // Save converted rules
     saveRules();
 }
 
@@ -51,14 +90,15 @@ function generateRuleId() {
 
 // Save rules
 function saveRules() {
-    const data = JSON.parse(localStorage.getItem('sahabBudget_data') || '{}');
+    const key = getActiveDataKey();
+    const data = JSON.parse(localStorage.getItem(key) || '{}');
     data.unifiedRules = unifiedRules;
-    localStorage.setItem('sahabBudget_data', JSON.stringify(data));
+    localStorage.setItem(key, JSON.stringify(data));
 }
 
 // Load rules
 function loadRules() {
-    const data = JSON.parse(localStorage.getItem('sahabBudget_data') || '{}');
+    const data = JSON.parse(localStorage.getItem(getActiveDataKey()) || '{}');
     if (data.unifiedRules) {
         unifiedRules = data.unifiedRules;
     } else if (!unifiedRules || unifiedRules.length === 0) {
@@ -68,7 +108,10 @@ function loadRules() {
     }
 }
 
-// Create rule from drag and drop
+// ---------------------------------------------------------------------------
+// Rule creation from drag and drop
+// ---------------------------------------------------------------------------
+
 function createRuleFromDragDrop(description, toCategory) {
     const merchantName = description
         .toUpperCase()
@@ -83,15 +126,12 @@ function createRuleFromDragDrop(description, toCategory) {
     );
 
     if (existingRule) {
-        // Rule exists but for different category
         if (existingRule.action !== toCategory) {
-            // Ask user if they want to override
-            const message = `A rule already exists: "${merchantName}" → ${existingRule.action}\n\nDo you want to change it to: "${merchantName}" → ${toCategory}?`;
+            const message = `A rule already exists: "${merchantName}" -> ${existingRule.action}\n\nDo you want to change it to: "${merchantName}" -> ${toCategory}?`;
 
             if (confirm(message)) {
-                // Update the existing rule
                 existingRule.action = toCategory;
-                existingRule.name = `Auto: "${merchantName}" → ${toCategory}`;
+                existingRule.name = `Auto: "${merchantName}" -> ${toCategory}`;
                 existingRule.updatedAt = new Date().toISOString();
 
                 saveRules();
@@ -103,7 +143,6 @@ function createRuleFromDragDrop(description, toCategory) {
                 );
                 return existingRule;
             } else {
-                // User declined to override - transaction still moved but rule not changed
                 showNotification(
                     `Transaction moved to ${toCategory} (existing rule for "${merchantName}" not changed)`,
                     'info'
@@ -111,17 +150,14 @@ function createRuleFromDragDrop(description, toCategory) {
                 return null;
             }
         } else {
-            // Rule already exists for same category - transaction moved with existing rule
-            console.log(`Rule already exists: "${merchantName}" → ${toCategory}`);
             showNotification(`Moved to ${toCategory} (using existing rule)`, 'success');
             return existingRule;
         }
     }
 
-    // No existing rule found, create new one
     const newRule = {
         id: generateRuleId(),
-        name: `Auto: "${merchantName}" → ${toCategory}`,
+        name: `Auto: "${merchantName}" -> ${toCategory}`,
         type: 'categorize',
         pattern: merchantName,
         matchType: 'contains',
@@ -135,11 +171,14 @@ function createRuleFromDragDrop(description, toCategory) {
     saveRules();
     saveData();
 
-    showNotification(`New rule created: "${merchantName}" → ${toCategory}`, 'success');
+    showNotification(`New rule created: "${merchantName}" -> ${toCategory}`, 'success');
     return newRule;
 }
 
-// Apply rules to transactions
+// ---------------------------------------------------------------------------
+// Rule matching
+// ---------------------------------------------------------------------------
+
 function applyRulesToTransaction(transaction) {
     const description = (transaction.Description || transaction.description || '').toUpperCase();
 
@@ -152,7 +191,10 @@ function applyRulesToTransaction(transaction) {
     for (const rule of sortedRules) {
         if (!rule.active) continue;
 
-        const pattern = rule.pattern.toUpperCase();
+        // Patterns come from users and restored backups: treat as untrusted.
+        const pattern = String(rule.pattern || '').toUpperCase();
+        if (!pattern || pattern.length > RULE_PATTERN_MAX_LENGTH) continue;
+
         let matches = false;
 
         switch (rule.matchType) {
@@ -168,14 +210,19 @@ function applyRulesToTransaction(transaction) {
             case 'exact':
                 matches = description === pattern;
                 break;
-            case 'regex':
-                try {
-                    const regex = new RegExp(pattern, 'i');
-                    matches = regex.test(description);
-                } catch (e) {
-                    console.error('Invalid regex:', pattern);
+            case 'regex': {
+                const regex = getSafeRuleRegex(pattern);
+                if (regex) {
+                    try {
+                        // Bounded input keeps a pathological pattern from
+                        // freezing the tab even if it slipped past the vet.
+                        matches = regex.test(description.slice(0, RULE_REGEX_INPUT_MAX));
+                    } catch (e) {
+                        matches = false;
+                    }
                 }
                 break;
+            }
         }
 
         if (matches) {
@@ -191,11 +238,12 @@ function applyRulesToTransaction(transaction) {
     return null;
 }
 
-// Show add/edit rule modal
-function showRuleModal(editRule = null) {
-    const modal = document.createElement('div');
-    modal.className = 'modal show';
+// ---------------------------------------------------------------------------
+// Rule editor modal
+// ---------------------------------------------------------------------------
 
+function showRuleModal(editRule = null) {
+    const esc = window.escapeHtml;
     const isEdit = editRule !== null;
     const rule = editRule || {
         type: 'categorize',
@@ -203,117 +251,102 @@ function showRuleModal(editRule = null) {
         active: true,
     };
 
-    // Get available categories for the dropdown
     const categoryOptions = Object.keys(categoryConfig)
+        .sort((a, b) => a.localeCompare(b))
         .map(
             (cat) =>
-                `<option value="${cat}" ${rule.action === cat ? 'selected' : ''}>${
-                    categoryConfig[cat].icon
-                } ${cat}</option>`
+                `<option value="${esc(cat)}" ${rule.action === cat ? 'selected' : ''}>${esc(cat)}</option>`
         )
         .join('');
 
-    modal.innerHTML = `
-        <div class="modal-content" style="width: 550px;">
-            <div class="modal-header">
-                <h2>${isEdit ? 'Edit Rule' : 'Create Custom Rule'}</h2>
-                <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
+    const overlay = document.createElement('div');
+    overlay.className = 'app-modal-overlay';
+    overlay.innerHTML = `
+        <div class="app-modal rule-editor-modal" role="dialog" aria-modal="true" aria-label="${isEdit ? 'Edit rule' : 'Create rule'}">
+            <div class="app-modal-header">
+                <div class="app-modal-title">${isEdit ? 'Edit Rule' : 'New Rule'}</div>
+                <button class="app-modal-close" data-close aria-label="Close">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
-            <div class="modal-body">
+            <div class="app-modal-body">
                 ${
                     rule.isAutomatic
-                        ? `
-                    <div style="background: #e0f2fe; border: 1px solid #0284c7; padding: 10px; border-radius: 6px; margin-bottom: 15px;">
-                        <span style="color: #0284c7; font-size: 13px;">
-                            🤖 This rule was automatically created from your transaction movements
-                        </span>
-                    </div>
-                `
+                        ? `<div class="rule-auto-note">Learned automatically from your transaction moves</div>`
                         : ''
                 }
-                
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 500;">Rule Type:</label>
-                    <select id="ruleType" onchange="updateRuleModalFields()" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
-                        <option value="categorize" ${
-                            rule.type === 'categorize' ? 'selected' : ''
-                        }>Move to Category</option>
-                        <option value="delete" ${
-                            rule.type === 'delete' ? 'selected' : ''
-                        }>Delete Transaction</option>
-                    </select>
+                <div class="app-field">
+                    <label class="app-label" for="ruleName">Name</label>
+                    <input type="text" id="ruleName" class="app-input" value="${esc(rule.name || '')}"
+                           placeholder="Starbucks to Coffee" autocomplete="off">
                 </div>
-                
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 500;">Rule Name:</label>
-                    <input type="text" id="ruleName" value="${
-                        rule.name || ''
-                    }" placeholder="e.g., Starbucks to Coffee" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                <div class="rule-editor-grid">
+                    <div class="app-field">
+                        <label class="app-label" for="ruleMatchType">Match</label>
+                        <select id="ruleMatchType" class="app-input">
+                            <option value="contains" ${rule.matchType === 'contains' ? 'selected' : ''}>Contains</option>
+                            <option value="startsWith" ${rule.matchType === 'startsWith' ? 'selected' : ''}>Starts with</option>
+                            <option value="endsWith" ${rule.matchType === 'endsWith' ? 'selected' : ''}>Ends with</option>
+                            <option value="exact" ${rule.matchType === 'exact' ? 'selected' : ''}>Exact match</option>
+                            <option value="regex" ${rule.matchType === 'regex' ? 'selected' : ''}>Regex</option>
+                        </select>
+                    </div>
+                    <div class="app-field">
+                        <label class="app-label" for="rulePattern">Pattern</label>
+                        <input type="text" id="rulePattern" class="app-input" value="${esc(rule.pattern || '')}"
+                               placeholder="STARBUCKS" maxlength="${RULE_PATTERN_MAX_LENGTH}" autocomplete="off">
+                    </div>
                 </div>
-                
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 500;">Pattern to Match:</label>
-                    <input type="text" id="rulePattern" value="${
-                        rule.pattern || ''
-                    }" placeholder="e.g., STARBUCKS" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                <div class="rule-editor-grid">
+                    <div class="app-field">
+                        <label class="app-label" for="ruleType">Then</label>
+                        <select id="ruleType" class="app-input" onchange="updateRuleModalFields()">
+                            <option value="categorize" ${rule.type === 'categorize' ? 'selected' : ''}>Move to category</option>
+                            <option value="delete" ${rule.type === 'delete' ? 'selected' : ''}>Delete transaction</option>
+                        </select>
+                    </div>
+                    <div class="app-field" id="actionField" ${rule.type === 'delete' ? 'style="display: none;"' : ''}>
+                        <label class="app-label" for="ruleAction">Category</label>
+                        <select id="ruleAction" class="app-input">${categoryOptions}</select>
+                    </div>
                 </div>
-                
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 500;">Match Type:</label>
-                    <select id="ruleMatchType" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
-                        <option value="contains" ${
-                            rule.matchType === 'contains' ? 'selected' : ''
-                        }>Contains (anywhere in description)</option>
-                        <option value="startsWith" ${
-                            rule.matchType === 'startsWith' ? 'selected' : ''
-                        }>Starts With</option>
-                        <option value="endsWith" ${
-                            rule.matchType === 'endsWith' ? 'selected' : ''
-                        }>Ends With</option>
-                        <option value="exact" ${
-                            rule.matchType === 'exact' ? 'selected' : ''
-                        }>Exact Match</option>
-                        <option value="regex" ${
-                            rule.matchType === 'regex' ? 'selected' : ''
-                        }>Regular Expression (Advanced)</option>
-                    </select>
+                <div class="app-field">
+                    <label class="app-label" for="ruleDescription">Note (optional)</label>
+                    <input type="text" id="ruleDescription" class="app-input" value="${esc(rule.description || '')}"
+                           placeholder="Why this rule exists" autocomplete="off">
                 </div>
-                
-                <div id="actionField" style="margin-bottom: 15px; ${
-                    rule.type === 'delete' ? 'display: none;' : ''
-                }">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 500;">Move to Category:</label>
-                    <select id="ruleAction" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
-                        ${categoryOptions}
-                    </select>
+                <label class="app-check">
+                    <input type="checkbox" id="ruleActive" ${rule.active ? 'checked' : ''}>
+                    <span>Rule is active</span>
+                </label>
+                <div class="app-modal-actions">
+                    <button class="btn btn-secondary" data-close>Cancel</button>
+                    <button class="btn btn-primary" data-save>${isEdit ? 'Save Changes' : 'Create Rule'}</button>
                 </div>
-                
-                <div style="margin-bottom: 15px;">
-                    <label style="display: block; margin-bottom: 5px; font-size: 13px; font-weight: 500;">Description (optional):</label>
-                    <input type="text" id="ruleDescription" value="${
-                        rule.description || ''
-                    }" placeholder="Why this rule exists" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
-                </div>
-                
-                <div style="margin-bottom: 15px;">
-                    <label style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="ruleActive" ${rule.active ? 'checked' : ''}>
-                        <span style="font-size: 13px;">Rule is active</span>
-                    </label>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
-                <button class="btn btn-primary" onclick="saveRule(${
-                    isEdit ? `'${rule.id}'` : 'null'
-                })">
-                    ${isEdit ? 'Save Changes' : 'Create Rule'}
-                </button>
             </div>
         </div>
     `;
 
-    document.body.appendChild(modal);
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay || e.target.closest('[data-close]')) {
+            overlay.remove();
+            return;
+        }
+        if (e.target.closest('[data-save]')) {
+            saveRule(isEdit ? rule.id : null, overlay);
+        }
+    });
+
+    overlay.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') overlay.remove();
+    });
+
+    document.body.appendChild(overlay);
+    const nameInput = overlay.querySelector('#ruleName');
+    if (nameInput) nameInput.focus();
 }
 
 // Update modal fields based on rule type
@@ -324,12 +357,12 @@ function updateRuleModalFields() {
     if (ruleType === 'delete') {
         actionField.style.display = 'none';
     } else {
-        actionField.style.display = 'block';
+        actionField.style.display = '';
     }
 }
 
-// Save rule
-function saveRule(ruleId = null) {
+// Save rule (create or edit)
+function saveRule(ruleId = null, overlay = null) {
     const type = document.getElementById('ruleType').value;
     const name = document.getElementById('ruleName').value.trim();
     const pattern = document.getElementById('rulePattern').value.trim();
@@ -339,12 +372,26 @@ function saveRule(ruleId = null) {
     const active = document.getElementById('ruleActive').checked;
 
     if (!name || !pattern) {
-        showNotification('Please provide a rule name and pattern', 'error');
+        showNotification('Provide a rule name and pattern', 'error');
+        return;
+    }
+
+    if (pattern.length > RULE_PATTERN_MAX_LENGTH) {
+        showNotification(`Pattern is too long (max ${RULE_PATTERN_MAX_LENGTH} characters)`, 'error');
+        return;
+    }
+
+    if (type === 'categorize' && !action) {
+        showNotification('Choose a category to move matches into', 'error');
+        return;
+    }
+
+    if (matchType === 'regex' && !getSafeRuleRegex(pattern.toUpperCase())) {
+        showNotification('That regular expression is invalid or unsafe', 'error');
         return;
     }
 
     if (ruleId) {
-        // Edit existing rule
         const ruleIndex = unifiedRules.findIndex((r) => r.id === ruleId);
         if (ruleIndex > -1) {
             unifiedRules[ruleIndex] = {
@@ -359,10 +406,9 @@ function saveRule(ruleId = null) {
                 updatedAt: new Date().toISOString(),
             };
         }
-        showNotification('Rule updated successfully', 'success');
+        showNotification('Rule updated', 'success');
     } else {
-        // Create new rule
-        const newRule = {
+        unifiedRules.push({
             id: generateRuleId(),
             name,
             type,
@@ -373,52 +419,85 @@ function saveRule(ruleId = null) {
             isAutomatic: false,
             active,
             createdAt: new Date().toISOString(),
-        };
-        unifiedRules.push(newRule);
-        showNotification('Rule created successfully', 'success');
+        });
+        showNotification('Rule created', 'success');
     }
 
     saveRules();
     updateRulesDisplay();
-    document.querySelector('.modal').remove();
+
+    if (overlay) {
+        overlay.remove();
+    } else {
+        const open = document.querySelector('.app-modal-overlay');
+        if (open) open.remove();
+    }
 }
 
-// Update rules display
+// ---------------------------------------------------------------------------
+// Rules list rendering (delegated events; no untrusted data in handlers)
+// ---------------------------------------------------------------------------
+
+function ensureRulesListListeners() {
+    const container = document.getElementById('rulesList');
+    if (!container || container.dataset.listenersBound) return;
+    container.dataset.listenersBound = 'true';
+
+    container.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-rule-action]');
+        if (!btn) return;
+        const card = btn.closest('[data-rule-id]');
+        if (!card) return;
+        const ruleId = card.dataset.ruleId;
+
+        if (btn.dataset.ruleAction === 'edit') {
+            editRule(ruleId);
+        } else if (btn.dataset.ruleAction === 'delete') {
+            deleteRule(ruleId);
+        }
+    });
+
+    container.addEventListener('change', (e) => {
+        if (e.target.matches('input[data-rule-action="toggle"]')) {
+            const card = e.target.closest('[data-rule-id]');
+            if (card) toggleRule(card.dataset.ruleId);
+        }
+    });
+}
+
 function updateRulesDisplay() {
     const container = document.getElementById('rulesList');
     if (!container) return;
+    ensureRulesListListeners();
 
-    if (unifiedRules.length === 0) {
-        container.innerHTML =
-            '<p style="color: var(--gray); font-size: 13px;">No rules created yet. Rules will be automatically created when you drag transactions to different categories.</p>';
+    if (!unifiedRules || unifiedRules.length === 0) {
+        container.innerHTML = `
+            <div class="rules-empty">
+                <p>No rules yet</p>
+                <span>Drag a transaction onto a category on the dashboard, or create one here.</span>
+            </div>
+        `;
         return;
     }
 
-    // Group rules by type
     const categorizeRules = unifiedRules.filter((r) => r.type === 'categorize');
     const deleteRules = unifiedRules.filter((r) => r.type === 'delete');
 
     let html = '';
 
-    // Categorize Rules Section
     if (categorizeRules.length > 0) {
         html += `
-            <div style="margin-bottom: 30px;">
-                <h4 style="font-size: 14px; margin-bottom: 15px; color: var(--dark);">
-                    🔄 Categorization Rules (${categorizeRules.length})
-                </h4>
+            <div class="rules-group">
+                <h4 class="rules-group-title">Move to category <span class="rules-group-count">${categorizeRules.length}</span></h4>
                 ${categorizeRules.map((rule) => createRuleCard(rule)).join('')}
             </div>
         `;
     }
 
-    // Delete Rules Section
     if (deleteRules.length > 0) {
         html += `
-            <div style="margin-bottom: 30px;">
-                <h4 style="font-size: 14px; margin-bottom: 15px; color: var(--dark);">
-                    🗑️ Deletion Rules (${deleteRules.length})
-                </h4>
+            <div class="rules-group">
+                <h4 class="rules-group-title">Delete matching <span class="rules-group-count">${deleteRules.length}</span></h4>
                 ${deleteRules.map((rule) => createRuleCard(rule)).join('')}
             </div>
         `;
@@ -427,93 +506,73 @@ function updateRulesDisplay() {
     container.innerHTML = html;
 }
 
-// Create rule card HTML
+// Create rule card HTML (all rule fields are untrusted: escaped)
 function createRuleCard(rule) {
-    const statusColor = rule.active ? 'var(--success)' : 'var(--gray)';
-    const statusText = rule.active ? 'Active' : 'Inactive';
-    const toggleText = rule.active ? 'Disable' : 'Enable';
-    const toggleClass = rule.active ? 'btn-secondary' : 'btn-primary';
+    const esc = window.escapeHtml;
+    const active = rule.active !== false;
 
-    const icon =
+    const matchLabels = {
+        contains: 'contains',
+        startsWith: 'starts with',
+        endsWith: 'ends with',
+        exact: 'is exactly',
+        regex: 'matches regex',
+    };
+    const matchLabel = matchLabels[rule.matchType] || 'contains';
+
+    const target =
         rule.type === 'categorize' && rule.action
-            ? categoryConfig[rule.action]?.icon || '📦'
-            : '🗑️';
-
-    const actionText = rule.type === 'categorize' ? `Move to ${icon} ${rule.action}` : 'Delete';
+            ? `<span class="rule-target">
+                   ${typeof getCategoryIconChip === 'function' ? getCategoryIconChip(rule.action, { size: 22, icon: 12 }) : ''}
+                   <span>${esc(rule.action)}</span>
+               </span>`
+            : `<span class="rule-target rule-target-delete">Delete</span>`;
 
     return `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: ${
-            rule.active ? 'var(--light)' : 'white'
-        }; margin: 10px 0; border-radius: 6px; border: 1px solid ${
-        rule.active ? 'var(--primary)' : 'var(--border)'
-    }; position: relative;">
-            ${
-                rule.isAutomatic
-                    ? `
-                <div style="position: absolute; top: -8px; left: 15px; background: #3b82f6; color: white; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 600;">
-                    AUTO
+        <div class="rule-card${active ? '' : ' rule-inactive'}" data-rule-id="${esc(rule.id)}">
+            <div class="rule-card-main">
+                <div class="rule-card-title">
+                    <strong>${esc(rule.name)}</strong>
+                    ${rule.isAutomatic ? '<span class="rule-badge">Auto</span>' : ''}
+                    ${active ? '' : '<span class="rule-badge rule-badge-off">Off</span>'}
                 </div>
-            `
-                    : ''
-            }
-            
-            <div style="flex: 1;">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-                    <strong style="font-size: 14px;">${rule.name}</strong>
-                    <span style="background: ${statusColor}; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px;">
-                        ${statusText}
-                    </span>
+                <div class="rule-card-flow">
+                    <span class="rule-match-label">${matchLabel}</span>
+                    <code class="rule-pattern">${esc(rule.pattern)}</code>
+                    <svg class="rule-flow-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                    ${target}
                 </div>
-                <div style="font-size: 13px; color: var(--gray); margin-bottom: 5px;">
-                    If ${
-                        rule.matchType === 'contains'
-                            ? 'contains'
-                            : rule.matchType === 'startsWith'
-                            ? 'starts with'
-                            : rule.matchType === 'endsWith'
-                            ? 'ends with'
-                            : rule.matchType === 'regex'
-                            ? 'matches regex'
-                            : 'exactly matches'
-                    }: 
-                    <code style="background: var(--light); padding: 2px 6px; border-radius: 3px;">"${
-                        rule.pattern
-                    }"</code>
-                    → <strong>${actionText}</strong>
-                </div>
-                ${
-                    rule.description
-                        ? `
-                    <div style="font-size: 12px; color: var(--gray); font-style: italic;">
-                        ${rule.description}
-                    </div>
-                `
-                        : ''
-                }
+                ${rule.description ? `<div class="rule-card-desc">${esc(rule.description)}</div>` : ''}
             </div>
-            
-            <div style="display: flex; gap: 8px;">
-                <button class="btn ${toggleClass}" onclick="toggleRule('${
-        rule.id
-    }')" style="font-size: 12px;">
-                    ${toggleText}
+            <div class="rule-card-actions">
+                <label class="mini-toggle rule-active-toggle" title="${active ? 'Disable rule' : 'Enable rule'}">
+                    <input type="checkbox" data-rule-action="toggle" ${active ? 'checked' : ''} aria-label="Rule active">
+                    <span class="mini-track"></span>
+                </label>
+                <button class="rule-icon-btn" data-rule-action="edit" title="Edit rule" aria-label="Edit rule">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
                 </button>
-                <button class="btn btn-secondary" onclick="editRule('${
-                    rule.id
-                }')" style="font-size: 12px;">
-                    Edit
-                </button>
-                <button class="btn btn-danger" onclick="deleteRule('${
-                    rule.id
-                }')" style="font-size: 12px;">
-                    Delete
+                <button class="rule-icon-btn rule-icon-btn-danger" data-rule-action="delete" title="Delete rule" aria-label="Delete rule">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
                 </button>
             </div>
         </div>
     `;
 }
 
-// Toggle rule
+// ---------------------------------------------------------------------------
+// Rule actions
+// ---------------------------------------------------------------------------
+
 function toggleRule(ruleId) {
     const rule = unifiedRules.find((r) => r.id === ruleId);
     if (rule) {
@@ -524,7 +583,6 @@ function toggleRule(ruleId) {
     }
 }
 
-// Edit rule
 function editRule(ruleId) {
     const rule = unifiedRules.find((r) => r.id === ruleId);
     if (rule) {
@@ -532,7 +590,6 @@ function editRule(ruleId) {
     }
 }
 
-// Delete rule
 function deleteRule(ruleId) {
     const rule = unifiedRules.find((r) => r.id === ruleId);
     if (!rule) return;
@@ -578,7 +635,6 @@ function applyRulesToExistingData() {
         return;
     }
 
-    // Show accurate count in confirmation
     let confirmMsg = `Apply rules to ${previewCount} matching transaction(s)?`;
     if (previewDeleteCount > 0) confirmMsg += `\n- ${previewDeleteCount} will be deleted`;
     if (previewMoveCount > 0) confirmMsg += `\n- ${previewMoveCount} will be re-categorized`;
@@ -604,7 +660,6 @@ function applyRulesToExistingData() {
                     totalDeleted++;
                     // Don't add to remaining transactions
                 } else if (result.action === 'categorize') {
-                    // Update transaction category override
                     if (!window.transactionOverrides[monthKey]) {
                         window.transactionOverrides[monthKey] = {};
                     }
@@ -625,7 +680,6 @@ function applyRulesToExistingData() {
     if (totalProcessed > 0) {
         saveData();
 
-        // Refresh current view
         if (currentMonth) {
             switchToMonth(currentMonth);
         }
@@ -655,77 +709,11 @@ function clearAllRules() {
     }
 }
 
-// Export rules
-// function exportRules() {
-//     if (unifiedRules.length === 0) {
-//         showNotification('No rules to export', 'error');
-//         return;
-//     }
-
-//     const exportData = {
-//         rules: unifiedRules,
-//         exportDate: new Date().toISOString(),
-//         version: '1.0',
-//     };
-
-//     const jsonContent = JSON.stringify(exportData, null, 2);
-//     downloadFile(jsonContent, `rules_export_${Date.now()}.json`, 'application/json');
-//     showNotification('Rules exported successfully', 'success');
-// }
-
-// Import rules
-// function importRules() {
-//     const input = document.createElement('input');
-//     input.type = 'file';
-//     input.accept = '.json';
-
-//     input.onchange = async (event) => {
-//         const file = event.target.files[0];
-//         if (!file) return;
-
-//         try {
-//             const text = await file.text();
-//             const importData = JSON.parse(text);
-
-//             if (!importData.rules || !Array.isArray(importData.rules)) {
-//                 throw new Error('Invalid rules file format');
-//             }
-
-//             const importCount = importData.rules.length;
-
-//             if (confirm(`Import ${importCount} rule(s)? This will merge with existing rules.`)) {
-//                 // Merge with existing rules, avoiding duplicates
-//                 importData.rules.forEach((importedRule) => {
-//                     const exists = unifiedRules.some(
-//                         (r) =>
-//                             r.pattern === importedRule.pattern &&
-//                             r.type === importedRule.type &&
-//                             r.action === importedRule.action
-//                     );
-
-//                     if (!exists) {
-//                         // Generate new ID to avoid conflicts
-//                         importedRule.id = generateRuleId();
-//                         unifiedRules.push(importedRule);
-//                     }
-//                 });
-
-//                 saveRules();
-//                 updateRulesDisplay();
-//                 showNotification(`Rules imported successfully`, 'success');
-//             }
-//         } catch (error) {
-//             showNotification('Error reading rules file: ' + error.message, 'error');
-//         }
-//     };
-
-//     input.click();
-// }
-
 // Initialize on load
 if (typeof window.rulesInitialized === 'undefined') {
     window.rulesInitialized = true;
     window.addEventListener('DOMContentLoaded', () => {
         loadRules();
+        updateRulesDisplay();
     });
 }

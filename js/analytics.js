@@ -1,121 +1,122 @@
-// js/analytics.js - Analytics Module
+// js/analytics.js - Analytics page: Overview, Cashflow, Trends, Categories, Merchants.
+// Accounting semantics mirror core.js analyzeTransactions exactly: refunds subtract
+// from spending, categories flagged _isExcluded are omitted everywhere, and any
+// category flagged _isIncome (not only the literal "Income" name) counts as income.
 
-// Analytics Module
+const ANALYTICS_VIEWS = ['overview', 'cashflow', 'trends', 'categories', 'merchants'];
+
+const VIEW_CHART_KEYS = {
+    overview: [],
+    cashflow: ['cashflow'],
+    trends: ['trends'],
+    categories: ['categories'],
+    merchants: ['merchants'],
+};
+
 let analyticsData = {
     charts: {},
     currentDateRange: null,
-    searchResults: [],
+    currentView: 'overview',
+    dirty: { overview: true, cashflow: true, trends: true, categories: true, merchants: true },
 };
 
-// Initialize analytics — single scrollable view (tabs removed)
+let analyticsRangeCache = { key: null, result: null };
+
+// ==========================================
+// INITIALIZATION
+// ==========================================
 window.addEventListener('DOMContentLoaded', () => {
     loadDataFromStorage();
-
-    if (!analyticsData.monthlyData || analyticsData.monthlyData.size === 0) {
-        showAnalyticsGlobalEmptyState();
-        return;
-    }
-
-    initializeDateRangeSelectors();
-    renderAllAnalytics();
+    bindTabKeyboardNav();
+    observeThemeChanges();
+    switchView('overview');
 });
 
-// Render every section of the analytics page (overview KPIs, trends, categories, merchants)
-function renderAllAnalytics() {
-    loadOverviewView();
-    loadTrendsView();
-    loadCategoriesView();
-    loadMerchantsView();
-}
-
-function showAnalyticsGlobalEmptyState() {
-    const emptyStateHTML = `
-        <div class="analytics-empty-state">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="20" x2="18" y2="10"></line>
-                <line x1="12" y1="20" x2="12" y2="4"></line>
-                <line x1="6" y1="20" x2="6" y2="14"></line>
-            </svg>
-            <h2>No Analytics Data Available</h2>
-            <p>Upload your transaction data on the Dashboard first to see detailed analytics and spending insights.</p>
-            <button class="btn btn-primary" onclick="window.location.href='index.html'">
-                Go to Dashboard
-            </button>
-        </div>
-    `;
-
-    // Hide controls and tabs
-    const controls = document.querySelector('.analytics-controls');
-    const tabs = document.querySelector('.analytics-tabs');
-    if (controls) controls.style.display = 'none';
-    if (tabs) tabs.style.display = 'none';
-
-    // Hide all views first
-    document.querySelectorAll('.analytics-view').forEach((view) => {
-        view.style.display = 'none';
-    });
-
-    // Show empty state only in the overview view
-    const overviewView = document.getElementById('overviewView');
-    if (overviewView) {
-        overviewView.innerHTML = emptyStateHTML;
-        overviewView.style.display = 'flex';
-        overviewView.style.alignItems = 'center';
-        overviewView.style.justifyContent = 'center';
-        overviewView.style.minHeight = '400px';
-        overviewView.style.textAlign = 'center';
-    }
-}
-
-// Load data from localStorage
+// Load data through core.js so overrides, income settings, and category config
+// stay in sync with the dashboard. sync.js calls this on cross-tab updates.
 function loadDataFromStorage() {
     try {
-        const saved = localStorage.getItem('sahabBudget_data');
-        if (saved) {
-            const data = JSON.parse(saved);
-            analyticsData.monthlyData = new Map(data.monthlyData || []);
-            analyticsData.categoryConfig = data.categoryConfig || {};
-            analyticsData.transactionOverrides = data.transactionOverrides || {};
-        }
+        loadSavedData();
+        analyticsData.monthlyData = monthlyData;
+        analyticsData.categoryConfig = categoryConfig;
+        analyticsData.transactionOverrides = window.transactionOverrides || {};
+        analyticsRangeCache = { key: null, result: null };
+        invalidateAllViews();
     } catch (error) {
         console.error('Error loading data:', error);
     }
 }
 
-// Initialize date range selectors
-function initializeDateRangeSelectors() {
-    if (!analyticsData.monthlyData || analyticsData.monthlyData.size === 0) return;
-
-    const months = Array.from(analyticsData.monthlyData.keys()).sort();
-    document.getElementById('startMonth').value = months[0];
-    document.getElementById('endMonth').value = months[months.length - 1];
+function hasAnalyticsData() {
+    return typeof monthlyData !== 'undefined' && monthlyData && monthlyData.size > 0;
 }
 
-// Apply date range filter — re-renders every section
-function applyDateRange() {
-    const startMonth = document.getElementById('startMonth').value;
-    const endMonth = document.getElementById('endMonth').value;
+function isIncomeCategory(category) {
+    return category === 'Income' || categoryConfig[category]?._isIncome === true;
+}
 
-    if (!startMonth || !endMonth) {
-        alert('Please select both start and end months');
+function isExcludedCategory(category) {
+    return categoryConfig[category]?._isExcluded === true;
+}
+
+function invalidateAllViews() {
+    ANALYTICS_VIEWS.forEach((view) => {
+        analyticsData.dirty[view] = true;
+    });
+}
+
+// Re-render charts with fresh token colors when the theme flips.
+function observeThemeChanges() {
+    if (!window.MutationObserver) return;
+    const observer = new MutationObserver(() => {
+        if (!hasAnalyticsData()) return;
+        invalidateAllViews();
+        renderView(analyticsData.currentView);
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+}
+
+// ==========================================
+// DATE RANGE
+// ==========================================
+function initializeDateRangeSelectors() {
+    if (!hasAnalyticsData()) return;
+    const months = Array.from(monthlyData.keys()).sort();
+    const start = document.getElementById('startMonth');
+    const end = document.getElementById('endMonth');
+    const range = analyticsData.currentDateRange;
+    if (start) start.value = range ? range.start : months[0];
+    if (end) end.value = range ? range.end : months[months.length - 1];
+}
+
+function applyDateRange() {
+    const start = document.getElementById('startMonth')?.value;
+    const end = document.getElementById('endMonth')?.value;
+
+    if (!start || !end) {
+        showNotification('Select both start and end months', 'error');
+        return;
+    }
+    if (start > end) {
+        showNotification('Start month must be on or before the end month', 'error');
         return;
     }
 
-    analyticsData.currentDateRange = { start: startMonth, end: endMonth };
-    renderAllAnalytics();
+    analyticsData.currentDateRange = { start, end };
+    invalidateAllViews();
+    renderView(analyticsData.currentView);
 }
 
-// Reset date range — re-renders every section
 function resetDateRange() {
     analyticsData.currentDateRange = null;
     initializeDateRangeSelectors();
-    renderAllAnalytics();
+    invalidateAllViews();
+    renderView(analyticsData.currentView);
 }
 
-// Get filtered months based on date range
 function getFilteredMonths() {
-    let months = Array.from(analyticsData.monthlyData.keys()).sort();
-
+    if (!hasAnalyticsData()) return [];
+    let months = Array.from(monthlyData.keys()).sort();
     if (analyticsData.currentDateRange) {
         months = months.filter(
             (month) =>
@@ -123,1006 +124,1041 @@ function getFilteredMonths() {
                 month <= analyticsData.currentDateRange.end
         );
     }
-
     return months;
 }
 
-// Load Overview View
-function loadOverviewView() {
-    const months = getFilteredMonths();
+// ==========================================
+// VIEW SWITCHING (tabs)
+// ==========================================
+function switchView(viewName) {
+    const view = ANALYTICS_VIEWS.includes(viewName) ? viewName : 'overview';
+    analyticsData.currentView = view;
 
+    document.querySelectorAll('#analyticsTabs .tab-btn').forEach((btn) => {
+        const active = btn.dataset.view === view;
+        btn.classList.toggle('active', active);
+        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        btn.setAttribute('tabindex', active ? '0' : '-1');
+    });
+
+    renderView(view);
+}
+
+function bindTabKeyboardNav() {
+    const tablist = document.getElementById('analyticsTabs');
+    if (!tablist) return;
+    tablist.addEventListener('keydown', (event) => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        const tabs = Array.from(tablist.querySelectorAll('.tab-btn'));
+        const current = tabs.findIndex((tab) => tab.classList.contains('active'));
+        if (current === -1) return;
+        event.preventDefault();
+        const delta = event.key === 'ArrowRight' ? 1 : -1;
+        const next = (current + delta + tabs.length) % tabs.length;
+        tabs[next].focus();
+        switchView(tabs[next].dataset.view);
+    });
+}
+
+function setElementHidden(id, hidden) {
+    const el = document.getElementById(id);
+    if (el) el.hidden = hidden;
+}
+
+function applyActiveViewClass() {
+    document.querySelectorAll('.analytics-view').forEach((view) => {
+        view.classList.toggle('active', view.id === analyticsData.currentView + 'View');
+    });
+}
+
+// Global empty state: shown without destroying any structural container, so
+// recovery (data arriving via sync or another tab) always re-renders cleanly.
+function showAnalyticsGlobalEmptyState() {
+    setElementHidden('analyticsControls', true);
+    setElementHidden('analyticsTabs', true);
+    setElementHidden('rangeEmpty', true);
+    document.querySelectorAll('.analytics-view').forEach((view) => view.classList.remove('active'));
+    setElementHidden('analyticsEmpty', false);
+}
+
+// Range empty state: tabs and controls stay usable so the user can recover.
+function showRangeEmptyState() {
+    document.querySelectorAll('.analytics-view').forEach((view) => view.classList.remove('active'));
+    setElementHidden('rangeEmpty', false);
+}
+
+function hideRangeEmptyState() {
+    setElementHidden('rangeEmpty', true);
+}
+
+// Returns false (and shows the global empty state) when there is no data.
+function ensurePageChrome() {
+    if (!hasAnalyticsData()) {
+        showAnalyticsGlobalEmptyState();
+        return false;
+    }
+    setElementHidden('analyticsEmpty', true);
+    setElementHidden('analyticsControls', false);
+    setElementHidden('analyticsTabs', false);
+    const start = document.getElementById('startMonth');
+    if (start && !start.value) initializeDateRangeSelectors();
+    return true;
+}
+
+function renderView(viewName) {
+    if (!ensurePageChrome()) return;
+
+    const months = getFilteredMonths();
     if (months.length === 0) {
-        showAnalyticsEmptyState('overviewView', 'Overview');
+        showRangeEmptyState();
+        return;
+    }
+    hideRangeEmptyState();
+    applyActiveViewClass();
+
+    if (!analyticsData.dirty[viewName]) {
+        resizeChartsForView(viewName);
         return;
     }
 
-    // Calculate aggregated data
-    let totalSpending = 0;
-    let totalIncome = 0;
-    let transactionCount = 0;
-    const categoryTotals = {};
-    const merchantTotals = {};
-    const monthlyTotals = [];
-    let allTransactions = [];
+    const data = computeRangeAnalytics(months);
+    switch (viewName) {
+        case 'overview':
+            loadOverviewView(data);
+            break;
+        case 'cashflow':
+            loadCashflowView(data);
+            break;
+        case 'trends':
+            loadTrendsView(data);
+            break;
+        case 'categories':
+            loadCategoriesView(data);
+            break;
+        case 'merchants':
+            loadMerchantsView(data);
+            break;
+    }
+    analyticsData.dirty[viewName] = false;
+}
+
+function resizeChartsForView(viewName) {
+    (VIEW_CHART_KEYS[viewName] || []).forEach((key) => {
+        const chart = analyticsData.charts[key];
+        if (chart) chart.resize();
+    });
+}
+
+// ==========================================
+// RANGE ANALYTICS (single source of truth)
+// ==========================================
+function computeRangeAnalytics(months) {
+    const cacheKey = months.join('|');
+    if (analyticsRangeCache.key === cacheKey && analyticsRangeCache.result) {
+        return analyticsRangeCache.result;
+    }
+
+    const result = {
+        monthCount: months.length,
+        monthly: [],
+        expenseByCategory: {},
+        categoryCounts: {},
+        merchants: {},
+        transactions: [],
+        totalExpenses: 0,
+        totalIncome: 0,
+        expenseCount: 0,
+        transactionCount: 0,
+    };
 
     months.forEach((monthKey) => {
-        const monthData = analyticsData.monthlyData.get(monthKey);
-        let monthTotal = 0;
+        const monthData = monthlyData.get(monthKey);
+        if (!monthData) return;
+
+        const analyzer = analyzeTransactions(monthData.transactions);
+        const byCategory = {};
+        let monthExpenses = 0;
         let monthIncome = 0;
 
-        monthData.transactions.forEach((transaction) => {
-            const amount = Math.abs(parseFloat(transaction.Amount) || 0);
-            const description = transaction.Description || transaction.description || 'Unknown';
-            const category = categorizeTransactionForAnalytics(description, transaction._id);
-            const isIncome = category === 'Income' || transaction._isIncome === true;
-
-            transactionCount++;
-
-            // Track categories
-            if (!categoryTotals[category]) {
-                categoryTotals[category] = 0;
+        Object.entries(analyzer.categoryTotals).forEach(([category, total]) => {
+            if (isExcludedCategory(category)) return;
+            if (isIncomeCategory(category)) {
+                monthIncome += total;
+                return;
             }
-            categoryTotals[category] += amount;
+            if (total > 0) {
+                byCategory[category] = total;
+                result.expenseByCategory[category] =
+                    (result.expenseByCategory[category] || 0) + total;
+                monthExpenses += total;
+            }
+        });
 
-            if (isIncome) {
-                totalIncome += amount;
-                monthIncome += amount;
-            } else {
-                totalSpending += amount;
-                monthTotal += amount;
+        Object.entries(analyzer.categoryDetails).forEach(([category, details]) => {
+            if (isExcludedCategory(category)) return;
+            const categoryIsIncome = isIncomeCategory(category);
 
-                // Only track merchants for expenses
-                if (!merchantTotals[description]) {
-                    merchantTotals[description] = { total: 0, count: 0 };
+            details.forEach((detail) => {
+                result.transactionCount += 1;
+                const isIncomeTx = categoryIsIncome || detail.isIncome === true;
+                result.transactions.push({
+                    description: detail.name || 'Unknown',
+                    category,
+                    amount: detail.amount,
+                    isIncome: isIncomeTx,
+                    isRefund: detail.isRefund === true,
+                    date: parseLocalDate(detail.date),
+                    monthName: monthData.monthName,
+                });
+                if (isIncomeTx) return;
+
+                result.expenseCount += 1;
+                result.categoryCounts[category] = (result.categoryCounts[category] || 0) + 1;
+                const merchantName = detail.name || 'Unknown';
+                if (!result.merchants[merchantName]) {
+                    result.merchants[merchantName] = { total: 0, count: 0 };
                 }
-                merchantTotals[description].total += amount;
-                merchantTotals[description].count++;
-            }
-
-            // Collect all transactions for recent activity
-            allTransactions.push({
-                ...transaction,
-                parsedAmount: amount,
-                monthName: monthData.monthName,
-                isIncome: isIncome,
-                parsedDate: new Date(
-                    transaction['Transaction Date'] ||
-                    transaction['Posting Date'] ||
-                    transaction['Post Date'] ||
-                    transaction.Date ||
-                    transaction.date ||
-                    transaction['Trans Date'] ||
-                    transaction['Trans. Date'] ||
-                    transaction['Posted Date']
-                ),
+                result.merchants[merchantName].total += detail.isRefund
+                    ? -detail.amount
+                    : detail.amount;
+                result.merchants[merchantName].count += 1;
             });
         });
 
-        monthlyTotals.push({
-            month: monthData.monthName,
-            total: monthTotal,
+        result.monthly.push({
+            key: monthKey,
+            name: monthData.monthName,
+            byCategory,
+            expenses: monthExpenses,
             income: monthIncome,
+            net: monthIncome - monthExpenses,
         });
+        result.totalExpenses += monthExpenses;
+        result.totalIncome += monthIncome;
     });
 
-    // Sort transactions by date for recent activity
-    allTransactions.sort((a, b) => b.parsedDate - a.parsedDate);
-    const recentTransactions = allTransactions.slice(0, 5);
+    result.transactions.sort((a, b) => {
+        const timeA = a.date instanceof Date && !isNaN(a.date.getTime()) ? a.date.getTime() : 0;
+        const timeB = b.date instanceof Date && !isNaN(b.date.getTime()) ? b.date.getTime() : 0;
+        return timeB - timeA;
+    });
+    result.sortedCategories = Object.entries(result.expenseByCategory).sort((a, b) => b[1] - a[1]);
+    result.sortedMerchants = Object.entries(result.merchants).sort(
+        (a, b) => b[1].total - a[1].total
+    );
 
-    // Sort categories (excluding Income for expense analysis) and merchants
-    const expenseCategories = Object.entries(categoryTotals).filter(([cat]) => cat !== 'Income');
-    const sortedCategories = expenseCategories.sort((a, b) => b[1] - a[1]);
-    const sortedMerchants = Object.entries(merchantTotals).sort((a, b) => b[1].total - a[1].total);
-
-    // Calculate averages (based on expenses only)
-    const expenseTransactionCount = transactionCount - (categoryTotals['Income'] ? allTransactions.filter(t => t.isIncome).length : 0);
-    const avgMonthly = totalSpending / months.length;
-    const avgTransaction = expenseTransactionCount > 0 ? totalSpending / expenseTransactionCount : 0;
-
-    // Render Income Stats Panel if income exists
-    renderIncomeStatsPanel(totalIncome, totalSpending, months.length);
-
-    // Render Quick Stats
-    renderQuickStats(totalSpending, avgMonthly, transactionCount, avgTransaction);
-
-    // Render Spending Summary
-    renderSpendingSummary(totalSpending, avgMonthly, months);
-
-    // Render Top Categories (expenses only)
-    renderTopCategories(sortedCategories, totalSpending);
-
-    // Render Recent Activity
-    renderRecentActivity(recentTransactions);
-
-    // Render Top Merchants
-    renderTopMerchants(sortedMerchants.slice(0, 5));
-
-    // Render Overview Chart
-    renderOverviewChart(monthlyTotals);
+    analyticsRangeCache = { key: cacheKey, result };
+    return result;
 }
 
-// Render income stats panel when income tracking is enabled
-function renderIncomeStatsPanel(totalIncome, totalExpenses, monthCount) {
-    const container = document.getElementById('incomeStatsPanel');
+// ==========================================
+// FORMATTING + CHART THEME HELPERS
+// ==========================================
+function fmtMoney(value) {
+    const sign = value < 0 ? '-' : '';
+    return (
+        sign +
+        '$' +
+        Math.abs(value).toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        })
+    );
+}
 
-    // Create container if it doesn't exist
-    if (!container) {
-        const overviewView = document.getElementById('overviewView');
-        if (overviewView) {
-            const panel = document.createElement('div');
-            panel.id = 'incomeStatsPanel';
-            panel.className = 'income-stats-panel';
-            overviewView.insertBefore(panel, overviewView.firstChild);
-        }
+function fmtMoneySigned(value) {
+    return (value < 0 ? '-' : '+') + fmtMoney(Math.abs(value));
+}
+
+function fmtMoneyShort(value) {
+    const abs = Math.abs(value);
+    const sign = value < 0 ? '-' : '';
+    if (abs >= 1000000) return sign + '$' + (abs / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (abs >= 1000) return sign + '$' + (abs / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+    return sign + '$' + Math.round(abs);
+}
+
+function shortMonthLabel(monthKey) {
+    const [year, month] = monthKey.split('-').map(Number);
+    return new Date(year, month - 1, 1).toLocaleDateString('en-US', {
+        month: 'short',
+        year: '2-digit',
+    });
+}
+
+function cssToken(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function withAlpha(color, alpha) {
+    if (color && color.startsWith('#') && color.length === 7) {
+        const r = parseInt(color.slice(1, 3), 16);
+        const g = parseInt(color.slice(3, 5), 16);
+        const b = parseInt(color.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
+    return color;
+}
 
-    const incomePanel = document.getElementById('incomeStatsPanel');
-    if (!incomePanel) return;
+function resolvedCategoryColor(name) {
+    return cssToken('--cat-' + window.getCategoryColorIndex(name));
+}
 
-    // Only show if there's income data
-    if (totalIncome === 0) {
-        incomePanel.style.display = 'none';
+function applyChartDefaults() {
+    if (typeof Chart === 'undefined') return;
+    Chart.defaults.font.family =
+        "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.color = cssToken('--text-muted');
+}
+
+function chartGridColor() {
+    return withAlpha(cssToken('--border-strong') || '#d3dbe6', 0.35);
+}
+
+function themedTooltip() {
+    return {
+        backgroundColor: cssToken('--surface-3'),
+        titleColor: cssToken('--text'),
+        bodyColor: cssToken('--text-muted'),
+        borderColor: cssToken('--border-color'),
+        borderWidth: 1,
+        padding: 10,
+        cornerRadius: 8,
+        boxPadding: 4,
+        usePointStyle: true,
+    };
+}
+
+function destroyChart(key) {
+    if (analyticsData.charts[key]) {
+        analyticsData.charts[key].destroy();
+        delete analyticsData.charts[key];
+    }
+}
+
+// Toggles the one-line "no data" note inside a chart card.
+function setChartCardEmpty(canvasId, isEmpty) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const wrap = canvas.closest('.chart-canvas');
+    const card = canvas.closest('.chart-card');
+    const note = card ? card.querySelector('.chart-empty') : null;
+    if (wrap) wrap.hidden = isEmpty;
+    if (note) note.hidden = !isEmpty;
+}
+
+// Draws the range total in the middle of the category doughnut.
+const doughnutCenterPlugin = {
+    id: 'doughnutCenter',
+    afterDraw(chart) {
+        const opts = chart.options.plugins && chart.options.plugins.doughnutCenter;
+        if (!opts || !opts.display) return;
+        const meta = chart.getDatasetMeta(0);
+        if (!meta || !meta.data || !meta.data.length) return;
+        const { x, y } = meta.data[0];
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = "700 20px 'Inter', sans-serif";
+        ctx.fillStyle = cssToken('--text');
+        ctx.fillText(opts.value, x, y - 9);
+        ctx.font = "500 11px 'Inter', sans-serif";
+        ctx.fillStyle = cssToken('--text-subtle');
+        ctx.fillText(opts.label, x, y + 12);
+        ctx.restore();
+    },
+};
+
+// ==========================================
+// OVERVIEW VIEW
+// ==========================================
+function loadOverviewView(data) {
+    if (!data) {
+        // Called without data by sync.js: route through the guarded renderer.
+        analyticsData.dirty.overview = true;
+        renderView('overview');
         return;
     }
+    renderQuickStats(data);
+    renderSpendingSummary(data);
+    renderRecentActivity(data);
+}
 
-    const netAmount = totalIncome - totalExpenses;
-    const isPositive = netAmount >= 0;
+function renderQuickStats(data) {
+    const container = document.getElementById('quickStats');
+    if (!container) return;
 
-    incomePanel.style.display = 'grid';
-    incomePanel.innerHTML = `
-        <div class="income-stat-card income">
-            <div class="income-stat-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="1" x2="12" y2="23"></line>
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                </svg>
+    const avgMonthly = data.monthCount > 0 ? data.totalExpenses / data.monthCount : 0;
+    const avgExpense = data.expenseCount > 0 ? data.totalExpenses / data.expenseCount : 0;
+    const monthsLabel = data.monthCount === 1 ? '1 month' : `${data.monthCount} months`;
+    const expensesLabel =
+        data.expenseCount === 1 ? '1 expense' : `${data.expenseCount.toLocaleString()} expenses`;
+
+    container.innerHTML = `
+        <div class="quick-stat">
+            <div class="quick-stat-head">
+                <span class="quick-stat-icon brand">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                </span>
+                <h4>Total Spending</h4>
             </div>
-            <div class="income-stat-content">
-                <h4>Total Income</h4>
-                <div class="income-stat-value">$${totalIncome.toFixed(2)}</div>
-                <div class="income-stat-period">${monthCount} month${monthCount !== 1 ? 's' : ''}</div>
-            </div>
+            <div class="value">${fmtMoney(data.totalExpenses)}</div>
+            <div class="subtext">${monthsLabel}</div>
         </div>
-        <div class="income-stat-card expenses">
-            <div class="income-stat-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-                    <polyline points="17 6 23 6 23 12"></polyline>
-                </svg>
+        <div class="quick-stat">
+            <div class="quick-stat-head">
+                <span class="quick-stat-icon success">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                </span>
+                <h4>Monthly Average</h4>
             </div>
-            <div class="income-stat-content">
-                <h4>Total Expenses</h4>
-                <div class="income-stat-value">$${totalExpenses.toFixed(2)}</div>
-                <div class="income-stat-period">${monthCount} month${monthCount !== 1 ? 's' : ''}</div>
-            </div>
+            <div class="value">${fmtMoney(avgMonthly)}</div>
+            <div class="subtext">per month</div>
         </div>
-        <div class="income-stat-card ${isPositive ? 'positive' : 'negative'}">
-            <div class="income-stat-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    ${isPositive
-                        ? '<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline>'
-                        : '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline>'
-                    }
-                </svg>
+        <div class="quick-stat">
+            <div class="quick-stat-head">
+                <span class="quick-stat-icon info">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                    </svg>
+                </span>
+                <h4>Transactions</h4>
             </div>
-            <div class="income-stat-content">
-                <h4>Net ${isPositive ? 'Savings' : 'Deficit'}</h4>
-                <div class="income-stat-value ${isPositive ? 'positive' : 'negative'}">$${Math.abs(netAmount).toFixed(2)}</div>
-                <div class="income-stat-period">${isPositive ? 'saved' : 'over budget'}</div>
+            <div class="value">${data.transactionCount.toLocaleString()}</div>
+            <div class="subtext">${expensesLabel}</div>
+        </div>
+        <div class="quick-stat">
+            <div class="quick-stat-head">
+                <span class="quick-stat-icon warning">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                </span>
+                <h4>Avg Expense</h4>
             </div>
+            <div class="value">${fmtMoney(avgExpense)}</div>
+            <div class="subtext">per transaction</div>
         </div>
     `;
 }
 
-function renderQuickStats(totalSpending, avgMonthly, transactionCount, avgTransaction) {
-    const html = `
-        <div class="quick-stat">
-            <div class="quick-stat-icon primary">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="12" y1="1" x2="12" y2="23"></line>
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                </svg>
-            </div>
-            <h4>Total Spending</h4>
-            <div class="value">$${totalSpending.toFixed(2)}</div>
-        </div>
-        <div class="quick-stat">
-            <div class="quick-stat-icon success">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                    <line x1="16" y1="2" x2="16" y2="6"></line>
-                    <line x1="8" y1="2" x2="8" y2="6"></line>
-                    <line x1="3" y1="10" x2="21" y2="10"></line>
-                </svg>
-            </div>
-            <h4>Monthly Average</h4>
-            <div class="value">$${avgMonthly.toFixed(2)}</div>
-        </div>
-        <div class="quick-stat">
-            <div class="quick-stat-icon warning">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                </svg>
-            </div>
-            <h4>Transactions</h4>
-            <div class="value">${transactionCount.toLocaleString()}</div>
-        </div>
-        <div class="quick-stat">
-            <div class="quick-stat-icon info">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="12"></line>
-                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
-            </div>
-            <h4>Avg Transaction</h4>
-            <div class="value">$${avgTransaction.toFixed(2)}</div>
-        </div>
-    `;
+function renderSpendingSummary(data) {
+    const container = document.getElementById('spendingSummary');
+    if (!container) return;
 
-    document.getElementById('quickStats').innerHTML = html;
-}
+    const avgMonthly = data.monthCount > 0 ? data.totalExpenses / data.monthCount : 0;
+    const monthsLabel = data.monthCount === 1 ? '1 month' : `${data.monthCount} months`;
+    const top = data.sortedCategories.slice(0, 5);
+    const maxAmount = top.length > 0 ? top[0][1] : 1;
 
-function renderSpendingSummary(totalSpending, avgMonthly, months) {
-    const html = `
+    const categoryRows = top
+        .map(([name, amount]) => {
+            const color = window.getCategoryColorVar(name);
+            const width = Math.max(4, Math.round((amount / maxAmount) * 100));
+            return `
+                <div class="summary-cat-row">
+                    <span class="cat-dot" style="--cat:${color}"></span>
+                    <span class="summary-cat-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+                    <span class="summary-cat-bar"><span class="summary-cat-fill" style="width:${width}%;background:${color}"></span></span>
+                    <span class="summary-cat-amount">${fmtMoney(amount)}</span>
+                </div>
+            `;
+        })
+        .join('');
+
+    container.innerHTML = `
         <div class="spending-summary-grid">
             <div class="summary-item">
                 <h5>Total Spent</h5>
-                <div class="amount">$${totalSpending.toFixed(2)}</div>
-                <div class="period">${months.length} month${months.length !== 1 ? 's' : ''}</div>
+                <div class="amount">${fmtMoney(data.totalExpenses)}</div>
+                <div class="period">${monthsLabel}</div>
             </div>
             <div class="summary-item">
                 <h5>Monthly Average</h5>
-                <div class="amount">$${avgMonthly.toFixed(2)}</div>
+                <div class="amount">${fmtMoney(avgMonthly)}</div>
                 <div class="period">per month</div>
             </div>
         </div>
+        ${
+            top.length > 0
+                ? `<div class="summary-cats"><h5 class="summary-cats-title">Top Categories</h5>${categoryRows}</div>`
+                : '<p class="empty-line">No expenses in this range</p>'
+        }
     `;
-
-    document.getElementById('spendingSummary').innerHTML = html;
 }
 
-function renderTopCategories(sortedCategories, totalSpending) {
-    const top5 = sortedCategories.slice(0, 5);
-    const maxAmount = top5.length > 0 ? top5[0][1] : 1;
+function renderRecentActivity(data) {
+    const container = document.getElementById('recentActivity');
+    if (!container) return;
 
-    const html = `
-        <div class="category-list">
-            ${top5.map(([category, amount], index) => `
-                <div class="category-item">
-                    <div class="category-color" style="background: ${getChartColor(index)}"></div>
-                    <div class="category-info">
-                        <h5>${category}</h5>
-                        <div class="category-bar">
-                            <div class="category-bar-fill" style="width: ${(amount / maxAmount) * 100}%; background: ${getChartColor(index)}"></div>
-                        </div>
-                    </div>
-                    <div class="category-amount">$${amount.toFixed(2)}</div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-
-    const el = document.getElementById('topCategories');
-    if (el) el.innerHTML = html;
-}
-
-function renderRecentActivity(transactions) {
-    const html = `
-        <div class="activity-list">
-            ${transactions.map((tx) => {
-                const description = tx.Description || tx.description || 'Unknown';
-                const category = categorizeTransactionForAnalytics(description, tx._id);
-                const isIncome = category === 'Income' || tx.isIncome;
-                const icon = analyticsData.categoryConfig[category]?.icon || '💳';
-                const dateStr = tx.parsedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-                return `
-                    <div class="activity-item ${isIncome ? 'income' : ''}">
-                        <div class="activity-icon">${icon}</div>
-                        <div class="activity-details">
-                            <h5>${description.length > 30 ? description.substring(0, 30) + '...' : description}</h5>
-                            <span>${dateStr} - ${category}</span>
-                        </div>
-                        <div class="activity-amount ${isIncome ? 'income' : ''}">
-                            ${isIncome ? '+' : ''}$${tx.parsedAmount.toFixed(2)}
-                        </div>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
-
-    document.getElementById('recentActivity').innerHTML = html;
-}
-
-function renderTopMerchants(merchants) {
-    const html = `
-        <div class="merchant-mini-list">
-            ${merchants.map(([name, data], index) => `
-                <div class="merchant-mini-item">
-                    <div class="merchant-rank ${index === 0 ? 'top' : ''}">${index + 1}</div>
-                    <div class="merchant-mini-info">
-                        <h5>${name.length > 25 ? name.substring(0, 25) + '...' : name}</h5>
-                        <span>${data.count} transaction${data.count !== 1 ? 's' : ''}</span>
-                    </div>
-                    <div class="merchant-mini-amount">$${data.total.toFixed(2)}</div>
-                </div>
-            `).join('')}
-        </div>
-    `;
-
-    const el = document.getElementById('topMerchants');
-    if (el) el.innerHTML = html;
-}
-
-function renderOverviewChart(monthlyTotals) {
-    // Destroy existing chart
-    if (analyticsData.charts.overview) {
-        analyticsData.charts.overview.destroy();
+    const recent = data.transactions.slice(0, 8);
+    if (recent.length === 0) {
+        container.innerHTML = '<p class="empty-line">Nothing to show</p>';
+        return;
     }
 
-    const canvas = document.getElementById('overviewChart');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    analyticsData.charts.overview = new Chart(ctx, {
+    const rows = recent
+        .map((tx) => {
+            const validDate = tx.date instanceof Date && !isNaN(tx.date.getTime());
+            const dateStr = validDate
+                ? tx.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                : tx.monthName;
+            const catColor = window.getCategoryColorVar(tx.category);
+
+            let amountClass = '';
+            let amountText = fmtMoney(tx.amount);
+            let flag = '';
+            if (tx.isIncome) {
+                amountClass = ' income';
+                amountText = '+' + fmtMoney(tx.amount);
+                // Flag only adds information when the category itself is not an income category
+                if (!isIncomeCategory(tx.category)) {
+                    flag = '<span class="activity-flag income">Income</span>';
+                }
+            } else if (tx.isRefund) {
+                amountClass = ' refund';
+                amountText = '-' + fmtMoney(tx.amount);
+                flag = '<span class="activity-flag refund">Refund</span>';
+            }
+
+            return `
+                <div class="activity-item">
+                    ${window.getCategoryIconChip(tx.category, { size: 40, icon: 20 })}
+                    <div class="activity-details">
+                        <h5 title="${escapeHtml(tx.description)}">${escapeHtml(tx.description)}</h5>
+                        <div class="activity-meta">
+                            <span class="activity-date">${escapeHtml(dateStr)}</span>
+                            <span class="activity-cat" style="color:${catColor}">${escapeHtml(tx.category)}</span>
+                            ${flag}
+                        </div>
+                    </div>
+                    <div class="activity-amount${amountClass}">${amountText}</div>
+                </div>
+            `;
+        })
+        .join('');
+
+    container.innerHTML = `<div class="activity-list">${rows}</div>`;
+}
+
+// ==========================================
+// CASHFLOW VIEW (net cashflow + savings rate)
+// ==========================================
+function loadCashflowView(data) {
+    if (!data) {
+        analyticsData.dirty.cashflow = true;
+        renderView('cashflow');
+        return;
+    }
+    renderCashflowHero(data);
+    renderCashflowChart(data);
+}
+
+function renderCashflowHero(data) {
+    const container = document.getElementById('cashflowHero');
+    if (!container) return;
+
+    const net = data.totalIncome - data.totalExpenses;
+    const hasIncome = data.totalIncome > 0;
+    const savingsRate = hasIncome ? Math.round((net / data.totalIncome) * 100) : null;
+
+    const first = data.monthly[0];
+    const last = data.monthly[data.monthly.length - 1];
+    const rangeLabel =
+        first && last && first.key !== last.key ? `${first.name} to ${last.name}` : first ? first.name : '';
+
+    let rateClass = '';
+    let rateText = 'n/a';
+    if (savingsRate !== null) {
+        rateClass = savingsRate >= 0 ? ' income' : ' negative';
+        rateText = savingsRate + '%';
+    }
+
+    container.innerHTML = `
+        <div class="cashflow-net">
+            <span class="cashflow-label">Net Cashflow</span>
+            <div class="cashflow-value ${net >= 0 ? 'positive' : 'negative'}">${fmtMoneySigned(net)}</div>
+            <span class="cashflow-range">${escapeHtml(rangeLabel)}</span>
+            ${hasIncome ? '' : '<span class="cashflow-note">No income recorded in this range</span>'}
+        </div>
+        <div class="cashflow-tiles">
+            <div class="cashflow-tile">
+                <h5>Income</h5>
+                <div class="cashflow-tile-value income">${fmtMoney(data.totalIncome)}</div>
+            </div>
+            <div class="cashflow-tile">
+                <h5>Spending</h5>
+                <div class="cashflow-tile-value">${fmtMoney(data.totalExpenses)}</div>
+            </div>
+            <div class="cashflow-tile">
+                <h5>Savings Rate</h5>
+                <div class="cashflow-tile-value${rateClass}">${rateText}</div>
+            </div>
+        </div>
+    `;
+}
+
+function renderCashflowChart(data) {
+    const canvas = document.getElementById('cashflowChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    destroyChart('cashflow');
+    applyChartDefaults();
+
+    const labels = data.monthly.map((m) => shortMonthLabel(m.key));
+    const success = cssToken('--success');
+    const danger = cssToken('--danger');
+    const brand = cssToken('--brand');
+
+    analyticsData.charts.cashflow = new Chart(canvas.getContext('2d'), {
         type: 'bar',
         data: {
-            labels: monthlyTotals.map((m) => m.month),
+            labels,
             datasets: [
                 {
-                    label: 'Monthly Spending',
-                    data: monthlyTotals.map((m) => m.total),
-                    backgroundColor: 'rgba(8, 145, 178, 0.8)',
-                    borderColor: 'rgba(8, 145, 178, 1)',
-                    borderWidth: 1,
+                    type: 'line',
+                    label: 'Net',
+                    data: data.monthly.map((m) => m.net),
+                    borderColor: brand,
+                    backgroundColor: brand,
+                    pointBackgroundColor: brand,
+                    pointBorderColor: cssToken('--surface'),
+                    pointBorderWidth: 1.5,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: data.monthly.length === 1 ? 5 : 3.5,
+                    order: 0,
+                },
+                {
+                    label: 'Income',
+                    data: data.monthly.map((m) => m.income),
+                    backgroundColor: withAlpha(success, 0.75),
+                    hoverBackgroundColor: success,
                     borderRadius: 6,
+                    maxBarThickness: 28,
+                    order: 1,
+                },
+                {
+                    label: 'Spending',
+                    data: data.monthly.map((m) => m.expenses),
+                    backgroundColor: withAlpha(danger, 0.65),
+                    hoverBackgroundColor: danger,
+                    borderRadius: 6,
+                    maxBarThickness: 28,
+                    order: 2,
                 },
             ],
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false,
-                },
-                tooltip: {
-                    callbacks: {
-                        label: (context) => '$' + context.parsed.y.toFixed(2),
-                    },
-                },
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: (value) => '$' + value.toFixed(0),
-                    },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)',
-                    },
-                },
-                x: {
-                    grid: {
-                        display: false,
-                    },
-                },
-            },
-        },
-    });
-}
-
-function showAnalyticsEmptyState(viewId, title) {
-    const view = document.getElementById(viewId);
-    const emptyHTML = `
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; color: var(--gray);">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--gray-300); margin-bottom: 20px;">
-                <line x1="18" y1="20" x2="18" y2="10"></line>
-                <line x1="12" y1="20" x2="12" y2="4"></line>
-                <line x1="6" y1="20" x2="6" y2="14"></line>
-            </svg>
-            <h3 style="color: var(--dark); margin-bottom: 10px;">No Data for ${title}</h3>
-            <p style="font-size: 14px; text-align: center; max-width: 400px;">
-                Upload your transaction data to see detailed analytics and insights about your spending patterns
-            </p>
-            <button class="btn btn-primary" style="margin-top: 20px;" onclick="window.location.href='index.html'">
-                Go to Dashboard
-            </button>
-        </div>
-    `;
-
-    view.innerHTML = emptyHTML;
-}
-
-// Load trends view
-function loadTrendsView() {
-    const months = getFilteredMonths();
-
-    if (months.length === 0) {
-        showAnalyticsEmptyState('trendsView', 'Spending Trends');
-        return;
-    }
-
-    // Prepare data for chart
-    const labels = [];
-    const datasets = {};
-    const totals = [];
-
-    months.forEach((monthKey) => {
-        const monthData = analyticsData.monthlyData.get(monthKey);
-        labels.push(monthData.monthName);
-
-        const analyzer = analyzeMonthTransactions(monthData.transactions);
-        totals.push(analyzer.totalExpenses);
-
-        // Track by category
-        Object.entries(analyzer.categoryTotals).forEach(([category, amount]) => {
-            if (!datasets[category]) {
-                datasets[category] = new Array(months.length).fill(0);
-            }
-            const index = labels.length - 1;
-            datasets[category][index] = amount;
-        });
-    });
-
-    // Destroy existing chart
-    if (analyticsData.charts.trends) {
-        analyticsData.charts.trends.destroy();
-    }
-
-    // Create trends chart
-    const ctx = document.getElementById('trendsChart').getContext('2d');
-    analyticsData.charts.trends = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: Object.entries(datasets).map(([category, data], index) => ({
-                label: category,
-                data: data,
-                borderColor: getChartColor(index),
-                backgroundColor: getChartColor(index, 0.1),
-                tension: 0.3,
-                fill: true,
-            })),
-        },
-        options: {
-            responsive: true,
+            interaction: { mode: 'index', intersect: false },
             plugins: {
                 legend: {
                     position: 'bottom',
+                    labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 16 },
                 },
                 tooltip: {
+                    ...themedTooltip(),
                     callbacks: {
-                        label: (context) => {
-                            return context.dataset.label + ': $' + context.parsed.y.toFixed(2);
-                        },
+                        label: (ctx) => ` ${ctx.dataset.label}: ${fmtMoney(ctx.parsed.y)}`,
                     },
                 },
             },
             scales: {
                 y: {
                     beginAtZero: true,
-                    ticks: {
-                        callback: (value) => '$' + value.toFixed(0),
-                    },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)',
-                    },
+                    ticks: { callback: (value) => fmtMoneyShort(value) },
+                    grid: { color: chartGridColor(), drawBorder: false },
                 },
                 x: {
-                    grid: {
-                        display: false,
-                    },
+                    grid: { display: false, drawBorder: false },
                 },
             },
         },
     });
-
-    // Update stats
-    updateTrendsStats(totals, labels);
 }
 
-// Load categories view
-function loadCategoriesView() {
-    const months = getFilteredMonths();
-
-    if (months.length === 0) {
-        showAnalyticsEmptyState('categoriesView', 'Category Analysis');
+// ==========================================
+// TRENDS VIEW
+// ==========================================
+function loadTrendsView(data) {
+    if (!data) {
+        analyticsData.dirty.trends = true;
+        renderView('trends');
         return;
     }
+    updateTrendsStats(data);
+    renderTrendsChart(data);
+}
 
-    // Aggregate category data
-    const categoryTotals = {};
-    let totalSpending = 0;
+function updateTrendsStats(data) {
+    const container = document.getElementById('trendsStats');
+    if (!container) return;
 
-    months.forEach((monthKey) => {
-        const monthData = analyticsData.monthlyData.get(monthKey);
-        monthData.transactions.forEach((transaction) => {
-            const amount = Math.abs(parseFloat(transaction.Amount) || 0);
-            const description = transaction.Description || transaction.description || '';
-            const category = categorizeTransactionForAnalytics(description, transaction._id);
+    const totals = data.monthly.map((m) => m.expenses);
+    const average = totals.length > 0 ? totals.reduce((a, b) => a + b, 0) / totals.length : 0;
+    const max = totals.length > 0 ? Math.max(...totals) : 0;
+    const min = totals.length > 0 ? Math.min(...totals) : 0;
+    const maxName = totals.length > 0 ? data.monthly[totals.indexOf(max)].name : '';
+    const minName = totals.length > 0 ? data.monthly[totals.indexOf(min)].name : '';
 
-            if (!categoryTotals[category]) {
-                categoryTotals[category] = { total: 0, count: 0 };
-            }
+    container.innerHTML = `
+        <div class="stat-card">
+            <h4>Monthly Average</h4>
+            <div class="value">${fmtMoney(average)}</div>
+        </div>
+        <div class="stat-card">
+            <h4>Highest Month</h4>
+            <div class="value">${fmtMoney(max)}</div>
+            <div class="change">${escapeHtml(maxName)}</div>
+        </div>
+        <div class="stat-card">
+            <h4>Lowest Month</h4>
+            <div class="value">${fmtMoney(min)}</div>
+            <div class="change">${escapeHtml(minName)}</div>
+        </div>
+        <div class="stat-card">
+            <h4>Total Spending</h4>
+            <div class="value">${fmtMoney(data.totalExpenses)}</div>
+        </div>
+    `;
+}
 
-            categoryTotals[category].total += amount;
-            categoryTotals[category].count += 1;
-            totalSpending += amount;
-        });
+function renderTrendsChart(data) {
+    const canvas = document.getElementById('trendsChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    destroyChart('trends');
+
+    const categories = data.sortedCategories.map(([name]) => name);
+    if (categories.length === 0) {
+        setChartCardEmpty('trendsChart', true);
+        return;
+    }
+    setChartCardEmpty('trendsChart', false);
+    applyChartDefaults();
+
+    const labels = data.monthly.map((m) => shortMonthLabel(m.key));
+    const topCategories = categories.slice(0, 6);
+    const restCategories = categories.slice(6);
+    const pointRadius = data.monthly.length === 1 ? 4 : 2.5;
+
+    const datasets = topCategories.map((category) => {
+        const color = resolvedCategoryColor(category);
+        return {
+            label: category,
+            data: data.monthly.map((m) => m.byCategory[category] || 0),
+            borderColor: color,
+            backgroundColor: color,
+            borderWidth: 2,
+            tension: 0.35,
+            pointRadius,
+            pointHoverRadius: 5,
+            fill: false,
+        };
     });
 
-    // Sort by total
-    const sortedCategories = Object.entries(categoryTotals).sort((a, b) => b[1].total - a[1].total);
-
-    // Destroy existing chart
-    if (analyticsData.charts.categories) {
-        analyticsData.charts.categories.destroy();
+    if (restCategories.length > 0) {
+        const neutral = cssToken('--cat-16');
+        datasets.push({
+            label: 'Other categories',
+            data: data.monthly.map((m) =>
+                restCategories.reduce((sum, category) => sum + (m.byCategory[category] || 0), 0)
+            ),
+            borderColor: neutral,
+            backgroundColor: neutral,
+            borderDash: [5, 4],
+            borderWidth: 2,
+            tension: 0.35,
+            pointRadius,
+            pointHoverRadius: 5,
+            fill: false,
+        });
     }
 
-    // Create chart
-    const ctx = document.getElementById('categoryChart').getContext('2d');
-    analyticsData.charts.categories = new Chart(ctx, {
+    analyticsData.charts.trends = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 16 },
+                },
+                tooltip: {
+                    ...themedTooltip(),
+                    callbacks: {
+                        label: (ctx) => ` ${ctx.dataset.label}: ${fmtMoney(ctx.parsed.y)}`,
+                    },
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { callback: (value) => fmtMoneyShort(value) },
+                    grid: { color: chartGridColor(), drawBorder: false },
+                },
+                x: {
+                    grid: { display: false, drawBorder: false },
+                },
+            },
+        },
+    });
+}
+
+// ==========================================
+// CATEGORIES VIEW
+// ==========================================
+function loadCategoriesView(data) {
+    if (!data) {
+        analyticsData.dirty.categories = true;
+        renderView('categories');
+        return;
+    }
+    renderCategoryChart(data);
+    updateCategoryBreakdown(data);
+}
+
+function renderCategoryChart(data) {
+    const canvas = document.getElementById('categoryChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    destroyChart('categories');
+
+    if (data.sortedCategories.length === 0) {
+        setChartCardEmpty('categoryChart', true);
+        return;
+    }
+    setChartCardEmpty('categoryChart', false);
+    applyChartDefaults();
+
+    const labels = data.sortedCategories.map(([name]) => name);
+    const values = data.sortedCategories.map(([, total]) => total);
+    const colors = data.sortedCategories.map(([name]) => resolvedCategoryColor(name));
+
+    analyticsData.charts.categories = new Chart(canvas.getContext('2d'), {
         type: 'doughnut',
         data: {
-            labels: sortedCategories.map(([name]) => name),
+            labels,
             datasets: [
                 {
-                    data: sortedCategories.map(([_, data]) => data.total),
-                    backgroundColor: sortedCategories.map((_, i) => getChartColor(i)),
+                    data: values,
+                    backgroundColor: colors,
+                    borderColor: cssToken('--surface'),
                     borderWidth: 2,
-                    borderColor: '#fff',
+                    hoverOffset: 6,
                 },
             ],
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
+            cutout: '64%',
             plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        font: { size: 12 },
-                        padding: 15,
-                    },
-                },
+                legend: { display: false },
                 tooltip: {
+                    ...themedTooltip(),
                     callbacks: {
-                        label: (context) => {
-                            const percent = ((context.parsed / totalSpending) * 100).toFixed(1);
-                            return `$${context.parsed.toFixed(2)} (${percent}%)`;
+                        label: (ctx) => {
+                            const percent =
+                                data.totalExpenses > 0
+                                    ? ((ctx.parsed / data.totalExpenses) * 100).toFixed(1)
+                                    : '0.0';
+                            return ` ${fmtMoney(ctx.parsed)} (${percent}%)`;
                         },
                     },
                 },
+                doughnutCenter: {
+                    display: true,
+                    value: '$' + Math.round(data.totalExpenses).toLocaleString('en-US'),
+                    label: 'total spent',
+                },
             },
         },
+        plugins: [doughnutCenterPlugin],
     });
-
-    // Update category breakdown
-    updateCategoryBreakdown(sortedCategories, totalSpending);
 }
 
-function updateCategoryBreakdown(categories, totalSpending) {
-    const html = `
-        <h3>Category Breakdown</h3>
-        ${categories.map(([name, data], index) => {
-            const percent = ((data.total / totalSpending) * 100).toFixed(1);
+function updateCategoryBreakdown(data) {
+    const container = document.getElementById('categoryBreakdown');
+    if (!container) return;
+
+    if (data.sortedCategories.length === 0) {
+        container.innerHTML =
+            '<h3>Category Breakdown</h3><p class="empty-line">No expenses in this range</p>';
+        return;
+    }
+
+    const maxAmount = data.sortedCategories[0][1];
+    const rows = data.sortedCategories
+        .map(([name, total]) => {
+            const count = data.categoryCounts[name] || 0;
+            const percent =
+                data.totalExpenses > 0 ? ((total / data.totalExpenses) * 100).toFixed(1) : '0.0';
+            const width = Math.max(3, Math.round((total / maxAmount) * 100));
+            const color = window.getCategoryColorVar(name);
             return `
                 <div class="breakdown-item">
-                    <div class="breakdown-color" style="background: ${getChartColor(index)}"></div>
+                    ${window.getCategoryIconChip(name, { size: 36, icon: 18 })}
                     <div class="breakdown-info">
-                        <h4>${name}</h4>
-                        <span>${data.count} transaction${data.count !== 1 ? 's' : ''}</span>
-                    </div>
-                    <div class="breakdown-amount">
-                        <div class="total">$${data.total.toFixed(2)}</div>
-                        <div class="percent">${percent}%</div>
+                        <div class="breakdown-top">
+                            <h4 title="${escapeHtml(name)}">${escapeHtml(name)}</h4>
+                            <div class="breakdown-amount">${fmtMoney(total)}</div>
+                        </div>
+                        <div class="breakdown-bar"><span style="width:${width}%;background:${color}"></span></div>
+                        <div class="breakdown-meta">
+                            <span>${count === 1 ? '1 transaction' : count.toLocaleString() + ' transactions'}</span>
+                            <span>${percent}%</span>
+                        </div>
                     </div>
                 </div>
             `;
-        }).join('')}
-    `;
+        })
+        .join('');
 
-    document.getElementById('categoryBreakdown').innerHTML = html;
+    container.innerHTML = `<h3>Category Breakdown</h3><div class="breakdown-list">${rows}</div>`;
 }
 
-// Load merchants view
-function loadMerchantsView() {
-    const months = getFilteredMonths();
-
-    if (months.length === 0) {
-        showAnalyticsEmptyState('merchantsView', 'Merchant Analysis');
+// ==========================================
+// MERCHANTS VIEW
+// ==========================================
+function loadMerchantsView(data) {
+    if (!data) {
+        analyticsData.dirty.merchants = true;
+        renderView('merchants');
         return;
     }
+    renderMerchantChart(data);
+    updateMerchantList(data);
+}
 
-    // Aggregate merchant data
-    const merchantTotals = {};
+function renderMerchantChart(data) {
+    const canvas = document.getElementById('merchantChart');
+    if (!canvas || typeof Chart === 'undefined') return;
 
-    months.forEach((monthKey) => {
-        const monthData = analyticsData.monthlyData.get(monthKey);
-        monthData.transactions.forEach((transaction) => {
-            const description = transaction.Description || transaction.description || 'Unknown';
-            const amount = Math.abs(parseFloat(transaction.Amount) || 0);
+    destroyChart('merchants');
 
-            if (!merchantTotals[description]) {
-                merchantTotals[description] = { total: 0, count: 0, transactions: [] };
-            }
-
-            merchantTotals[description].total += amount;
-            merchantTotals[description].count += 1;
-            merchantTotals[description].transactions.push({
-                amount: amount,
-                date:
-                    transaction['Transaction Date'] ||
-                    transaction['Posting Date'] ||
-                    transaction['Post Date'] ||
-                    transaction.Date ||
-                    transaction.date ||
-                    transaction['Trans Date'] ||
-                    transaction['Trans. Date'] ||
-                    transaction['Posted Date'],
-            });
-        });
-    });
-
-    // Sort by total amount
-    const sortedMerchants = Object.entries(merchantTotals).sort((a, b) => b[1].total - a[1].total);
-
-    // Top 10 for chart
-    const top10 = sortedMerchants.slice(0, 10);
-
-    // Destroy existing chart
-    if (analyticsData.charts.merchants) {
-        analyticsData.charts.merchants.destroy();
+    const top = data.sortedMerchants.filter(([, m]) => m.total > 0).slice(0, 10);
+    if (top.length === 0) {
+        setChartCardEmpty('merchantChart', true);
+        return;
     }
+    setChartCardEmpty('merchantChart', false);
+    applyChartDefaults();
 
-    // Create chart
-    const ctx = document.getElementById('merchantChart').getContext('2d');
-    analyticsData.charts.merchants = new Chart(ctx, {
-        type: 'doughnut',
+    const wrap = document.getElementById('merchantCanvasWrap');
+    if (wrap) wrap.style.height = Math.max(240, top.length * 36 + 48) + 'px';
+
+    const fullNames = top.map(([name]) => name);
+    const labels = fullNames.map((name) =>
+        name.length > 24 ? name.substring(0, 24) + '...' : name
+    );
+    const brand = cssToken('--brand');
+
+    analyticsData.charts.merchants = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
         data: {
-            labels: top10.map(([name]) =>
-                name.length > 30 ? name.substring(0, 30) + '...' : name
-            ),
+            labels,
             datasets: [
                 {
-                    data: top10.map(([_, data]) => data.total),
-                    backgroundColor: top10.map((_, i) => getChartColor(i)),
-                    borderWidth: 2,
-                    borderColor: '#fff',
+                    data: top.map(([, m]) => m.total),
+                    backgroundColor: withAlpha(brand, 0.8),
+                    hoverBackgroundColor: brand,
+                    borderRadius: 6,
+                    maxBarThickness: 22,
                 },
             ],
         },
         options: {
+            indexAxis: 'y',
             responsive: true,
+            maintainAspectRatio: false,
             plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        font: { size: 11 },
-                        padding: 12,
-                    },
-                },
+                legend: { display: false },
                 tooltip: {
+                    ...themedTooltip(),
                     callbacks: {
-                        label: (context) => {
-                            return '$' + context.parsed.toFixed(2);
+                        title: (items) => fullNames[items[0].dataIndex],
+                        label: (ctx) => {
+                            const merchant = top[ctx.dataIndex][1];
+                            const countLabel =
+                                merchant.count === 1
+                                    ? '1 transaction'
+                                    : merchant.count + ' transactions';
+                            return ` ${fmtMoney(ctx.parsed.x)} (${countLabel})`;
                         },
                     },
                 },
             },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: { callback: (value) => fmtMoneyShort(value) },
+                    grid: { color: chartGridColor(), drawBorder: false },
+                },
+                y: {
+                    ticks: { color: cssToken('--text'), autoSkip: false },
+                    grid: { display: false, drawBorder: false },
+                },
+            },
         },
     });
-
-    // Update merchant list
-    updateMerchantList(sortedMerchants);
 }
 
-// Search transactions
-function searchTransactions(query) {
-    if (!query || query.trim() === '') {
-        showSearchPrompt();
-        return;
-    }
+function updateMerchantList(data) {
+    const container = document.getElementById('merchantList');
+    if (!container) return;
 
-    const searchTerm = query.toLowerCase();
-    const results = [];
-
-    const months = getFilteredMonths();
-    months.forEach((monthKey) => {
-        const monthData = analyticsData.monthlyData.get(monthKey);
-        monthData.transactions.forEach((transaction) => {
-            const description = (
-                transaction.Description ||
-                transaction.description ||
-                ''
-            ).toLowerCase();
-            const amount = Math.abs(parseFloat(transaction.Amount) || 0).toString();
-
-            if (description.includes(searchTerm) || amount.includes(searchTerm)) {
-                results.push({
-                    ...transaction,
-                    monthKey: monthKey,
-                    monthName: monthData.monthName,
-                    parsedAmount: Math.abs(parseFloat(transaction.Amount) || 0),
-                    parsedDate: new Date(
-                        transaction['Transaction Date'] ||
-                            transaction['Posting Date'] ||
-                            transaction['Post Date'] ||
-                            transaction.Date ||
-                            transaction.date ||
-                            transaction['Trans Date'] ||
-                            transaction['Trans. Date'] ||
-                            transaction['Posted Date']
-                    ),
-                });
-            }
-        });
-    });
-
-    // Store results globally for sorting
-    analyticsData.searchResults = results;
-    analyticsData.searchTerm = searchTerm;
-    analyticsData.currentSort = { field: 'date', direction: 'desc' };
-
-    displaySearchResults(results, searchTerm);
-}
-
-function sortSearchResults(field) {
-    if (!analyticsData.searchResults) return;
-
-    // Toggle direction if clicking same field
-    if (analyticsData.currentSort.field === field) {
-        analyticsData.currentSort.direction =
-            analyticsData.currentSort.direction === 'asc' ? 'desc' : 'asc';
-    } else {
-        analyticsData.currentSort.field = field;
-        analyticsData.currentSort.direction = field === 'amount' ? 'desc' : 'asc';
-    }
-
-    const sorted = [...analyticsData.searchResults].sort((a, b) => {
-        let compareValue = 0;
-
-        switch (field) {
-            case 'date':
-                compareValue = a.parsedDate - b.parsedDate;
-                break;
-            case 'description':
-                compareValue = (a.Description || a.description || '').localeCompare(
-                    b.Description || b.description || ''
-                );
-                break;
-            case 'amount':
-                compareValue = a.parsedAmount - b.parsedAmount;
-                break;
-            case 'month':
-                compareValue = a.monthKey.localeCompare(b.monthKey);
-                break;
-        }
-
-        return analyticsData.currentSort.direction === 'asc' ? compareValue : -compareValue;
-    });
-
-    displaySearchResults(sorted, analyticsData.searchTerm);
-}
-
-// Display search results
-function displaySearchResults(results, searchTerm) {
-    const container = document.getElementById('searchResults');
-
-    if (results.length === 0) {
+    const merchants = data.sortedMerchants;
+    if (merchants.length === 0) {
         container.innerHTML = `
-            <div class="search-empty-state">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-                <h3>No Results Found</h3>
-                <p>No transactions found matching "${searchTerm}". Try a different search term.</p>
-            </div>
+            <div class="merchant-list-head"><h3>All Merchants</h3></div>
+            <p class="empty-line">No expenses in this range</p>
         `;
         return;
     }
 
-    const sortIndicator = (field) => {
-        if (!analyticsData.currentSort || analyticsData.currentSort.field !== field) {
-            return '<span style="opacity: 0.3">↕</span>';
-        }
-        return analyticsData.currentSort.direction === 'asc' ? '↑' : '↓';
-    };
-
-    const totalAmount = results.reduce((sum, tx) => sum + tx.parsedAmount, 0);
-
-    const html = `
-        <div class="search-results-header-bar">
-            <h3>Found ${results.length} transaction${results.length === 1 ? '' : 's'} totaling $${totalAmount.toFixed(2)}</h3>
-            <button class="btn btn-secondary btn-sm" onclick="exportSearchResults()">Export Results</button>
-        </div>
-        <div class="search-results-table">
-            <div class="search-results-header">
-                <div class="sortable" onclick="sortSearchResults('date')">
-                    Date ${sortIndicator('date')}
-                </div>
-                <div class="sortable" onclick="sortSearchResults('description')">
-                    Description ${sortIndicator('description')}
-                </div>
-                <div class="sortable" onclick="sortSearchResults('month')">
-                    Month ${sortIndicator('month')}
-                </div>
-                <div class="sortable" onclick="sortSearchResults('amount')">
-                    Amount ${sortIndicator('amount')}
-                </div>
-            </div>
-            ${results
-                .map((transaction) => {
-                    const description = transaction.Description || transaction.description || '';
-                    const highlightedDesc = highlightText(description, searchTerm);
-                    const amount = Math.abs(parseFloat(transaction.Amount) || 0);
-                    const date =
-                        transaction['Transaction Date'] || transaction.Date || transaction.date;
-
-                    return `
-                    <div class="search-result-item">
-                        <div data-label="Date">${new Date(date).toLocaleDateString()}</div>
-                        <div data-label="Description" title="${description}">${highlightedDesc}</div>
-                        <div data-label="Month">${transaction.monthName}</div>
-                        <div data-label="Amount">$${amount.toFixed(2)}</div>
+    const rows = merchants
+        .map(([name, m], index) => {
+            const countLabel =
+                m.count === 1 ? '1 transaction' : m.count.toLocaleString() + ' transactions';
+            return `
+                <div class="merchant-item">
+                    <span class="merchant-rank${index === 0 ? ' top' : ''}">${index + 1}</span>
+                    <div class="merchant-info">
+                        <h4 title="${escapeHtml(name)}">${escapeHtml(name)}</h4>
+                        <span>${countLabel}</span>
                     </div>
-                `;
-                })
-                .join('')}
-        </div>
-    `;
-
-    container.innerHTML = html;
-}
-
-function exportSearchResults() {
-    if (!analyticsData.searchResults || analyticsData.searchResults.length === 0) {
-        alert('No search results to export');
-        return;
-    }
-
-    let csvContent = 'Date,Description,Month,Amount\n';
-
-    analyticsData.searchResults.forEach((transaction) => {
-        const date = transaction['Transaction Date'] || transaction.Date || transaction.date;
-        const description = transaction.Description || transaction.description || '';
-        const amount = Math.abs(parseFloat(transaction.Amount) || 0);
-
-        // Escape commas and quotes
-        const escapedDesc =
-            description.includes(',') || description.includes('"')
-                ? `"${description.replace(/"/g, '""')}"`
-                : description;
-
-        csvContent += `${date},${escapedDesc},${transaction.monthName},${amount.toFixed(2)}\n`;
-    });
-
-    downloadFile(csvContent, `search-results-${Date.now()}.csv`, 'text/csv');
-}
-
-// Highlight text helper
-function highlightText(text, searchTerm) {
-    const regex = new RegExp(`(${searchTerm})`, 'gi');
-    return text.replace(regex, '<span class="highlight">$1</span>');
-}
-
-// Helper functions
-function analyzeMonthTransactions(transactions) {
-    const categoryTotals = {};
-    Object.keys(analyticsData.categoryConfig).forEach((cat) => {
-        categoryTotals[cat] = 0;
-    });
-
-    transactions.forEach((transaction) => {
-        const amount = Math.abs(parseFloat(transaction.Amount) || 0);
-        const description = transaction.Description || transaction.description || '';
-        const category = categorizeTransactionForAnalytics(description, transaction._id);
-
-        if (!categoryTotals[category]) {
-            categoryTotals[category] = 0;
-        }
-        categoryTotals[category] += amount;
-    });
-
-    return {
-        categoryTotals,
-        totalExpenses: Object.values(categoryTotals).reduce((a, b) => a + b, 0),
-    };
-}
-
-function categorizeTransactionForAnalytics(description, transactionId) {
-    // Check for overrides
-    for (const [monthKey, overrides] of Object.entries(analyticsData.transactionOverrides)) {
-        if (overrides[transactionId]) {
-            return overrides[transactionId];
-        }
-    }
-
-    const upperDesc = description.toUpperCase();
-    for (const [category, config] of Object.entries(analyticsData.categoryConfig)) {
-        if (category === 'Others') continue;
-        if (config.keywords && config.keywords.length > 0) {
-            for (const keyword of config.keywords) {
-                if (upperDesc.includes(keyword)) {
-                    return category;
-                }
-            }
-        }
-    }
-
-    return 'Others';
-}
-
-function getChartColor(index, alpha = 1) {
-    const colors = [
-        `rgba(8, 145, 178, ${alpha})`, // primary cyan
-        `rgba(139, 92, 246, ${alpha})`, // violet
-        `rgba(236, 72, 153, ${alpha})`, // pink
-        `rgba(16, 185, 129, ${alpha})`, // green
-        `rgba(245, 158, 11, ${alpha})`, // yellow
-        `rgba(239, 68, 68, ${alpha})`, // red
-        `rgba(59, 130, 246, ${alpha})`, // blue
-        `rgba(99, 102, 241, ${alpha})`, // indigo
-        `rgba(107, 114, 128, ${alpha})`, // gray
-        `rgba(251, 146, 60, ${alpha})`, // orange
-    ];
-    return colors[index % colors.length];
-}
-
-// Update stats functions
-function updateTrendsStats(totals, labels) {
-    const average = totals.reduce((a, b) => a + b, 0) / totals.length;
-    const max = Math.max(...totals);
-    const min = Math.min(...totals);
-    const maxIndex = totals.indexOf(max);
-    const minIndex = totals.indexOf(min);
-
-    const html = `
-        <div class="stat-card">
-            <h4>Average Monthly</h4>
-            <div class="value">$${average.toFixed(2)}</div>
-        </div>
-        <div class="stat-card">
-            <h4>Highest Month</h4>
-            <div class="value">$${max.toFixed(2)}</div>
-            <div class="change">${labels[maxIndex]}</div>
-        </div>
-        <div class="stat-card">
-            <h4>Lowest Month</h4>
-            <div class="value">$${min.toFixed(2)}</div>
-            <div class="change">${labels[minIndex]}</div>
-        </div>
-        <div class="stat-card">
-            <h4>Total Spending</h4>
-            <div class="value">$${totals.reduce((a, b) => a + b, 0).toFixed(2)}</div>
-        </div>
-    `;
-
-    document.getElementById('trendsStats').innerHTML = html;
-}
-
-function updateMerchantList(merchants) {
-    const html = `
-        <h3>All Merchants</h3>
-        ${merchants
-            .map(
-                ([name, data]) => `
-            <div class="merchant-item">
-                <div class="merchant-info">
-                    <h4>${name}</h4>
-                    <span>${data.count} transaction${data.count === 1 ? '' : 's'}</span>
+                    <div class="merchant-amount">
+                        <div class="total${m.total < 0 ? ' refund' : ''}">${fmtMoney(m.total)}</div>
+                        <div class="count">avg ${fmtMoney(m.total / m.count)}</div>
+                    </div>
                 </div>
-                <div class="merchant-amount">
-                    <div class="total">$${data.total.toFixed(2)}</div>
-                    <div class="count">Avg: $${(data.total / data.count).toFixed(2)}</div>
-                </div>
-            </div>
-        `
-            )
-            .join('')}
-    `;
+            `;
+        })
+        .join('');
 
-    document.getElementById('merchantList').innerHTML = html;
+    container.innerHTML = `
+        <div class="merchant-list-head">
+            <h3>All Merchants</h3>
+            <span class="merchant-count">${merchants.length.toLocaleString()}</span>
+        </div>
+        <div class="merchant-rows">${rows}</div>
+    `;
 }

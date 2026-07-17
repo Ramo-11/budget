@@ -82,15 +82,15 @@
 }
 
 .import-warning {
-    background: rgba(220, 38, 38, 0.08);
-    color: #991b1b;
+    background: var(--danger-soft);
+    color: var(--danger);
     padding: 14px 18px;
     border-radius: var(--radius-md);
     font-size: 13px;
     display: flex;
     align-items: center;
     gap: 10px;
-    border: 1px solid rgba(220, 38, 38, 0.2);
+    border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
 }
 
 /* Comparison Modal Styles */

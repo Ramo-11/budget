@@ -2,13 +2,28 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+        <meta name="theme-color" content="#0f172a" />
+        <link rel="manifest" href="manifest.webmanifest" />
+        <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Budget" />
         <title>Sahab Budget</title>
-        <!-- Google Fonts - Inter -->
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <!-- Set theme before paint to avoid a flash -->
+        <script>
+            (function () {
+                try {
+                    var p = localStorage.getItem('sahabBudget_theme') || 'system';
+                    var d = p === 'dark' || (p === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                    document.documentElement.setAttribute('data-theme', d ? 'dark' : 'light');
+                } catch (e) {}
+            })();
+        </script>
+        <!-- Self-hosted Inter font (no external requests) -->
+        <link rel="stylesheet" href="css/fonts.css" />
         <!-- CSS Files -->
+        <link rel="stylesheet" href="css/theme.css" />
         <link rel="stylesheet" href="css/base.css" />
         <link rel="stylesheet" href="css/features.css" />
         <link rel="stylesheet" href="css/dashboard.css" />
@@ -18,8 +33,8 @@
         <link rel="icon" href="/images/logo.png" type="image/x-icon" />
 
         <!-- External Libraries -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+        <script src="js/vendor/chart.min.js"></script>
+        <script src="js/vendor/papaparse.min.js"></script>
 
         <!-- Prevent tutorial flash: check localStorage before render (rule lives in base.css) -->
         <script>
@@ -236,6 +251,40 @@
                                 <span class="btn-feature-label">Compare</span>
                             </span>
                         </button>
+                        <button
+                            class="btn-feature subscriptions"
+                            onclick="openSubscriptionsModal()"
+                            title="Recurring charges and subscriptions"
+                        >
+                            <span class="btn-feature-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="17 1 21 5 17 9"></polyline>
+                                    <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                                    <polyline points="7 23 3 19 7 15"></polyline>
+                                    <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                                </svg>
+                            </span>
+                            <span class="btn-feature-text">
+                                <span class="btn-feature-label">Subscriptions</span>
+                            </span>
+                        </button>
+                        <button
+                            class="btn-feature transfers"
+                            onclick="openTransfersModal()"
+                            title="Cross-account transfers"
+                        >
+                            <span class="btn-feature-icon">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="17" y1="7" x2="7" y2="7"></line>
+                                    <polyline points="13 3 17 7 13 11"></polyline>
+                                    <line x1="7" y1="17" x2="17" y2="17"></line>
+                                    <polyline points="11 21 7 17 11 13"></polyline>
+                                </svg>
+                            </span>
+                            <span class="btn-feature-text">
+                                <span class="btn-feature-label">Transfers</span>
+                            </span>
+                        </button>
                     </div>
                 </div>
 
@@ -271,7 +320,7 @@
             <div class="modal-content" style="width: 800px">
                 <div class="modal-header">
                     <h2 id="modalTitle">Transactions</h2>
-                    <button class="close-btn" onclick="closeModal('transactionsModal')">×</button>
+                    <button class="close-btn" onclick="closeModal('transactionsModal')" aria-label="Close"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                 </div>
                 <div class="modal-body">
                     <div class="transactions-list" id="transactionsList"></div>
@@ -295,7 +344,7 @@
             <div class="modal-content column-mapping-modal">
                 <div class="modal-header">
                     <h2>Map CSV Columns</h2>
-                    <button class="close-btn" onclick="cancelColumnMapping()">×</button>
+                    <button class="close-btn" onclick="cancelColumnMapping()" aria-label="Close"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
                 </div>
                 <div class="modal-body">
                     <div class="mapping-notice">
@@ -357,6 +406,11 @@
         </div>
 
         <!-- JavaScript Files -->
+        <script src="js/theme.js"></script>
+        <script src="js/icons.js"></script>
+        <script src="js/accounts.js"></script>
+        <script src="js/lock.js"></script>
+        <script src="js/undo.js"></script>
         <script src="js/sync.js"></script>
         <script src="js/comparison.js"></script>
         <script src="js/daterange.js"></script>
@@ -364,11 +418,15 @@
         <script src="js/core.js"></script>
         <script src="js/rules.js"></script>
         <script src="js/utils.js"></script>
+        <script src="js/recurring.js"></script>
+        <script src="js/transfers.js"></script>
+        <script src="js/insights-ui.js"></script>
         <script src="js/columnMapping.js"></script>
         <script src="js/dashboard.js"></script>
         <script src="js/budgetView.js"></script>
         <script src="js/main.js"></script>
         <script src="js/mobile.js"></script>
         <script src="js/getting-started.js"></script>
+        <script src="js/pwa.js"></script>
     </body>
 </html>

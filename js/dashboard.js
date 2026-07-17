@@ -1,5 +1,109 @@
 // js/dashboard.js - Dashboard View Functions
 
+// Last rendered analyzer, kept so charts can re-theme without recomputing data
+let lastDashboardAnalyzer = null;
+
+// Small inline UI icons (Feather style) not covered by getIcon()
+const DASHBOARD_UI_ICONS = {
+    list: '<line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>',
+    activity: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>',
+    trendingDown: '<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline>',
+    arrowUpRight: '<line x1="7" y1="17" x2="17" y2="7"></line><polyline points="7 7 17 7 17 17"></polyline>',
+    arrowDownRight: '<line x1="7" y1="7" x2="17" y2="17"></line><polyline points="17 7 17 17 7 17"></polyline>',
+    alert: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>',
+    target: '<circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle>',
+    pie: '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path>',
+    upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line>',
+    inbox: '<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>',
+};
+
+function dashboardIcon(key, size) {
+    const inner = DASHBOARD_UI_ICONS[key];
+    if (!inner) return '';
+    const s = size || 18;
+    return '<svg viewBox="0 0 24 24" width="' + s + '" height="' + s +
+        '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+        inner + '</svg>';
+}
+
+function formatDashboardMoney(amount) {
+    const n = Number(amount) || 0;
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Previous calendar month key for a YYYY-MM key, or null
+function getPreviousMonthKey(monthKey) {
+    const m = String(monthKey || '').match(/^(\d{4})-(\d{2})$/);
+    if (!m) return null;
+    const d = new Date(Number(m[1]), Number(m[2]) - 2, 1);
+    return monthKeyFromDate(d);
+}
+
+// Analyzer + name for the month before the currently viewed month, or null
+function getPreviousMonthContext() {
+    if (!currentMonth || currentMonth === 'ALL_DATA' || currentMonth === 'CUSTOM_RANGE') return null;
+    const prevKey = getPreviousMonthKey(currentMonth);
+    if (!prevKey || !monthlyData.has(prevKey)) return null;
+    const prevData = monthlyData.get(prevKey);
+    if (!prevData.transactions || prevData.transactions.length === 0) return null;
+    return {
+        monthKey: prevKey,
+        monthName: prevData.monthName,
+        analyzer: analyzeTransactions(prevData.transactions),
+    };
+}
+
+// Expense total excluding income (mirrors the summary-card calculation)
+function expenseTotalOf(analyzer) {
+    const income = (!categoryConfig['Income']?._isExcluded) ? (analyzer.categoryTotals['Income'] || 0) : 0;
+    return analyzer.totalExpenses - income;
+}
+
+// Re-show the sections that search or an empty state may have hidden
+function restoreDashboardSections() {
+    const summaryCards = document.getElementById('summaryCards');
+    const chartsContainer = document.querySelector('.charts-container');
+    const breakdownHeader = document.querySelector('.breakdown-header');
+    const sectionHeader = document.querySelector('.section-header');
+    if (summaryCards) summaryCards.style.display = '';
+    if (chartsContainer) chartsContainer.style.display = '';
+    if (breakdownHeader) breakdownHeader.style.display = '';
+    if (sectionHeader) sectionHeader.style.display = '';
+    // A normal render replaces any search-results view, so reset the box
+    const searchInput = document.getElementById('dashboardSearch');
+    if (searchInput && searchInput.value) searchInput.value = '';
+}
+
+function buildStatCard(options) {
+    const accent = options.accent ? ' stat-accent-' + options.accent : '';
+    return `
+        <div class="card stat-card${accent}">
+            <div class="stat-top">
+                <span class="stat-label">${options.label}</span>
+                <span class="stat-icon">${options.icon || ''}</span>
+            </div>
+            <p class="stat-value">${options.value}</p>
+            ${options.trendHTML || ''}
+        </div>
+    `;
+}
+
+// Trend chip comparing this month's expenses with the previous month
+function buildExpenseTrend(currentExpenses, prevContext) {
+    if (!prevContext) return '';
+    const prevExpenses = expenseTotalOf(prevContext.analyzer);
+    if (!(prevExpenses > 0)) return '';
+    const pct = ((currentExpenses - prevExpenses) / prevExpenses) * 100;
+    if (!isFinite(pct) || Math.abs(pct) < 0.5) return '';
+    const up = pct > 0;
+    return `
+        <span class="stat-trend ${up ? 'trend-up' : 'trend-down'}">
+            ${dashboardIcon(up ? 'arrowUpRight' : 'arrowDownRight', 14)}
+            ${Math.abs(pct).toFixed(0)}% vs ${escapeHtml(prevContext.monthName.split(' ')[0])}
+        </span>
+    `;
+}
+
 // Update dashboard
 function updateDashboard(analyzer) {
     // Check if we have the necessary DOM elements
@@ -17,13 +121,10 @@ function updateDashboard(analyzer) {
         return;
     }
 
-    // Show the "Detailed Breakdown" heading
-    const headings = document.querySelectorAll('h3');
-    headings.forEach((h) => {
-        if (h.textContent.trim() === 'Detailed Breakdown') {
-            h.style.display = 'block';
-        }
-    });
+    lastDashboardAnalyzer = analyzer;
+    restoreDashboardSections();
+
+    const prevContext = getPreviousMonthContext();
 
     // Update summary cards
     const avgTransaction =
@@ -35,52 +136,69 @@ function updateDashboard(analyzer) {
     const netAmount = incomeTotal - expensesWithoutIncome;
     const trackIncome = window.incomeSettings?.trackIncome === true;
 
+    const expenseTrendHTML = buildExpenseTrend(expensesWithoutIncome, prevContext);
+
     let cardsHTML = '';
 
     // Show income cards if tracking is enabled and there's income data
     if (trackIncome && incomeTotal > 0) {
-        cardsHTML = `
-            <div class="card income-card">
-                <h3>Total Income</h3>
-                <p>$${incomeTotal.toFixed(2)}</p>
-            </div>
-            <div class="card">
-                <h3>Total Expenses</h3>
-                <p>$${expensesWithoutIncome.toFixed(2)}</p>
-            </div>
-            <div class="card ${netAmount >= 0 ? 'net-positive' : 'net-negative'}">
-                <h3>Net ${netAmount >= 0 ? 'Savings' : 'Deficit'}</h3>
-                <p>$${Math.abs(netAmount).toFixed(2)}</p>
-            </div>
-            <div class="card">
-                <h3>Transactions</h3>
-                <p>${analyzer.transactionCount}</p>
-            </div>
-        `;
+        cardsHTML =
+            buildStatCard({
+                label: 'Total Income',
+                value: formatDashboardMoney(incomeTotal),
+                icon: getIcon('trendup', 18),
+                accent: 'success',
+            }) +
+            buildStatCard({
+                label: 'Total Expenses',
+                value: formatDashboardMoney(expensesWithoutIncome),
+                icon: getIcon('wallet', 18),
+                accent: 'brand',
+                trendHTML: expenseTrendHTML,
+            }) +
+            buildStatCard({
+                label: netAmount >= 0 ? 'Net Savings' : 'Net Deficit',
+                value: formatDashboardMoney(Math.abs(netAmount)),
+                icon: dashboardIcon('activity', 18),
+                accent: netAmount >= 0 ? 'success' : 'danger',
+            }) +
+            buildStatCard({
+                label: 'Transactions',
+                value: String(analyzer.transactionCount),
+                icon: dashboardIcon('list', 18),
+            });
     } else {
-        cardsHTML = `
-            <div class="card">
-                <h3>Total Expenses</h3>
-                <p>$${analyzer.totalExpenses.toFixed(2)}</p>
-            </div>
-            <div class="card">
-                <h3>Transactions</h3>
-                <p>${analyzer.transactionCount}</p>
-            </div>
-            <div class="card">
-                <h3>Categories</h3>
-                <p>${
-                    Object.keys(analyzer.categoryTotals).filter((c) => analyzer.categoryTotals[c] > 0)
-                        .length
-                }</p>
-            </div>
-            <div class="card">
-                <h3>Average</h3>
-                <p>$${avgTransaction.toFixed(2)}</p>
-            </div>
-        `;
+        const activeCategories = Object.keys(analyzer.categoryTotals).filter(
+            (c) => analyzer.categoryTotals[c] > 0
+        ).length;
+        cardsHTML =
+            buildStatCard({
+                label: 'Total Expenses',
+                value: formatDashboardMoney(analyzer.totalExpenses),
+                icon: getIcon('wallet', 18),
+                accent: 'brand',
+                trendHTML: expenseTrendHTML,
+            }) +
+            buildStatCard({
+                label: 'Transactions',
+                value: String(analyzer.transactionCount),
+                icon: dashboardIcon('list', 18),
+            }) +
+            buildStatCard({
+                label: 'Categories',
+                value: String(activeCategories),
+                icon: getIcon('grid', 18),
+            }) +
+            buildStatCard({
+                label: 'Average',
+                value: formatDashboardMoney(avgTransaction),
+                icon: dashboardIcon('activity', 18),
+            });
     }
     summaryCards.innerHTML = cardsHTML;
+
+    // Smart insight cards
+    renderDashboardInsights(analyzer, prevContext);
 
     // Update category details
     updateCategoryDetails(analyzer);
@@ -89,52 +207,190 @@ function updateDashboard(analyzer) {
     updateCharts(analyzer);
 }
 
-function showDashboardEmptyState() {
-    // Don't show empty state if we actually have data
-    if (monthlyData && monthlyData.size > 0) {
+// ==========================================
+// SMART INSIGHTS
+// ==========================================
+function renderDashboardInsights(analyzer, prevContext) {
+    const summaryCards = document.getElementById('summaryCards');
+    if (!summaryCards) return;
+
+    let strip = document.getElementById('dashboardInsights');
+    if (!strip) {
+        strip = document.createElement('div');
+        strip.id = 'dashboardInsights';
+        strip.className = 'insight-strip';
+        summaryCards.insertAdjacentElement('afterend', strip);
+    }
+
+    const insights = [];
+
+    if (analyzer && analyzer.transactionCount > 0) {
+        // 1. Biggest category this period
+        const expenseCategories = Object.entries(analyzer.categoryTotals)
+            .filter(([cat, v]) => v > 0 && cat !== 'Income' && !categoryConfig[cat]?._isExcluded)
+            .sort((a, b) => b[1] - a[1]);
+        const spendTotal = expenseCategories.reduce((sum, [, v]) => sum + v, 0);
+
+        if (expenseCategories.length > 0) {
+            const [topName, topValue] = expenseCategories[0];
+            const share = spendTotal > 0 ? Math.round((topValue / spendTotal) * 100) : 0;
+            insights.push({
+                iconHTML: getCategoryIconChip(topName, { size: 36, icon: 18 }),
+                label: 'Top category',
+                value: escapeHtml(topName),
+                sub: `${formatDashboardMoney(topValue)}${share > 0 ? ' (' + share + '% of spend)' : ''}`,
+            });
+        }
+
+        // 2. Largest single transaction (expenses only)
+        let largest = null;
+        Object.entries(analyzer.categoryDetails).forEach(([cat, items]) => {
+            if (cat === 'Income' || categoryConfig[cat]?._isExcluded) return;
+            items.forEach((t) => {
+                if (t.isIncome || t.isRefund) return;
+                if (!largest || t.amount > largest.amount) largest = t;
+            });
+        });
+        if (largest && largest.amount > 0) {
+            insights.push({
+                iconHTML: `<span class="insight-icon insight-icon-brand">${getIcon('zap', 18)}</span>`,
+                label: 'Largest transaction',
+                value: `<span class="insight-truncate" title="${escapeHtml(largest.name)}">${escapeHtml(largest.name)}</span>`,
+                sub: formatDashboardMoney(largest.amount),
+            });
+        }
+
+        // 3. Change vs previous month
+        if (prevContext) {
+            const prevExpenses = expenseTotalOf(prevContext.analyzer);
+            const currExpenses = expenseTotalOf(analyzer);
+            if (prevExpenses > 0) {
+                const pct = ((currExpenses - prevExpenses) / prevExpenses) * 100;
+                if (isFinite(pct)) {
+                    const up = pct >= 0;
+                    insights.push({
+                        iconHTML: `<span class="insight-icon ${up ? 'insight-icon-danger' : 'insight-icon-success'}">${up ? getIcon('trendup', 18) : dashboardIcon('trendingDown', 18)}</span>`,
+                        label: `vs ${escapeHtml(prevContext.monthName.split(' ')[0])}`,
+                        value: `<span class="${up ? 'insight-value-danger' : 'insight-value-success'}">${up ? '+' : '-'}${Math.abs(pct).toFixed(0)}%</span>`,
+                        sub: `${formatDashboardMoney(Math.abs(currExpenses - prevExpenses))} ${up ? 'more' : 'less'} spent`,
+                    });
+                }
+            }
+        }
+
+        // 4. Budget status for the viewed month
+        const monthBudgets =
+            currentMonth && currentMonth !== 'ALL_DATA' && currentMonth !== 'CUSTOM_RANGE'
+                ? budgets[currentMonth]
+                : null;
+        if (monthBudgets) {
+            let totalBudget = 0;
+            let budgetedSpend = 0;
+            let overCount = 0;
+            let worstCategory = null;
+            let worstOverage = 0;
+            Object.entries(monthBudgets).forEach(([cat, amount]) => {
+                const budgetAmount = parseFloat(amount) || 0;
+                if (budgetAmount <= 0) return;
+                const spent = analyzer.categoryTotals[cat] || 0;
+                totalBudget += budgetAmount;
+                budgetedSpend += spent;
+                if (spent > budgetAmount) {
+                    overCount++;
+                    if (spent - budgetAmount > worstOverage) {
+                        worstOverage = spent - budgetAmount;
+                        worstCategory = cat;
+                    }
+                }
+            });
+            if (overCount > 0) {
+                insights.push({
+                    iconHTML: `<span class="insight-icon insight-icon-danger">${dashboardIcon('alert', 18)}</span>`,
+                    label: 'Over budget',
+                    value: `<span class="insight-value-danger">${overCount} categor${overCount === 1 ? 'y' : 'ies'}</span>`,
+                    sub: worstCategory
+                        ? `${escapeHtml(worstCategory)} by ${formatDashboardMoney(worstOverage)}`
+                        : '',
+                });
+            } else if (totalBudget > 0) {
+                const usedPct = Math.round((budgetedSpend / totalBudget) * 100);
+                const warn = usedPct >= 85;
+                insights.push({
+                    iconHTML: `<span class="insight-icon ${warn ? 'insight-icon-warning' : 'insight-icon-success'}">${dashboardIcon('target', 18)}</span>`,
+                    label: 'Budget used',
+                    value: `${usedPct}%`,
+                    sub: `${formatDashboardMoney(budgetedSpend)} of ${formatDashboardMoney(totalBudget)}`,
+                });
+            }
+        }
+    }
+
+    if (insights.length < 2) {
+        strip.innerHTML = '';
+        strip.style.display = 'none';
         return;
     }
 
-    const emptyStateHTML = `
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 20px; color: var(--gray); grid-column: 1 / -1;">
-            <div style="font-size: 64px; margin-bottom: 20px;">📊</div>
-            <h2 style="color: var(--dark); margin-bottom: 10px; font-size: 24px;">Welcome to Sahab Budget!</h2>
-            <p style="font-size: 15px; text-align: center; max-width: 500px; margin-bottom: 30px; line-height: 1.6;">
-                Get started by uploading your bank transaction CSV files. The app will automatically categorize your expenses and show you detailed insights.
-            </p>
-            <div style="background: var(--light); padding: 20px; border-radius: 8px; max-width: 400px; text-align: left;">
-                <h3 style="font-size: 16px; margin-bottom: 10px; color: var(--dark);">Quick Steps:</h3>
-                <ol style="margin-left: 20px; font-size: 14px; line-height: 2;">
-                    <li>Export transactions from your bank as CSV</li>
-                    <li>Click "Upload CSV Files" button above</li>
-                    <li>View your categorized expenses instantly</li>
-                </ol>
+    strip.style.display = '';
+    strip.innerHTML = insights
+        .slice(0, 4)
+        .map(
+            (i) => `
+        <div class="insight-card">
+            ${i.iconHTML}
+            <div class="insight-body">
+                <span class="insight-label">${i.label}</span>
+                <span class="insight-value">${i.value}</span>
+                ${i.sub ? `<span class="insight-sub">${i.sub}</span>` : ''}
             </div>
         </div>
-    `;
+    `
+        )
+        .join('');
+}
 
-    // Clear and show empty state
-    document.getElementById('summaryCards').innerHTML = '';
-    document.getElementById('categoryDetails').innerHTML = '';
+function showDashboardEmptyState() {
+    const summaryCards = document.getElementById('summaryCards');
+    const categoryDetails = document.getElementById('categoryDetails');
+    if (!summaryCards || !categoryDetails) return;
 
-    // Hide the "Detailed Breakdown" heading
-    const breakdownHeading = document.querySelector('h3[style*="margin: 20px 0 10px"]');
-    if (!breakdownHeading) {
-        // Find it by text content if style selector doesn't work
-        const headings = document.querySelectorAll('h3');
-        headings.forEach((h) => {
-            if (h.textContent.trim() === 'Detailed Breakdown') {
-                h.style.display = 'none';
-            }
-        });
-    } else {
-        breakdownHeading.style.display = 'none';
-    }
+    lastDashboardAnalyzer = null;
 
+    const hasAnyData = monthlyData && monthlyData.size > 0;
+
+    // Tear down charts safely (canvases stay in the DOM for the next render)
+    destroyDashboardCharts();
     const chartsContainer = document.querySelector('.charts-container');
-    if (chartsContainer) {
-        chartsContainer.innerHTML = emptyStateHTML;
+    if (chartsContainer) chartsContainer.style.display = 'none';
+
+    const breakdownHeader = document.querySelector('.breakdown-header');
+    if (breakdownHeader) breakdownHeader.style.display = 'none';
+
+    const sortControls = document.getElementById('sortControls');
+    if (sortControls) sortControls.innerHTML = '';
+
+    const insights = document.getElementById('dashboardInsights');
+    if (insights) {
+        insights.innerHTML = '';
+        insights.style.display = 'none';
     }
+
+    summaryCards.innerHTML = '';
+    summaryCards.style.display = '';
+
+    const line = hasAnyData
+        ? 'No transactions in this period.'
+        : 'Upload a bank CSV to see your spending, categorized.';
+
+    categoryDetails.innerHTML = `
+        <div class="dashboard-empty">
+            <span class="dashboard-empty-icon">${dashboardIcon(hasAnyData ? 'inbox' : 'upload', 26)}</span>
+            <p class="dashboard-empty-line">${line}</p>
+            <button class="btn btn-primary" onclick="document.getElementById('csvFile')?.click()">
+                Upload CSV Files
+            </button>
+        </div>
+    `;
 }
 
 // Get current sort preference from localStorage
@@ -237,16 +493,14 @@ function changeTransactionSort(category, sortType) {
     }
 }
 
-// Toggle transaction sort menu visibility
-function toggleTransactionSortMenu(category) {
-    const menuId = `sortMenu_${category.replace(/\s+/g, '_')}`;
-    const menu = document.getElementById(menuId);
-
+// Toggle transaction sort menu visibility (takes the menu element itself so
+// category names never travel through element ids or inline handlers)
+function toggleTransactionSortMenu(menu) {
     if (!menu) return;
 
     // Close all other menus first
     document.querySelectorAll('.transaction-sort-menu.show').forEach(m => {
-        if (m.id !== menuId) {
+        if (m !== menu) {
             m.classList.remove('show');
         }
     });
@@ -404,11 +658,11 @@ function renderSortControls() {
                     ${showEmpty ? 'All' : 'Active'}
                 </button>
             </div>
-            <div class="collapse-toggle" style="margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--border); display: flex; gap: 4px;">
-                <button class="sort-btn" onclick="collapseAllCategories()" title="Collapse all categories">
+            <div class="collapse-toggle">
+                <button class="sort-btn" onclick="collapseAllCategories()" title="Collapse all categories" aria-label="Collapse all categories">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 14 10 14 10 20"></polyline><polyline points="20 10 14 10 14 4"></polyline><line x1="14" y1="10" x2="21" y2="3"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
                 </button>
-                <button class="sort-btn" onclick="expandAllCategories()" title="Expand all categories">
+                <button class="sort-btn" onclick="expandAllCategories()" title="Expand all categories" aria-label="Expand all categories">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
                 </button>
             </div>
@@ -469,7 +723,6 @@ function updateCategoryDetails(analyzer) {
     allCategories.forEach((category) => {
         const transactions = analyzer.categoryDetails[category] || [];
         const total = analyzer.categoryTotals[category] || 0;
-        const config = categoryConfig[category] || { icon: '📦' };
 
         // Get budget info for current month
         const budget = (budgets[currentMonth] && budgets[currentMonth][category]) || 0;
@@ -481,6 +734,7 @@ function updateCategoryDetails(analyzer) {
         const isExcluded = categoryConfig[category]?._isExcluded === true;
         card.className = 'category-card' + (isIncomeCategory ? ' income-category' : '') + (isExcluded ? ' excluded-category' : '');
         card.dataset.category = category;
+        card.style.setProperty('--cat', getCategoryColorVar(category));
 
         // Tri-state view: 'collapsed' | 'default' | 'expanded'
         if (!window.categoryViewState) window.categoryViewState = {};
@@ -502,11 +756,7 @@ function updateCategoryDetails(analyzer) {
         let transactionsHTML = '';
 
         if (transactions.length === 0) {
-            transactionsHTML = `
-                <div style="padding: 12px; text-align: center; color: var(--gray); font-size: 12px;">
-                    No transactions
-                </div>
-            `;
+            transactionsHTML = '<div class="category-empty-row">No transactions</div>';
         } else {
             transactionsHTML = `
                 <div class="category-transactions-list ${isExpanded ? 'expanded' : ''}">
@@ -515,14 +765,14 @@ function updateCategoryDetails(analyzer) {
                             (t) => `
                         <div class="transaction-item ${t.isRefund ? 'refund-transaction' : ''}"
                              draggable="true"
-                             data-transaction-id="${t.id}"
-                             data-category="${escapeHtmlDashboard(category)}">
+                             data-transaction-id="${escapeHtml(t.id || '')}"
+                             data-category="${escapeHtml(category)}">
                             <span class="transaction-name clickable-transaction"
-                                  title="Click to view raw data"
-                                  data-action="view-raw">${escapeHtmlDashboard(t.name)}${t.isRefund ? ' <span class="refund-badge">Refund</span>' : ''}${t.isIncome && !isIncomeCategory ? ' <span class="income-badge">Income</span>' : ''}</span>
-                            <span style="display: flex; align-items: center;">
-                                <span class="transaction-amount ${t.isRefund ? 'refund-amount' : ''}">$${t.amount.toFixed(2)}</span>
-                                <button class="btn-icon" data-action="delete-transaction">×</button>
+                                  title="${escapeHtml(t.name)}"
+                                  data-action="view-raw">${escapeHtml(t.name)}${t.isRefund ? ' <span class="refund-badge">Refund</span>' : ''}${t.isIncome && !isIncomeCategory ? ' <span class="income-badge">Income</span>' : ''}</span>
+                            <span class="transaction-side">
+                                <span class="transaction-amount ${t.isRefund ? 'refund-amount' : ''}">${formatDashboardMoney(t.amount)}</span>
+                                <button class="btn-icon transaction-delete" data-action="delete-transaction" title="Delete transaction" aria-label="Delete transaction">&times;</button>
                             </span>
                         </div>
                     `
@@ -532,8 +782,7 @@ function updateCategoryDetails(analyzer) {
                 ${
                     remainingCount > 0 && !isExpanded
                         ? `
-                    <button class="btn btn-secondary" style="width: 100%; margin-top: 8px; font-size: 12px; padding: 6px;"
-                            onclick="setCategoryViewState('${category}', 'expanded')">
+                    <button class="btn btn-secondary show-more-btn" data-action="expand-category">
                         Show ${remainingCount} more
                     </button>
                 `
@@ -542,8 +791,7 @@ function updateCategoryDetails(analyzer) {
                 ${
                     isExpanded && transactions.length > 5
                         ? `
-                    <button class="btn btn-secondary" style="width: 100%; margin-top: 8px; font-size: 12px; padding: 6px;"
-                            onclick="setCategoryViewState('${category}', 'default')">
+                    <button class="btn btn-secondary show-more-btn" data-action="collapse-category">
                         Show less
                     </button>
                 `
@@ -555,21 +803,19 @@ function updateCategoryDetails(analyzer) {
         // Build budget status HTML
         let budgetStatusHTML = '';
         if (budget > 0) {
-            const statusColor = remaining >= 0 ? 'var(--success)' : 'var(--danger)';
+            const over = remaining < 0;
             const progressClass = percentage > 100 ? 'danger' : percentage > 80 ? 'warning' : '';
 
             budgetStatusHTML = `
-                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);">
-                    <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px;">
-                        <span style="color: var(--gray);">Budget: $${budget.toFixed(2)}</span>
-                        <span style="color: ${statusColor}; font-weight: 600;">
-                            ${remaining >= 0 ? 'Remaining: ' : 'Over by: '}$${Math.abs(remaining).toFixed(2)}
+                <div class="category-budget">
+                    <div class="category-budget-meta">
+                        <span class="category-budget-label">Budget ${formatDashboardMoney(budget)}</span>
+                        <span class="category-budget-status ${over ? 'over' : 'under'}">
+                            ${over ? 'Over by' : 'Left'} ${formatDashboardMoney(Math.abs(remaining))}
                         </span>
                     </div>
-                    <div class="budget-progress" style="height: 4px; background: var(--light); border-radius: 2px; overflow: hidden;">
-                        <div class="budget-progress-fill ${progressClass}"
-                             style="width: ${Math.min(percentage, 100)}%; height: 100%; transition: all 0.3s;
-                                    background: ${progressClass === 'danger' ? 'var(--danger)' : progressClass === 'warning' ? 'var(--warning)' : 'var(--success)'}"></div>
+                    <div class="budget-progress">
+                        <div class="budget-progress-fill ${progressClass}" style="width: ${Math.min(percentage, 100)}%"></div>
                     </div>
                 </div>
             `;
@@ -582,17 +828,15 @@ function updateCategoryDetails(analyzer) {
 
         card.innerHTML = `
             <div class="category-header">
-                <div class="category-title" style="cursor: pointer;" data-action="toggle-collapse" data-category="${escapeHtmlDashboard(category)}">
-                    <button class="collapse-chevron" style="background: none; border: none; padding: 2px; cursor: pointer; color: var(--gray); display: flex; align-items: center;">
-                        ${chevronSvg}
-                    </button>
-                    <span>${config.icon}</span>
-                    <h4>${category}</h4>
-                    <span class="collapse-count" style="font-size: 11px; color: var(--gray); margin-left: 4px; display: none;">(${transactions.length})</span>
+                <div class="category-title" data-action="toggle-collapse" role="button" tabindex="0" aria-expanded="${!isCollapsed}">
+                    <span class="collapse-chevron">${chevronSvg}</span>
+                    ${getCategoryIconChip(category, { size: 36, icon: 18 })}
+                    <h4>${escapeHtml(category)}</h4>
+                    <span class="collapse-count">(${transactions.length})</span>
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="category-total">$${total.toFixed(2)}</span>
-                    <button class="analysis-btn collapse-hide ${!localStorage.getItem('sahabBudget_seenAnalysis') ? 'first-use' : ''}" onclick="event.stopPropagation(); markAnalysisSeen(); showCategoryAnalysis('${category}')" title="View category trends">
+                <div class="category-header-actions">
+                    <span class="category-total">${formatDashboardMoney(total)}</span>
+                    <button class="analysis-btn collapse-hide ${!localStorage.getItem('sahabBudget_seenAnalysis') ? 'first-use' : ''}" data-action="show-analysis" title="View category trends" aria-label="View category trends">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="20" x2="18" y2="10"></line>
                             <line x1="12" y1="20" x2="12" y2="4"></line>
@@ -602,23 +846,23 @@ function updateCategoryDetails(analyzer) {
                     ${transactions.length > 1 ? `
                         <div class="transaction-sort-dropdown collapse-hide">
                             <button class="transaction-sort-btn ${transactionSortType !== 'default' ? 'active' : ''}"
-                                    onclick="event.stopPropagation(); toggleTransactionSortMenu('${category}')"
-                                    title="Sort transactions">
+                                    data-action="toggle-sort-menu"
+                                    title="Sort transactions" aria-label="Sort transactions">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M3 6h18M3 12h12M3 18h6"/>
                                 </svg>
                             </button>
-                            <div class="transaction-sort-menu" id="sortMenu_${category.replace(/\s+/g, '_')}">
+                            <div class="transaction-sort-menu">
                                 <button class="${transactionSortType === 'default' ? 'active' : ''}"
-                                        onclick="event.stopPropagation(); changeTransactionSort('${category}', 'default')">
+                                        data-action="set-transaction-sort" data-sort="default">
                                     Default (Date)
                                 </button>
                                 <button class="${transactionSortType === 'high-to-low' ? 'active' : ''}"
-                                        onclick="event.stopPropagation(); changeTransactionSort('${category}', 'high-to-low')">
+                                        data-action="set-transaction-sort" data-sort="high-to-low">
                                     High to Low
                                 </button>
                                 <button class="${transactionSortType === 'low-to-high' ? 'active' : ''}"
-                                        onclick="event.stopPropagation(); changeTransactionSort('${category}', 'low-to-high')">
+                                        data-action="set-transaction-sort" data-sort="low-to-high">
                                     Low to High
                                 </button>
                             </div>
@@ -635,46 +879,78 @@ function updateCategoryDetails(analyzer) {
         container.appendChild(card);
     });
 
-    // Event delegation for transaction actions (avoids inline onclick with user strings)
-    // Remove previous listener to prevent stacking on re-render
+    // Event delegation for card and transaction actions (no inline onclick with
+    // user-controlled strings). Remove previous listener to prevent stacking.
     if (container._categoryClickHandler) {
         container.removeEventListener('click', container._categoryClickHandler);
     }
-    container._categoryClickHandler = function(e) {
-        // Collapse toggle
-        const collapseTarget = e.target.closest('[data-action="toggle-collapse"]');
-        if (collapseTarget) {
-            e.preventDefault();
-            e.stopPropagation();
-            const cat = collapseTarget.dataset.category;
-            if (cat) {
-                const currentState = (window.categoryViewState || {})[cat] || 'default';
-                const newState = currentState === 'collapsed' ? 'default' : 'collapsed';
-                setCategoryViewState(cat, newState);
-            }
-            return;
-        }
+    container._categoryClickHandler = function (e) {
+        const actionEl = e.target.closest('[data-action]');
+        if (!actionEl) return;
+        const card = actionEl.closest('.category-card');
+        const category = card ? card.dataset.category : '';
 
-        const viewRaw = e.target.closest('[data-action="view-raw"]');
-        if (viewRaw) {
-            e.stopPropagation();
-            const item = viewRaw.closest('.transaction-item');
-            if (item) {
-                showRawTransactionData(item.dataset.transactionId, item.dataset.category);
+        switch (actionEl.dataset.action) {
+            case 'toggle-collapse': {
+                e.preventDefault();
+                if (!category) return;
+                const currentState = (window.categoryViewState || {})[category] || 'default';
+                setCategoryViewState(category, currentState === 'collapsed' ? 'default' : 'collapsed');
+                return;
             }
-            return;
-        }
-        const deleteBtn = e.target.closest('[data-action="delete-transaction"]');
-        if (deleteBtn) {
-            e.stopPropagation();
-            const item = deleteBtn.closest('.transaction-item');
-            if (item) {
-                deleteTransaction(item.dataset.category, item.dataset.transactionId);
+            case 'view-raw': {
+                e.stopPropagation();
+                const item = actionEl.closest('.transaction-item');
+                if (item) showRawTransactionData(item.dataset.transactionId, item.dataset.category);
+                return;
             }
-            return;
+            case 'delete-transaction': {
+                e.stopPropagation();
+                const item = actionEl.closest('.transaction-item');
+                if (item) deleteTransaction(item.dataset.category, item.dataset.transactionId);
+                return;
+            }
+            case 'show-analysis': {
+                e.stopPropagation();
+                markAnalysisSeen();
+                if (category) showCategoryAnalysis(category);
+                return;
+            }
+            case 'toggle-sort-menu': {
+                e.stopPropagation();
+                const dropdown = actionEl.closest('.transaction-sort-dropdown');
+                toggleTransactionSortMenu(dropdown ? dropdown.querySelector('.transaction-sort-menu') : null);
+                return;
+            }
+            case 'set-transaction-sort': {
+                e.stopPropagation();
+                if (category) changeTransactionSort(category, actionEl.dataset.sort || 'default');
+                return;
+            }
+            case 'expand-category': {
+                if (category) setCategoryViewState(category, 'expanded');
+                return;
+            }
+            case 'collapse-category': {
+                if (category) setCategoryViewState(category, 'default');
+                return;
+            }
         }
     };
     container.addEventListener('click', container._categoryClickHandler);
+
+    // Keyboard activation for the collapsible header
+    if (container._categoryKeyHandler) {
+        container.removeEventListener('keydown', container._categoryKeyHandler);
+    }
+    container._categoryKeyHandler = function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const target = e.target.closest('[data-action="toggle-collapse"]');
+        if (!target) return;
+        e.preventDefault();
+        target.click();
+    };
+    container.addEventListener('keydown', container._categoryKeyHandler);
 
     // Initialize drag and drop
     initializeDragDrop();
@@ -705,6 +981,9 @@ function setCategoryViewState(category, state) {
                             ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>'
                             : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>';
                     }
+
+                    const title = card.querySelector('[data-action="toggle-collapse"]');
+                    if (title) title.setAttribute('aria-expanded', String(!isCollapsed));
 
                     return;
                 }
@@ -742,6 +1021,56 @@ function expandAllCategories() {
     if (currentMonth) switchToMonth(currentMonth);
 }
 
+// Destroy dashboard chart instances (never removes the canvas elements)
+function destroyDashboardCharts() {
+    if (charts.pie) {
+        charts.pie.destroy();
+        charts.pie = null;
+    }
+    if (charts.bar) {
+        charts.bar.destroy();
+        charts.bar = null;
+    }
+}
+
+// Resolve a CSS custom property to its concrete value (Chart.js needs real colors)
+function resolveCssVar(name, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return value || fallback || '#94a3b8';
+}
+
+// Build an rgba() tint from a #rrggbb hex token
+function hexTint(hex, alpha) {
+    const m = String(hex).trim().match(/^#([0-9a-f]{6})$/i);
+    if (!m) return 'rgba(8, 145, 178, ' + alpha + ')';
+    const int = parseInt(m[1], 16);
+    return 'rgba(' + ((int >> 16) & 255) + ', ' + ((int >> 8) & 255) + ', ' + (int & 255) + ', ' + alpha + ')';
+}
+
+// Toggle a chart wrapper between its canvas and an empty-state overlay.
+// The canvas is only hidden, never removed, so charts can always come back.
+function setChartEmptyState(canvas, show) {
+    const wrapper = canvas.parentElement;
+    if (!wrapper) return;
+    let overlay = wrapper.querySelector('.chart-empty-state');
+    if (show) {
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'chart-empty-state';
+            overlay.innerHTML = `
+                <span class="chart-empty-icon">${dashboardIcon('pie', 22)}</span>
+                <p>No expense data for this period</p>
+            `;
+            wrapper.appendChild(overlay);
+        }
+        overlay.style.display = '';
+        canvas.style.display = 'none';
+    } else {
+        if (overlay) overlay.style.display = 'none';
+        canvas.style.display = '';
+    }
+}
+
 // Update charts
 function updateCharts(analyzer) {
     // Check if canvas elements exist
@@ -757,48 +1086,53 @@ function updateCharts(analyzer) {
         .filter(([category, value]) => value > 0 && category !== 'Income' && !categoryConfig[category]?._isExcluded)
         .sort((a, b) => b[1] - a[1]);
 
-    // Show empty state if no data
-    if (categories.length === 0) {
-        const emptyStateHTML = `
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; color: var(--gray);">
-                <div style="font-size: 48px; margin-bottom: 15px;">📊</div>
-                <h3 style="color: var(--dark); margin-bottom: 8px;">No Transaction Data</h3>
-                <p style="font-size: 14px; text-align: center;">Upload CSV files to see your expense distribution and category breakdown</p>
-            </div>
-        `;
+    // Always tear down previous instances before deciding what to draw
+    destroyDashboardCharts();
 
-        pieCanvas.parentElement.innerHTML = emptyStateHTML;
-        barCanvas.parentElement.innerHTML = emptyStateHTML;
+    // Show empty state if no expense data (e.g. income/refund-only months)
+    if (categories.length === 0) {
+        setChartEmptyState(pieCanvas, true);
+        setChartEmptyState(barCanvas, true);
         return;
     }
 
-    const labels = categories.map(([name]) => name);
-    const values = categories.map(([_, value]) => value);
-    const colors = [
-        '#4f46e5',
-        '#8b5cf6',
-        '#ec4899',
-        '#10b981',
-        '#f59e0b',
-        '#ef4444',
-        '#3b82f6',
-        '#6366f1',
-    ];
+    setChartEmptyState(pieCanvas, false);
+    setChartEmptyState(barCanvas, false);
 
-    // Destroy existing charts
-    if (charts.pie) charts.pie.destroy();
-    if (charts.bar) charts.bar.destroy();
+    const labels = categories.map(([name]) => name);
+    const values = categories.map(([, value]) => value);
+
+    // Colors follow the category color system so charts match the cards
+    const colors = labels.map((name) =>
+        resolveCssVar('--cat-' + getCategoryColorIndex(name))
+    );
+    const textMuted = resolveCssVar('--text-muted', '#55617a');
+    const textSubtle = resolveCssVar('--text-subtle', '#8a97ad');
+    const gridColor = resolveCssVar('--divider', '#eef2f7');
+    const surface = resolveCssVar('--surface', '#ffffff');
+
+    const moneyTooltip = {
+        callbacks: {
+            label: (context) => {
+                const v = context.parsed.y !== undefined ? context.parsed.y : context.parsed;
+                return ' ' + formatDashboardMoney(v);
+            },
+        },
+    };
 
     // Create pie chart
     const pieCtx = pieCanvas.getContext('2d');
     charts.pie = new Chart(pieCtx, {
-        type: 'pie',
+        type: 'doughnut',
         data: {
             labels: labels,
             datasets: [
                 {
                     data: values,
-                    backgroundColor: colors.slice(0, labels.length),
+                    backgroundColor: colors,
+                    borderColor: surface,
+                    borderWidth: 2,
+                    hoverOffset: 6,
                 },
             ],
         },
@@ -806,14 +1140,21 @@ function updateCharts(analyzer) {
             responsive: true,
             maintainAspectRatio: true,
             aspectRatio: 1.5,
+            cutout: '58%',
             plugins: {
                 legend: {
                     position: 'bottom',
                     labels: {
-                        padding: 10,
-                        font: { size: 11 },
+                        padding: 14,
+                        boxWidth: 8,
+                        boxHeight: 8,
+                        usePointStyle: true,
+                        pointStyle: 'circle',
+                        color: textMuted,
+                        font: { size: 12, family: "'Inter', sans-serif" },
                     },
                 },
+                tooltip: moneyTooltip,
             },
         },
     });
@@ -828,7 +1169,11 @@ function updateCharts(analyzer) {
                 {
                     label: 'Amount',
                     data: values,
-                    backgroundColor: colors[0],
+                    backgroundColor: colors.map((c) => hexTint(c, 0.75)),
+                    hoverBackgroundColor: colors,
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    maxBarThickness: 42,
                 },
             ],
         },
@@ -837,17 +1182,102 @@ function updateCharts(analyzer) {
             maintainAspectRatio: true,
             plugins: {
                 legend: { display: false },
+                tooltip: moneyTooltip,
             },
             scales: {
+                x: {
+                    grid: { display: false, drawBorder: false },
+                    ticks: {
+                        color: textSubtle,
+                        font: { size: 11, family: "'Inter', sans-serif" },
+                        maxRotation: 45,
+                        minRotation: 0,
+                    },
+                },
                 y: {
                     beginAtZero: true,
+                    grid: { color: gridColor, drawBorder: false },
                     ticks: {
-                        callback: (value) => '$' + value.toFixed(0),
+                        color: textSubtle,
+                        font: { size: 11, family: "'Inter', sans-serif" },
+                        callback: (value) => '$' + Number(value).toLocaleString('en-US'),
                     },
                 },
             },
         },
     });
+}
+
+// Re-theme charts when the light/dark theme flips (colors are resolved to
+// concrete values at draw time, so charts must redraw on theme change)
+(function watchThemeForCharts() {
+    if (!window.MutationObserver) return;
+    const observer = new MutationObserver(() => {
+        if (lastDashboardAnalyzer && document.getElementById('pieChart')) {
+            updateCharts(lastDashboardAnalyzer);
+        }
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+})();
+
+// Shared drag state so document-level listeners can be registered exactly once
+const dragDropState = {
+    draggedElement: null,
+    draggedId: null,
+    draggedCategory: null,
+    lastValidY: 0,
+    isScrolling: false,
+    animationFrame: null,
+};
+let dragDropGlobalBound = false;
+
+function dragDropAutoScroll() {
+    const state = dragDropState;
+    if (!state.draggedElement || !state.isScrolling) return;
+
+    const scrollZone = 100; // px from edge
+    const maxSpeed = 15; // px per frame
+
+    const viewportHeight = window.innerHeight;
+    const mouseY = state.lastValidY;
+
+    // Distance from edges
+    const distTop = mouseY;
+    const distBottom = viewportHeight - mouseY;
+
+    let scrollY = 0;
+
+    if (distTop < scrollZone && distTop > 0) {
+        scrollY = -((scrollZone - distTop) / scrollZone) * maxSpeed;
+    } else if (distBottom < scrollZone && distBottom > 0) {
+        scrollY = ((scrollZone - distBottom) / scrollZone) * maxSpeed;
+    }
+
+    if (scrollY !== 0) {
+        window.scrollBy(0, scrollY);
+    }
+
+    // Container scrolling
+    const container = document.querySelector('.container');
+    if (container) {
+        const rect = container.getBoundingClientRect();
+        const distTopContainer = mouseY - rect.top;
+        const distBottomContainer = rect.bottom - mouseY;
+
+        if (distTopContainer < scrollZone && distTopContainer > 0 && container.scrollTop > 0) {
+            container.scrollTop -= ((scrollZone - distTopContainer) / scrollZone) * maxSpeed;
+        } else if (
+            distBottomContainer < scrollZone &&
+            distBottomContainer > 0 &&
+            container.scrollTop < container.scrollHeight - container.clientHeight
+        ) {
+            container.scrollTop += ((scrollZone - distBottomContainer) / scrollZone) * maxSpeed;
+        }
+    }
+
+    if (state.isScrolling) {
+        state.animationFrame = requestAnimationFrame(dragDropAutoScroll);
+    }
 }
 
 // Initialize drag and drop
@@ -859,100 +1289,51 @@ function initializeDragDrop() {
 
     const items = document.querySelectorAll('.transaction-item');
     const cards = document.querySelectorAll('.category-card');
+    const state = dragDropState;
 
-    let draggedElement = null;
-    let draggedId = null;
-    let draggedCategory = null;
-    let lastEvent = null;
-    let animationFrame = null;
-    let lastValidY = 0;
-    let isScrolling = false;
-
-    function autoScroll() {
-        if (!draggedElement || !isScrolling) return;
-
-        const scrollZone = 100; // px from edge
-        const maxSpeed = 15; // px per frame
-
-        const viewportHeight = window.innerHeight;
-        const mouseY = lastValidY;
-
-        // Distance from edges
-        const distTop = mouseY;
-        const distBottom = viewportHeight - mouseY;
-
-        let scrollY = 0;
-
-        if (distTop < scrollZone && distTop > 0) {
-            scrollY = -((scrollZone - distTop) / scrollZone) * maxSpeed;
-        } else if (distBottom < scrollZone && distBottom > 0) {
-            scrollY = ((scrollZone - distBottom) / scrollZone) * maxSpeed;
-        }
-
-        if (scrollY !== 0) {
-            window.scrollBy(0, scrollY);
-        }
-
-        // Container scrolling
-        const container = document.querySelector('.container');
-        if (container) {
-            const rect = container.getBoundingClientRect();
-            const distTopContainer = mouseY - rect.top;
-            const distBottomContainer = rect.bottom - mouseY;
-
-            if (distTopContainer < scrollZone && distTopContainer > 0 && container.scrollTop > 0) {
-                container.scrollTop -= ((scrollZone - distTopContainer) / scrollZone) * maxSpeed;
-            } else if (
-                distBottomContainer < scrollZone &&
-                distBottomContainer > 0 &&
-                container.scrollTop < container.scrollHeight - container.clientHeight
-            ) {
-                container.scrollTop += ((scrollZone - distBottomContainer) / scrollZone) * maxSpeed;
+    // Document-level listener is registered ONCE (re-renders replace the
+    // items/cards, so their listeners die with the nodes, but document-level
+    // listeners would otherwise stack forever)
+    if (!dragDropGlobalBound) {
+        document.addEventListener('dragover', (e) => {
+            if (state.draggedElement) {
+                e.preventDefault();
+                // Always update position on dragover as it's more reliable
+                state.lastValidY = e.clientY;
             }
-        }
-
-        if (isScrolling) {
-            animationFrame = requestAnimationFrame(autoScroll);
-        }
+        });
+        dragDropGlobalBound = true;
     }
 
     items.forEach((item) => {
         item.addEventListener('dragstart', (e) => {
-            draggedElement = item;
-            draggedId = item.dataset.transactionId;
-            draggedCategory = item.dataset.category;
+            state.draggedElement = item;
+            state.draggedId = item.dataset.transactionId;
+            state.draggedCategory = item.dataset.category;
             item.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
-            lastValidY = e.clientY;
-            isScrolling = true;
-            animationFrame = requestAnimationFrame(autoScroll);
+            state.lastValidY = e.clientY;
+            state.isScrolling = true;
+            state.animationFrame = requestAnimationFrame(dragDropAutoScroll);
         });
 
         item.addEventListener('dragend', () => {
             item.classList.remove('dragging');
-            draggedElement = null;
-            draggedId = null;
-            draggedCategory = null;
-            isScrolling = false;
-            if (animationFrame) {
-                cancelAnimationFrame(animationFrame);
-                animationFrame = null;
+            state.draggedElement = null;
+            state.draggedId = null;
+            state.draggedCategory = null;
+            state.isScrolling = false;
+            if (state.animationFrame) {
+                cancelAnimationFrame(state.animationFrame);
+                state.animationFrame = null;
             }
         });
 
         item.addEventListener('drag', (e) => {
             if (e.clientY > 0) {
-                lastValidY = e.clientY;
+                state.lastValidY = e.clientY;
             }
         });
-    });
-
-    document.addEventListener('dragover', (e) => {
-        if (draggedElement) {
-            e.preventDefault();
-            // Always update position on dragover as it's more reliable
-            lastValidY = e.clientY;
-        }
     });
 
     cards.forEach((card) => {
@@ -970,8 +1351,8 @@ function initializeDragDrop() {
             card.classList.remove('drag-over');
 
             const targetCategory = card.dataset.category;
-            if (draggedId && draggedCategory && draggedCategory !== targetCategory) {
-                moveTransaction(draggedId, draggedCategory, targetCategory);
+            if (state.draggedId && state.draggedCategory && state.draggedCategory !== targetCategory) {
+                moveTransaction(state.draggedId, state.draggedCategory, targetCategory);
             }
         });
     });
@@ -985,7 +1366,9 @@ function enableMobileCategoryChange() {
         item.removeAttribute('draggable');
         item.style.cursor = 'pointer';
 
-        item.addEventListener('click', () => {
+        item.addEventListener('click', (e) => {
+            // Let explicit actions (view raw data, delete) win over the move UI
+            if (e.target.closest('[data-action]')) return;
             const transactionId = item.dataset.transactionId;
             const currentCategory = item.dataset.category;
             showMobileCategorySelector(transactionId, currentCategory, item);
@@ -1005,18 +1388,16 @@ function showMobileCategorySelector(transactionId, currentCategory, element) {
                 <button class="close-btn" onclick="this.closest('.modal').remove()">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="font-size: 13px; color: var(--gray); margin-bottom: 15px;">
-                    Current category: <strong>${currentCategory}</strong>
+                <p class="mobile-move-current">
+                    Current category: <strong>${escapeHtml(currentCategory)}</strong>
                 </p>
-                <div style="display: grid; gap: 10px;">
+                <div class="mobile-move-grid">
                     ${categories
                         .map(
-                            (cat) => `
-                        <button class="btn btn-secondary" 
-                                style="text-align: left; padding: 12px; display: flex; align-items: center; gap: 10px;"
-                                onclick="moveTransaction('${transactionId}', '${currentCategory}', '${cat}'); this.closest('.modal').remove();">
-                            <span style="font-size: 20px;">${categoryConfig[cat].icon}</span>
-                            <span>${cat}</span>
+                            (cat, index) => `
+                        <button class="btn btn-secondary mobile-move-option" data-cat-index="${index}">
+                            ${getCategoryIconChip(cat, { size: 32, icon: 16 })}
+                            <span class="mobile-move-name">${escapeHtml(cat)}</span>
                         </button>
                     `
                         )
@@ -1026,6 +1407,18 @@ function showMobileCategorySelector(transactionId, currentCategory, element) {
         </div>
     `;
     document.body.appendChild(modal);
+
+    // Delegated selection: category names never pass through inline handlers
+    modal.addEventListener('click', (e) => {
+        const option = e.target.closest('[data-cat-index]');
+        if (option) {
+            const cat = categories[Number(option.dataset.catIndex)];
+            modal.remove();
+            if (cat) moveTransaction(transactionId, currentCategory, cat);
+            return;
+        }
+        if (e.target === modal) modal.remove();
+    });
 }
 
 // Show move confirmation modal
@@ -1039,9 +1432,6 @@ function showMoveConfirmationModal(transactionId, fromCategory, toCategory, tran
         .split(/[\s#\*]/)[0]
         .trim();
 
-    const fromIcon = categoryConfig[fromCategory]?.icon || '📦';
-    const toIcon = categoryConfig[toCategory]?.icon || '📦';
-
     const modal = document.createElement('div');
     modal.className = 'modal show';
     modal.id = 'moveConfirmModal';
@@ -1054,13 +1444,13 @@ function showMoveConfirmationModal(transactionId, fromCategory, toCategory, tran
             <div class="modal-body">
                 <div class="move-preview">
                     <div class="move-transaction-info">
-                        <p class="move-description">${escapeHtmlDashboard(description)}</p>
-                        <p class="move-amount">$${amount.toFixed(2)}</p>
+                        <p class="move-description">${escapeHtml(description)}</p>
+                        <p class="move-amount">${formatDashboardMoney(amount)}</p>
                     </div>
                     <div class="move-flow">
                         <div class="move-category from">
-                            <span class="category-icon">${fromIcon}</span>
-                            <span class="category-name">${fromCategory}</span>
+                            ${getCategoryIconChip(fromCategory, { size: 36, icon: 18 })}
+                            <span class="category-name">${escapeHtml(fromCategory)}</span>
                         </div>
                         <div class="move-arrow">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1068,8 +1458,8 @@ function showMoveConfirmationModal(transactionId, fromCategory, toCategory, tran
                             </svg>
                         </div>
                         <div class="move-category to">
-                            <span class="category-icon">${toIcon}</span>
-                            <span class="category-name">${toCategory}</span>
+                            ${getCategoryIconChip(toCategory, { size: 36, icon: 18 })}
+                            <span class="category-name">${escapeHtml(toCategory)}</span>
                         </div>
                     </div>
                 </div>
@@ -1080,9 +1470,9 @@ function showMoveConfirmationModal(transactionId, fromCategory, toCategory, tran
 
                     <div class="pattern-input-group">
                         <label for="rulePatternInput">Pattern to match:</label>
-                        <input type="text" id="rulePatternInput" value="${escapeHtmlDashboard(merchantName)}"
+                        <input type="text" id="rulePatternInput" value="${escapeHtml(merchantName)}"
                                placeholder="Enter pattern..." class="pattern-input">
-                        <span class="pattern-hint">Transactions containing this text will be moved to ${toCategory}</span>
+                        <span class="pattern-hint">Transactions containing this text will be moved to ${escapeHtml(toCategory)}</span>
                     </div>
                 </div>
             </div>
@@ -1173,7 +1563,7 @@ function executeMoveWithRule(transactionId, toCategory, monthKey) {
         if (existingRule.action !== toCategory) {
             // Update existing rule to new category
             existingRule.action = toCategory;
-            existingRule.name = `Auto: "${pattern}" → ${toCategory}`;
+            existingRule.name = `Auto: "${pattern}" -> ${toCategory}`;
             existingRule.updatedAt = new Date().toISOString();
             ruleAction = 'updated';
         }
@@ -1183,7 +1573,7 @@ function executeMoveWithRule(transactionId, toCategory, monthKey) {
         // Create new rule
         const newRule = {
             id: generateRuleId(),
-            name: `Auto: "${pattern}" → ${toCategory}`,
+            name: `Auto: "${pattern}" -> ${toCategory}`,
             type: 'categorize',
             pattern: pattern,
             matchType: 'contains',
@@ -1201,9 +1591,9 @@ function executeMoveWithRule(transactionId, toCategory, monthKey) {
 
     // Build notification message
     if (appliedCount > 1) {
-        showNotification(`Rule ${ruleAction}: "${pattern}" → ${toCategory} (applied to ${appliedCount} transactions)`, 'success');
+        showNotification(`Rule ${ruleAction}: "${pattern}" -> ${toCategory} (applied to ${appliedCount} transactions)`, 'success');
     } else if (appliedCount === 1) {
-        showNotification(`Rule ${ruleAction}: "${pattern}" → ${toCategory}`, 'success');
+        showNotification(`Rule ${ruleAction}: "${pattern}" -> ${toCategory}`, 'success');
     } else {
         // No transactions matched (shouldn't happen but handle gracefully)
         // Still set override for the clicked transaction manually
@@ -1214,7 +1604,7 @@ function executeMoveWithRule(transactionId, toCategory, monthKey) {
             window.transactionOverrides[monthKey] = {};
         }
         window.transactionOverrides[monthKey][transactionId] = toCategory;
-        showNotification(`Rule ${ruleAction}: "${pattern}" → ${toCategory}`, 'success');
+        showNotification(`Rule ${ruleAction}: "${pattern}" -> ${toCategory}`, 'success');
     }
 
     saveData();
@@ -1323,7 +1713,6 @@ function showDeleteConfirmationModal(category, transactionId, transaction, month
 
     // Count similar transactions
     const similarCount = countSimilarTransactions(merchantName);
-    const categoryIcon = categoryConfig[category]?.icon || '📦';
 
     const modal = document.createElement('div');
     modal.className = 'modal show';
@@ -1343,10 +1732,10 @@ function showDeleteConfirmationModal(category, transactionId, transaction, month
             <div class="modal-body">
                 <div class="delete-preview">
                     <div class="transaction-info">
-                        <p class="transaction-desc">${escapeHtmlDashboard(description)}</p>
+                        <p class="transaction-desc">${escapeHtml(description)}</p>
                         <div class="transaction-meta">
-                            <span>${categoryIcon} ${category}</span>
-                            <span>$${amount.toFixed(2)}</span>
+                            <span><span class="cat-dot" style="--cat:${getCategoryColorVar(category)}"></span> ${escapeHtml(category)}</span>
+                            <span>${formatDashboardMoney(amount)}</span>
                         </div>
                     </div>
                     ${similarCount > 1 ? `
@@ -1563,7 +1952,7 @@ function showTrashModal() {
                         <div class="trash-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; margin: 4px 0; background: var(--gray-50); border-radius: 8px; font-size: 13px;">
                             <div style="flex: 1; min-width: 0;">
                                 <div style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${desc}</div>
-                                <div style="font-size: 11px; color: var(--gray); margin-top: 2px;">${escapeHtmlDashboard(item.category)} &middot; Deleted ${deletedDate}</div>
+                                <div style="font-size: 12px; color: var(--gray); margin-top: 2px;">${escapeHtmlDashboard(item.category)}, deleted ${deletedDate}</div>
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px; margin-left: 12px; flex-shrink: 0;">
                                 <span style="font-weight: 600;">$${amount.toFixed(2)}</span>
@@ -1784,15 +2173,17 @@ function showRawTransactionData(transactionId, category) {
             </div>
             <div class="raw-data-csv-line">
                 <h4>CSV Line:</h4>
-                <code>${Object.values(rawData)
-                    .map((v) => {
-                        const val = String(v ?? '');
-                        if (val.includes(',') || val.includes('"')) {
-                            return '"' + val.replace(/"/g, '""') + '"';
-                        }
-                        return val;
-                    })
-                    .join(',')}</code>
+                <code>${escapeHtml(
+                    Object.values(rawData)
+                        .map((v) => {
+                            const val = String(v ?? '');
+                            if (val.includes(',') || val.includes('"')) {
+                                return '"' + val.replace(/"/g, '""') + '"';
+                            }
+                            return val;
+                        })
+                        .join(',')
+                )}</code>
             </div>
         `;
     } else {
@@ -1815,10 +2206,10 @@ function showRawTransactionData(transactionId, category) {
             </div>
             <div class="modal-body">
                 <div class="transaction-summary">
-                    <p><strong>Description:</strong> ${escapeHtmlDashboard(transaction.Description || '')}</p>
-                    <p><strong>Amount:</strong> $${Math.abs(transaction.Amount || 0).toFixed(2)}</p>
-                    <p><strong>Date:</strong> ${transaction['Transaction Date'] || ''}</p>
-                    <p><strong>Category:</strong> ${escapeHtmlDashboard(category)}</p>
+                    <p><strong>Description:</strong> ${escapeHtml(transaction.Description || '')}</p>
+                    <p><strong>Amount:</strong> ${formatDashboardMoney(Math.abs(transaction.Amount || 0))}</p>
+                    <p><strong>Date:</strong> ${escapeHtml(transaction['Transaction Date'] || '')}</p>
+                    <p><strong>Category:</strong> ${escapeHtml(category)}</p>
                 </div>
                 <div class="income-toggle-section" style="margin: 16px 0; padding: 12px 16px; background: var(--gray-50); border-radius: 8px; display: flex; align-items: center; gap: 12px;">
                     <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; font-weight: 500;">
@@ -1861,11 +2252,10 @@ function toggleTransactionIncome(monthKey, transactionId, isIncome) {
     showNotification(isIncome ? 'Transaction marked as income' : 'Transaction marked as expense', 'success');
 }
 
-// Helper function to escape HTML for dashboard display
+// Helper kept for backward compatibility; delegates to the canonical escaper
+// (utils.js window.escapeHtml) which also encodes quotes for attribute safety.
 function escapeHtmlDashboard(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return window.escapeHtml(text);
 }
 
 // Show all transactions for a category
@@ -1887,26 +2277,37 @@ function showAllTransactions(category) {
         transactions = analyzer.categoryDetails[category] || [];
     }
 
-    document.getElementById('modalTitle').textContent = `${category} - All Transactions`;
+    document.getElementById('modalTitle').textContent = `${category}: All Transactions`;
 
     const listHTML = transactions
         .map(
             (t) => `
         <div class="transaction-row">
-            <div>${new Date(t.date).toLocaleDateString()}</div>
-            <div>${t.name}</div>
-            <div>$${t.amount.toFixed(2)}</div>
+            <div>${parseLocalDate(t.date).toLocaleDateString()}</div>
+            <div class="transaction-row-name" title="${escapeHtml(t.name)}">${escapeHtml(t.name)}</div>
+            <div>${formatDashboardMoney(t.amount)}</div>
             <div>
-                <button class="btn-icon" onclick="deleteTransactionFromModal('${category}', '${
-                t.id
-            }')">×</button>
+                <button class="btn-icon" data-action="delete-transaction-modal"
+                        data-transaction-id="${escapeHtml(t.id || '')}"
+                        title="Delete transaction" aria-label="Delete transaction">&times;</button>
             </div>
         </div>
     `
         )
         .join('');
 
-    document.getElementById('transactionsList').innerHTML = listHTML || '<p>No transactions</p>';
+    const list = document.getElementById('transactionsList');
+    list.innerHTML = listHTML || '<p>No transactions</p>';
+    list.dataset.category = category; // set via DOM API, safe for any characters
+    if (!list._deleteHandler) {
+        list._deleteHandler = function (e) {
+            const btn = e.target.closest('[data-action="delete-transaction-modal"]');
+            if (btn) {
+                deleteTransactionFromModal(list.dataset.category, btn.dataset.transactionId);
+            }
+        };
+        list.addEventListener('click', list._deleteHandler);
+    }
     document.getElementById('transactionsModal').classList.add('show');
 }
 
@@ -1934,7 +2335,6 @@ function getCategoryMonthlyData(category) {
 
 // Show category analysis modal
 function showCategoryAnalysis(category) {
-    const config = categoryConfig[category] || { icon: '📦' };
     const monthlyStats = getCategoryMonthlyData(category);
 
     if (monthlyStats.length === 0) {
@@ -1992,8 +2392,8 @@ function showCategoryAnalysis(category) {
         <div class="modal-content analysis-modal">
             <div class="modal-header">
                 <h2>
-                    <span class="analysis-category-icon">${config.icon}</span>
-                    ${category} - Trends & Analysis
+                    ${getCategoryIconChip(category, { size: 32, icon: 16 })}
+                    <span>${escapeHtml(category)} Trends</span>
                 </h2>
                 <button class="close-btn" onclick="closeCategoryAnalysisModal()">&times;</button>
             </div>
@@ -2044,11 +2444,11 @@ function showCategoryAnalysis(category) {
                                     <div class="breakdown-values">
                                         ${prevMonth ? `
                                             <span class="breakdown-change ${isUp ? 'up' : ''} ${isDown ? 'down' : ''}">
-                                                ${isUp ? '↑' : isDown ? '↓' : '→'}
-                                                ${change !== 0 ? `$${Math.abs(change).toFixed(0)}` : ''}
+                                                ${isUp ? dashboardIcon('arrowUpRight', 12) : isDown ? dashboardIcon('arrowDownRight', 12) : ''}
+                                                ${change !== 0 ? `$${Math.abs(change).toFixed(0)}` : 'even'}
                                             </span>
-                                        ` : '<span class="breakdown-change first">—</span>'}
-                                        <span class="breakdown-total ${m.total === 0 ? 'zero' : ''}">$${m.total.toFixed(2)}</span>
+                                        ` : '<span class="breakdown-change first"></span>'}
+                                        <span class="breakdown-total ${m.total === 0 ? 'zero' : ''}">${formatDashboardMoney(m.total)}</span>
                                     </div>
                                 </div>
                             `;
@@ -2107,71 +2507,105 @@ function showCategoryAnalysis(category) {
         }
     });
 
-    // Create the chart
+    // Create the chart (destroying any previous instance so repeated opens
+    // never leak Chart.js objects)
     setTimeout(() => {
         const ctx = document.getElementById('categoryTrendChart');
-        if (ctx) {
-            new Chart(ctx.getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: monthlyStats.map(m => m.monthName.split(' ')[0]), // Just month name
-                    datasets: [{
-                        label: category,
-                        data: monthlyStats.map(m => m.total),
-                        borderColor: '#0891b2',
-                        backgroundColor: 'rgba(8, 145, 178, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: '#0891b2',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 5,
-                        pointHoverRadius: 7
-                    }, {
-                        label: 'Average',
-                        data: monthlyStats.map(() => stats.average),
-                        borderColor: '#94a3b8',
-                        borderDash: [5, 5],
-                        borderWidth: 2,
-                        fill: false,
-                        pointRadius: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `$${context.parsed.y.toFixed(2)}`;
-                                }
-                            }
+        if (!ctx) return;
+
+        if (charts.categoryTrend) {
+            charts.categoryTrend.destroy();
+            charts.categoryTrend = null;
+        }
+
+        const lineColor = resolveCssVar('--cat-' + getCategoryColorIndex(category), '#0891b2');
+        const textMuted = resolveCssVar('--text-muted', '#55617a');
+        const textSubtle = resolveCssVar('--text-subtle', '#8a97ad');
+        const gridColor = resolveCssVar('--divider', '#eef2f7');
+        const surface = resolveCssVar('--surface', '#ffffff');
+
+        charts.categoryTrend = new Chart(ctx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: monthlyStats.map(m => m.monthName.split(' ')[0]), // Just month name
+                datasets: [{
+                    label: category,
+                    data: monthlyStats.map(m => m.total),
+                    borderColor: lineColor,
+                    backgroundColor: hexTint(lineColor, 0.12),
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: lineColor,
+                    pointBorderColor: surface,
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }, {
+                    label: 'Average',
+                    data: monthlyStats.map(() => stats.average),
+                    borderColor: textSubtle,
+                    borderDash: [5, 5],
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            color: textMuted,
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            boxWidth: 8,
+                            boxHeight: 8,
+                            font: { size: 12, family: "'Inter', sans-serif" }
                         }
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return '$' + value;
-                                }
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ' ' + formatDashboardMoney(context.parsed.y);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false, drawBorder: false },
+                        ticks: {
+                            color: textSubtle,
+                            font: { size: 11, family: "'Inter', sans-serif" }
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: gridColor, drawBorder: false },
+                        ticks: {
+                            color: textSubtle,
+                            font: { size: 11, family: "'Inter', sans-serif" },
+                            callback: function(value) {
+                                return '$' + Number(value).toLocaleString('en-US');
                             }
                         }
                     }
                 }
-            });
-        }
+            }
+        });
     }, 100);
 }
 
 // Close category analysis modal
 function closeCategoryAnalysisModal() {
+    if (charts.categoryTrend) {
+        charts.categoryTrend.destroy();
+        charts.categoryTrend = null;
+    }
     const modal = document.getElementById('categoryAnalysisModal');
     if (modal) {
         modal.remove();

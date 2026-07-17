@@ -17,13 +17,13 @@ function initializeWidget() {
     // widget.className = 'quick-stats-widget collapsed';
     // widget.innerHTML = `
     //     <div class="widget-toggle" onclick="toggleWidget()">
-    //         <span class="widget-icon">📊</span>
+    //         <span class="widget-icon"></span>
     //         <span class="widget-label">Quick Stats</span>
     //     </div>
     //     <div class="widget-content">
     //         <div class="widget-header">
     //             <h3>Quick Stats</h3>
-    //             <button class="widget-close" onclick="toggleWidget()">×</button>
+    //             <button class="widget-close" onclick="toggleWidget()">close</button>
     //         </div>
     //         <div class="widget-body">
     //             <div class="widget-tabs">
@@ -180,7 +180,7 @@ function updateWidgetStats(period) {
         <div class="widget-stat">
             <span class="stat-label">Top Category</span>
             <span class="stat-value">
-                ${categoryConfig[topCategory]?.icon || '📦'} ${topCategory}
+                ${typeof getCategoryIcon === 'function' ? getCategoryIcon(topCategory, 16) : ''} ${typeof escapeHtml === 'function' ? escapeHtml(topCategory) : topCategory}
                 ${topAmount > 0 ? `($${topAmount.toFixed(2)})` : ''}
             </span>
         </div>

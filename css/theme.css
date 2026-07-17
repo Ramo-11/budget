@@ -1,0 +1,246 @@
+/* css/theme.css - Design system tokens (light + dark) and semantic surfaces.
+   Loaded before every other stylesheet. All components should consume the
+   semantic tokens below (--bg, --surface, --text, --border-color, ...) so a
+   single [data-theme] switch restyles the whole app. */
+
+:root {
+    /* ---- Brand ---- */
+    --brand: #0891b2;
+    --brand-strong: #0e7490;
+    --brand-soft: #06b6d4;
+    --brand-contrast: #ffffff;
+    --brand-subtle: rgba(8, 145, 178, 0.08);
+    --brand-ring: rgba(8, 145, 178, 0.18);
+    --brand-gradient: linear-gradient(135deg, #06b6d4 0%, #0e7490 100%);
+
+    /* ---- Status ---- */
+    --success: #10b981;
+    --success-soft: rgba(16, 185, 129, 0.12);
+    --warning: #f59e0b;
+    --warning-soft: rgba(245, 158, 11, 0.14);
+    --danger: #ef4444;
+    --danger-soft: rgba(239, 68, 68, 0.12);
+    --info: #3b82f6;
+    --info-soft: rgba(59, 130, 246, 0.12);
+
+    /* ---- Semantic surfaces (LIGHT) ---- */
+    --bg: #f4f7fb;
+    --bg-gradient: radial-gradient(1200px 600px at 100% -10%, rgba(8,145,178,0.06), transparent 60%), linear-gradient(180deg, #f4f7fb 0%, #eef2f8 100%);
+    --surface: #ffffff;
+    --surface-2: #f5f8fc;
+    --surface-3: #eef2f8;
+    --surface-inset: #f8fafc;
+    --surface-hover: #f1f5fa;
+
+    --text: #0f172a;
+    --text-muted: #55617a;
+    --text-subtle: #8a97ad;
+    --text-onbrand: #ffffff;
+
+    --border-color: #e6ebf2;
+    --border-strong: #d3dbe6;
+    --divider: #eef2f7;
+
+    --input-bg: #ffffff;
+    --input-border: #dfe6ef;
+    --input-text: #0f172a;
+    --input-placeholder: #9aa6b8;
+
+    /* ---- Header (dark in light mode for contrast, deeper in dark mode) ---- */
+    --header-bg: #0f172a;
+    --header-text: #ffffff;
+    --header-muted: #b9c4d6;
+    --header-border: rgba(255, 255, 255, 0.08);
+    --header-btn-bg: rgba(255, 255, 255, 0.08);
+    --header-btn-border: rgba(255, 255, 255, 0.14);
+
+    /* ---- Shadows (LIGHT) ---- */
+    --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.07), 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.07), 0 2px 6px rgba(15, 23, 42, 0.04);
+    --shadow-lg: 0 12px 28px rgba(15, 23, 42, 0.10), 0 6px 12px rgba(15, 23, 42, 0.05);
+    --shadow-xl: 0 24px 48px rgba(15, 23, 42, 0.14);
+    --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 16px rgba(15, 23, 42, 0.06);
+    --shadow-card-hover: 0 6px 16px rgba(15, 23, 42, 0.09), 0 14px 32px rgba(15, 23, 42, 0.10);
+    --overlay: rgba(15, 23, 42, 0.5);
+
+    /* ---- Radii ---- */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-2xl: 28px;
+    --radius-full: 9999px;
+
+    /* ---- Motion ---- */
+    --transition-fast: 140ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 320ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: 460ms cubic-bezier(0.34, 1.4, 0.5, 1);
+
+    /* ---- Category color scale (16 distinct, accessible hues) ---- */
+    --cat-1: #0ea5e9;   /* sky */
+    --cat-2: #8b5cf6;   /* violet */
+    --cat-3: #ec4899;   /* pink */
+    --cat-4: #f97316;   /* orange */
+    --cat-5: #10b981;   /* emerald */
+    --cat-6: #f59e0b;   /* amber */
+    --cat-7: #6366f1;   /* indigo */
+    --cat-8: #ef4444;   /* red */
+    --cat-9: #14b8a6;   /* teal */
+    --cat-10: #a855f7;  /* purple */
+    --cat-11: #3b82f6;  /* blue */
+    --cat-12: #d946ef;  /* fuchsia */
+    --cat-13: #84cc16;  /* lime */
+    --cat-14: #06b6d4;  /* cyan */
+    --cat-15: #f43f5e;  /* rose */
+    --cat-16: #64748b;  /* slate (Others) */
+}
+
+/* ============ DARK THEME ============ */
+:root[data-theme="dark"] {
+    --brand: #22d3ee;
+    --brand-strong: #06b6d4;
+    --brand-soft: #67e8f9;
+    --brand-contrast: #06202a;
+    --brand-subtle: rgba(34, 211, 238, 0.12);
+    --brand-ring: rgba(34, 211, 238, 0.28);
+    --brand-gradient: linear-gradient(135deg, #22d3ee 0%, #0891b2 100%);
+
+    --success: #34d399;
+    --success-soft: rgba(52, 211, 153, 0.16);
+    --warning: #fbbf24;
+    --warning-soft: rgba(251, 191, 36, 0.16);
+    --danger: #f87171;
+    --danger-soft: rgba(248, 113, 113, 0.16);
+    --info: #60a5fa;
+    --info-soft: rgba(96, 165, 250, 0.16);
+
+    --bg: #0a0f1a;
+    --bg-gradient: radial-gradient(1200px 600px at 100% -10%, rgba(34,211,238,0.08), transparent 55%), linear-gradient(180deg, #0a0f1a 0%, #0b1220 100%);
+    --surface: #121a2a;
+    --surface-2: #172136;
+    --surface-3: #1e2a42;
+    --surface-inset: #0e1626;
+    --surface-hover: #1c2740;
+
+    --text: #e9eff8;
+    --text-muted: #9fadc4;
+    --text-subtle: #6b7a94;
+    --text-onbrand: #06202a;
+
+    --border-color: #24314a;
+    --border-strong: #33425f;
+    --divider: #1c2740;
+
+    --input-bg: #0e1626;
+    --input-border: #2a3956;
+    --input-text: #e9eff8;
+    --input-placeholder: #6b7a94;
+
+    --header-bg: #0b1220;
+    --header-text: #e9eff8;
+    --header-muted: #9fadc4;
+    --header-border: rgba(255, 255, 255, 0.06);
+    --header-btn-bg: rgba(255, 255, 255, 0.06);
+    --header-btn-border: rgba(255, 255, 255, 0.10);
+
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+    --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 14px 34px rgba(0, 0, 0, 0.55);
+    --shadow-xl: 0 26px 54px rgba(0, 0, 0, 0.6);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.4);
+    --shadow-card-hover: 0 10px 26px rgba(0, 0, 0, 0.55);
+    --overlay: rgba(3, 7, 15, 0.68);
+
+    --cat-1: #38bdf8;
+    --cat-2: #a78bfa;
+    --cat-3: #f472b6;
+    --cat-4: #fb923c;
+    --cat-5: #34d399;
+    --cat-6: #fbbf24;
+    --cat-7: #818cf8;
+    --cat-8: #f87171;
+    --cat-9: #2dd4bf;
+    --cat-10: #c084fc;
+    --cat-11: #60a5fa;
+    --cat-12: #e879f9;
+    --cat-13: #a3e635;
+    --cat-14: #22d3ee;
+    --cat-15: #fb7185;
+    --cat-16: #94a3b8;
+}
+
+/* ============ Legacy token bridge ============
+   Old stylesheets reference these names directly. Alias them to the semantic
+   tokens so unmigrated components still theme correctly. */
+:root {
+    --primary: var(--brand);
+    --primary-light: var(--brand-soft);
+    --primary-dark: var(--brand-strong);
+    --primary-subtle: var(--brand-subtle);
+    --primary-gradient: var(--brand-gradient);
+
+    --accent-purple: var(--cat-2);
+    --accent-pink: var(--cat-3);
+    --accent-orange: var(--cat-4);
+    --accent-blue: var(--cat-11);
+    --accent-purple-light: var(--cat-10);
+
+    --success-light: var(--success);
+    --success-dark: #059669;
+    --success-subtle: var(--success-soft);
+    --success-bg: var(--success-soft);
+    --success-bg-deep: var(--success-soft);
+    --success-border: color-mix(in srgb, var(--success) 40%, transparent);
+    --warning-light: var(--warning);
+    --warning-dark: #d97706;
+    --warning-subtle: var(--warning-soft);
+    --warning-bg: var(--warning-soft);
+    --warning-text: var(--warning);
+    --warning-text-deep: var(--warning);
+    --danger-light: var(--danger);
+    --danger-dark: #dc2626;
+    --danger-subtle: var(--danger-soft);
+
+    --dark: var(--text);
+    --dark-secondary: var(--text-muted);
+    --gray-900: var(--text);
+    --gray-800: var(--text);
+    --gray-700: var(--text-muted);
+    --gray-600: var(--text-muted);
+    --gray: var(--text-subtle);
+    --gray-400: var(--text-subtle);
+    --gray-300: var(--border-strong);
+    --gray-200: var(--border-color);
+    --gray-100: var(--surface-3);
+    --gray-50: var(--surface-2);
+    --light: var(--surface-2);
+    --white: var(--surface);
+    --border: var(--border-color);
+    --border-light: var(--divider);
+
+    --shadow-2xl: var(--shadow-xl);
+    --shadow-glow: 0 0 40px var(--brand-ring);
+}
+
+/* Category swatch helper: elements set --cat via inline style or class */
+.cat-color-1 { --cat: var(--cat-1); } .cat-color-2 { --cat: var(--cat-2); }
+.cat-color-3 { --cat: var(--cat-3); } .cat-color-4 { --cat: var(--cat-4); }
+.cat-color-5 { --cat: var(--cat-5); } .cat-color-6 { --cat: var(--cat-6); }
+.cat-color-7 { --cat: var(--cat-7); } .cat-color-8 { --cat: var(--cat-8); }
+.cat-color-9 { --cat: var(--cat-9); } .cat-color-10 { --cat: var(--cat-10); }
+.cat-color-11 { --cat: var(--cat-11); } .cat-color-12 { --cat: var(--cat-12); }
+.cat-color-13 { --cat: var(--cat-13); } .cat-color-14 { --cat: var(--cat-14); }
+.cat-color-15 { --cat: var(--cat-15); } .cat-color-16 { --cat: var(--cat-16); }
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+}

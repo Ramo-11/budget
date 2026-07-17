@@ -1,384 +1,301 @@
-/* Budget Goals View Styles */
-.budget-view-controls {
-    padding: 24px;
-    background: var(--gray-100);
-    border-radius: var(--radius-lg);
-    margin-bottom: 24px;
+/* css/budget-view.css - Budget Goals modal (semantic tokens, light + dark) */
+
+.bgv-modal {
+    width: 720px;
+    max-width: 95vw;
 }
 
-.view-selector {
-    margin-bottom: 18px;
-}
-
-.view-selector label {
-    font-size: 14px;
-    font-weight: 500;
-    margin-right: 12px;
-    color: var(--gray-600);
-}
-
-.view-selector select {
-    padding: 10px 14px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    font-size: 14px;
-    background: var(--white);
-    transition: all var(--transition-fast);
-}
-
-.view-selector select:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--primary-subtle);
-}
-
-.budget-summary {
-    margin-top: 18px;
-}
-
-.summary-stats {
-    display: flex;
-    gap: 32px;
-    flex-wrap: wrap;
-    align-items: center;
-}
-
-.summary-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.summary-label {
-    font-size: 12px;
-    color: var(--gray);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 500;
-}
-
-.summary-stat strong {
-    font-size: 20px;
-    color: var(--dark);
-    font-weight: 700;
-}
-
-.summary-stat strong.positive {
-    color: var(--success);
-}
-
-.summary-stat strong.negative {
-    color: var(--danger);
-}
-
-.summary-stat strong.warning {
-    color: var(--warning);
-}
-
-.budget-view-content {
-    padding: 24px;
-}
-
-.budget-charts-container {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 32px;
-    margin-bottom: 32px;
-}
-
-.budget-chart-wrapper {
-    background: var(--white);
-    padding: 24px;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border);
-    height: 400px;
-    transition: all var(--transition-base);
-}
-
-.budget-chart-wrapper:hover {
-    box-shadow: var(--shadow-sm);
-}
-
-.budget-categories-overview {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 16px;
-    max-height: 420px;
-    overflow-y: auto;
-    padding: 12px;
-}
-
-.budget-category-card {
-    background: var(--white);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 18px;
-    transition: all var(--transition-base);
-    position: relative;
-    padding-top: 28px;
-}
-
-.budget-category-card.within-budget {
-    border-color: var(--success);
-    background: rgba(5, 150, 105, 0.04);
-}
-
-.budget-category-card.warning-budget {
-    border-color: var(--warning);
-    background: rgba(217, 119, 6, 0.04);
-}
-
-.budget-category-card.over-budget {
-    border-color: var(--danger);
-    background: rgba(220, 38, 38, 0.04);
-}
-
-.budget-category-card.no-budget {
-    border-color: var(--warning);
-    background: rgba(217, 119, 6, 0.06);
-}
-
-.budget-category-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.category-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 14px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border-light);
-}
-
-.category-icon {
-    font-size: 22px;
-}
-
-.category-name {
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--dark);
-}
-
-.category-amounts {
-    margin-bottom: 14px;
-}
-
-.amount-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 8px;
-    font-size: 13px;
-}
-
-.amount-row span {
-    color: var(--gray);
-}
-
-.amount-row strong {
-    color: var(--dark);
-    font-weight: 600;
-}
-
-.category-progress {
+/* Toolbar: period selector */
+.bgv-toolbar {
     display: flex;
     align-items: center;
     gap: 12px;
+    margin-bottom: 18px;
 }
 
-.progress-bar {
-    flex: 1;
-    height: 6px;
-    background: var(--gray-200);
-    border-radius: var(--radius-full);
-    overflow: hidden;
-}
-
-.progress-fill {
-    height: 100%;
-    background: var(--success);
-    transition: width var(--transition-slow);
-    border-radius: var(--radius-full);
-}
-
-.warning-budget .progress-fill {
-    background: var(--warning);
-}
-
-.over-budget .progress-fill {
-    background: var(--danger);
-}
-
-.progress-text {
+.bgv-toolbar-label {
     font-size: 12px;
     font-weight: 600;
-    color: var(--dark);
-    min-width: 40px;
-}
-
-.budget-details-table {
-    background: var(--white);
-    padding: 24px;
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--border);
-}
-
-.budget-details-table h3 {
-    margin-bottom: 20px;
-    font-size: 16px;
-    color: var(--dark);
-    font-weight: 600;
-}
-
-.budget-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.budget-table th {
-    background: var(--gray-100);
-    padding: 14px;
-    text-align: left;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--gray);
-    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    flex-shrink: 0;
 }
 
-.budget-table td {
-    padding: 14px;
-    border-bottom: 1px solid var(--border-light);
+.bgv-select {
+    flex: 1;
+    max-width: 320px;
+    min-height: 44px;
+    padding: 10px 14px;
+    background: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-md);
     font-size: 14px;
+    font-family: inherit;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.budget-table td.amount {
-    text-align: right;
-    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-    font-size: 13px;
+.bgv-select:focus {
+    outline: none;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 4px var(--brand-ring);
 }
 
-.budget-table td.center {
-    text-align: center;
+/* Summary tiles */
+.bgv-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 14px;
 }
 
-.table-icon {
-    margin-right: 10px;
+.bgv-stat {
+    background: var(--surface-2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
 }
 
-.inline-progress {
+.bgv-stat span {
+    font-size: 12px;
+    color: var(--text-subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.bgv-stat strong {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bgv-stat strong.positive {
+    color: var(--success);
+}
+
+.bgv-stat strong.negative {
+    color: var(--danger);
+}
+
+.bgv-stat strong.warning {
+    color: var(--warning);
+}
+
+/* Overall progress */
+.bgv-overall {
+    height: 8px;
+    background: var(--surface-3);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.bgv-overall-fill {
+    height: 100%;
+    background: var(--brand-gradient);
+    border-radius: var(--radius-full);
+    transition: width var(--transition-slow);
+}
+
+.bgv-overall-fill.warn {
+    background: var(--warning);
+}
+
+.bgv-overall-fill.over {
+    background: var(--danger);
+}
+
+.bgv-caption {
+    font-size: 12px;
+    color: var(--text-subtle);
+    margin: 0 0 4px;
+}
+
+/* Empty state: one line + one action */
+.bgv-empty {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: var(--surface-2);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
 }
 
-.inline-progress-bar {
+.bgv-empty p {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.bgv-empty strong {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Category rows */
+.bgv-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+.bgv-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.bgv-row:hover {
+    background: var(--surface-hover);
+}
+
+.bgv-row.over {
+    border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+.bgv-row-main {
     flex: 1;
-    height: 5px;
-    background: var(--gray-200);
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bgv-row-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.bgv-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bgv-nums {
+    font-size: 13px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.bgv-nums strong {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.bgv-of {
+    color: var(--text-subtle);
+}
+
+.bgv-bar {
+    height: 6px;
+    background: var(--surface-3);
     border-radius: var(--radius-full);
     overflow: hidden;
 }
 
-.inline-progress-fill {
+.bgv-bar-fill {
     height: 100%;
-    background: var(--success);
-    transition: width var(--transition-slow);
     border-radius: var(--radius-full);
+    transition: width var(--transition-slow);
 }
 
-.inline-progress-fill.warning {
-    background: var(--warning);
-}
-
-.inline-progress-fill.danger {
-    background: var(--danger);
-}
-
-.progress-label {
+.bgv-delta {
     font-size: 12px;
     font-weight: 600;
-    min-width: 40px;
+    white-space: nowrap;
+    min-width: 86px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
 }
 
-/* No budget warning styles */
-.no-budget-warning {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    font-size: 16px;
-    z-index: 10;
-    line-height: 1;
+.bgv-delta.positive {
+    color: var(--success);
 }
 
-.no-budget-warning:hover {
-    transform: scale(1.15);
-    transition: transform var(--transition-fast);
+.bgv-delta.negative {
+    color: var(--danger);
+}
+
+.bgv-delta.muted {
+    color: var(--text-subtle);
+    font-weight: 500;
+}
+
+.bgv-none {
+    text-align: center;
+    color: var(--text-subtle);
+    font-size: 14px;
+    padding: 24px 0;
+    margin: 0;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-    .budget-view-controls {
-        padding: 16px;
+    .bgv-stats {
+        grid-template-columns: repeat(2, 1fr);
     }
 
-    .budget-charts-container {
-        grid-template-columns: 1fr;
-    }
-
-    .budget-chart-wrapper {
-        height: 300px;
-    }
-
-    .budget-categories-overview {
-        grid-template-columns: 1fr;
-        max-height: none;
-        padding: 6px;
-    }
-
-    .budget-category-card {
-        padding: 14px;
-        padding-top: 24px;
-    }
-
-    .budget-table {
-        font-size: 12px;
-    }
-
-    .budget-table th,
-    .budget-table td {
-        padding: 10px 8px;
-        font-size: 12px;
-    }
-
-    .budget-table td.amount {
-        min-width: 70px;
-    }
-
-    .modal-content {
-        width: 95% !important;
-        margin: 10px;
-        max-height: 95vh;
-    }
-
-    .comparison-overview {
-        flex-direction: column;
-        gap: 16px;
-    }
-
-    .overview-card {
-        width: 100%;
-    }
-
-    .summary-stats {
-        gap: 20px;
-    }
-
-    .summary-stat strong {
+    .bgv-stat strong {
         font-size: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .bgv-toolbar {
+        flex-wrap: wrap;
+    }
+
+    .bgv-select {
+        max-width: none;
+        flex-basis: 100%;
+    }
+
+    .bgv-row {
+        padding: 12px;
+        gap: 10px;
+    }
+
+    /* Stack name above amounts so long category names stay readable */
+    .bgv-row-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+
+    .bgv-delta {
+        min-width: 64px;
+    }
+
+    .bgv-nums {
+        font-size: 12px;
     }
 }

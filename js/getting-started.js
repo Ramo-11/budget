@@ -3,52 +3,32 @@
 let isInSampleMode = false;
 let backupData = null;
 
-// Load sample data
+// Load sample data into a dedicated "Sample Data" account. Real accounts are
+// never modified, so exiting sample mode can never lose the user's own data.
 async function loadSampleData() {
     try {
-        // Backup current data if exists
-        if (monthlyData.size > 0) {
-            backupData = {
-                monthlyData: new Map(monthlyData),
-                budgets: { ...budgets },
-                categoryConfig: { ...categoryConfig },
-                transactionOverrides: { ...window.transactionOverrides },
-                unifiedRules: [...(window.unifiedRules || [])],
-            };
-        }
-
-        // Fetch the sample JSON file
         const response = await fetch('sample_data.json');
-
         if (!response.ok) {
             throw new Error(`Failed to fetch sample data: ${response.status}`);
         }
-
         const importData = await response.json();
-
-        // Validate the backup structure
         if (!importData.version || !importData.monthlyData) {
             throw new Error('Invalid sample data format');
         }
 
-        // Replace all data with sample data
-        monthlyData = new Map(importData.monthlyData);
-        categoryConfig = importData.categoryConfig || categoryConfig;
-        budgets = importData.budgets || {};
-        window.transactionOverrides = importData.transactionOverrides || {};
-        window.unifiedRules = importData.unifiedRules || [];
+        const payload = {
+            monthlyData: importData.monthlyData,
+            categoryConfig: importData.categoryConfig || {},
+            budgets: importData.budgets || {},
+            transactionOverrides: importData.transactionOverrides || {},
+            unifiedRules: importData.unifiedRules || [],
+        };
+        if (importData.incomeSettings) payload.incomeSettings = importData.incomeSettings;
 
-        // Save data
-        saveData();
-
-        // Set sample mode flag
+        beginSampleMode(payload);
         isInSampleMode = true;
-        localStorage.setItem('sahabBudget_sampleMode', 'true');
 
-        // Show success message
         showNotification('Sample data loaded! Redirecting to dashboard...', 'success');
-
-        // Always redirect/reload to dashboard
         setTimeout(() => {
             window.location.href = 'index.html';
         }, 500);
@@ -58,36 +38,16 @@ async function loadSampleData() {
     }
 }
 
-// Exit sample mode
+// Exit sample mode: removes only the sample account and returns to the
+// account that was active before sample mode was entered.
 function exitSampleMode() {
-    // Check both the flag and localStorage
     if (!isInSampleMode && localStorage.getItem('sahabBudget_sampleMode') !== 'true') {
         showNotification('Not currently in sample mode', 'info');
         return;
     }
 
-    if (
-        !confirm(
-            'Exit sample mode and clear all data? This will remove the sample data completely.'
-        )
-    ) {
-        return;
-    }
-
-    // Clear everything
-    localStorage.removeItem('sahabBudget_data');
-    localStorage.removeItem('sahabBudget_sampleMode');
-    localStorage.removeItem('sahabBudget_hideGettingStarted');
-
-    // Reset all in-memory data
-    if (typeof monthlyData !== 'undefined') monthlyData.clear();
-    if (typeof budgets !== 'undefined') budgets = {};
-    if (typeof window.transactionOverrides !== 'undefined') window.transactionOverrides = {};
-    if (typeof window.unifiedRules !== 'undefined') window.unifiedRules = [];
-
+    endSampleMode();
     isInSampleMode = false;
-
-    // Reload the page to reset everything
     location.reload();
 }
 
@@ -138,7 +98,7 @@ function showHelp() {
         <div class="help-modal-content">
             <div class="help-modal-header">
                 <h2>Help & Resources</h2>
-                <button class="help-close-btn" onclick="this.closest('.help-modal').remove()">×</button>
+                <button class="help-close-btn" onclick="this.closest('.help-modal').remove()" aria-label="Close"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
             </div>
             
             <div class="help-options">
@@ -225,7 +185,7 @@ function showGettingStarted() {
 
     const btn = section.querySelector('.collapse-btn');
     if (btn) {
-        btn.textContent = 'Hide Getting Started ↑';
+        btn.textContent = 'Hide Getting Started';
     }
 
     // Scroll to top
@@ -236,8 +196,15 @@ function showGettingStarted() {
 window.addEventListener('DOMContentLoaded', () => {
     // Remove the early-hide class so normal CSS/JS takes over
     document.documentElement.classList.remove('tutorial-hidden');
-    // Check if in sample mode from localStorage
-    if (localStorage.getItem('sahabBudget_sampleMode') === 'true') {
+    // Sample mode is only truly active when the dedicated sample account is the
+    // active one. Switching to a real account clears the stale banner + flag.
+    const flagSet = localStorage.getItem('sahabBudget_sampleMode') === 'true';
+    const onSampleAccount = (typeof window.isSampleAccount !== 'function') || window.isSampleAccount();
+    if (flagSet && !onSampleAccount) {
+        localStorage.removeItem('sahabBudget_sampleMode');
+    }
+    const inSample = flagSet && onSampleAccount;
+    if (inSample) {
         isInSampleMode = true;
         const sampleBanner = document.getElementById('sampleModeBanner');
         if (sampleBanner) {
@@ -267,8 +234,8 @@ window.addEventListener('DOMContentLoaded', () => {
             videoWrapper.style.paddingBottom = '100%';
         }
     } else if (monthlyData && monthlyData.size > 0) {
-        // User has their own data — auto-hide the whole onboarding section.
-        // Tutorial remains accessible via Help icon → "Watch Tutorial".
+        // User has their own data, so auto-hide the whole onboarding section.
+        // Tutorial remains accessible via Help icon -> "Watch Tutorial".
         const section = document.getElementById('gettingStartedSection');
         if (section) {
             section.classList.add('collapsed');
