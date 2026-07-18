@@ -274,7 +274,7 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    background: var(--primary);
+    background: var(--primary-dark);
     color: var(--white);
     padding: 12px 24px;
     border-radius: var(--radius-lg);
@@ -293,9 +293,13 @@ body {
 }
 
 .file-input-wrapper:hover {
-    background: var(--primary-dark);
+    background: #155e75;
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg), 0 0 30px rgba(8, 145, 178, 0.3);
+}
+
+:root[data-theme="dark"] .file-input-wrapper:hover {
+    background: var(--brand-soft);
 }
 
 .file-input-wrapper input {
