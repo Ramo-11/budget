@@ -1,28 +1,13 @@
-// js/comparison.js - Month over month comparison modal
-
-let comparisonCharts = {};
-
-// ---------------------------------------------------------------------------
-// Shared spending helpers (used by the comparison, budget goals, and date
-// range modals, which all load together on the dashboard page).
-// ---------------------------------------------------------------------------
-
-// A category counts as spending unless it is excluded from totals or marked
-// as income (by flag or by the reserved "Income" name).
 window.isSpendingCategory = function (category) {
-    const config = categoryConfig[category] || {};
+    const config = (typeof categoryConfig !== 'undefined' && categoryConfig[category]) || {};
     return config._isExcluded !== true && config._isIncome !== true && category !== 'Income';
 };
 
-// Spending-only totals: income categories, income-flagged transactions, and
-// excluded categories are left out. Refunds reduce their category total.
-// Returns { analyzer, byCategory, total, count }.
 window.computeSpendingSummary = function (transactions) {
     const analyzer = analyzeTransactions(transactions);
     const byCategory = {};
     let total = 0;
     let count = 0;
-
     Object.entries(analyzer.categoryDetails).forEach(([category, items]) => {
         if (!window.isSpendingCategory(category)) return;
         let categoryTotal = 0;
@@ -35,375 +20,185 @@ window.computeSpendingSummary = function (transactions) {
         byCategory[category] = categoryTotal;
         total += categoryTotal;
     });
-
-    return { analyzer, byCategory, total, count };
+    return { analyzer: analyzer, byCategory: byCategory, total: total, count: count };
 };
 
-// Format a dollar amount (absolute value, thousands separators, 2 decimals).
-window.formatMoney = function (value) {
-    return (
-        '$' +
-        Math.abs(value).toLocaleString('en-US', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        })
-    );
-};
+(function () {
+    const cmp = { a: null, b: null };
+    let reviewKey = null;
 
-// Resolve a CSS custom property to its current computed value (theme-aware).
-function comparisonToken(name, fallback) {
-    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    return value || fallback;
-}
-
-// Hex color -> rgba string with the given alpha (for Chart.js fills).
-function comparisonTokenAlpha(name, alpha, fallback) {
-    const hex = comparisonToken(name, fallback);
-    const match = hex.replace('#', '');
-    if (!/^[0-9a-fA-F]{6}$/.test(match)) return hex;
-    const r = parseInt(match.slice(0, 2), 16);
-    const g = parseInt(match.slice(2, 4), 16);
-    const b = parseInt(match.slice(4, 6), 16);
-    return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
-}
-
-const COMPARISON_ARROW_UP =
-    '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>';
-const COMPARISON_ARROW_DOWN =
-    '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg>';
-const COMPARISON_ARROW_FLAT =
-    '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
-
-// Open comparison view
-function openComparison() {
-    const modal = document.getElementById('comparisonModal');
-    const months = Array.from(monthlyData.keys()).sort().reverse();
-
-    if (months.length < 2) {
-        showNotification('Need at least 2 months of data for comparison', 'error');
-        return;
+    function kit() {
+        return window.Insights.kit;
     }
 
-    const monthOptions = months
-        .map((monthKey) => {
-            const data = monthlyData.get(monthKey);
-            return (
-                '<option value="' +
-                escapeHtml(monthKey) +
-                '">' +
-                escapeHtml(data.monthName) +
-                '</option>'
-            );
-        })
-        .join('');
-
-    modal.innerHTML = `
-        <div class="modal-content" style="width: 92%; max-width: 1100px;">
-            <div class="modal-header">
-                <h2>Compare Months</h2>
-                <button class="close-btn" onclick="closeComparisonModal()" aria-label="Close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="comparison-controls">
-                    <div class="month-selectors">
-                        <div class="month-selector-group">
-                            <label for="compareMonth1">From</label>
-                            <select id="compareMonth1" onchange="updateComparison()">
-                                ${monthOptions}
-                            </select>
-                        </div>
-                        <div class="vs-divider">vs</div>
-                        <div class="month-selector-group">
-                            <label for="compareMonth2">To</label>
-                            <select id="compareMonth2" onchange="updateComparison()">
-                                ${monthOptions}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="comparison-overview" id="comparisonOverview"></div>
-                <div class="comparison-charts">
-                    <div class="comparison-chart-container">
-                        <canvas id="comparisonBarChart"></canvas>
-                    </div>
-                    <div class="comparison-chart-container" id="comparisonRadarWrap">
-                        <canvas id="comparisonRadarChart"></canvas>
-                    </div>
-                </div>
-                <div class="comparison-details" id="comparisonDetails"></div>
-            </div>
-        </div>
-    `;
-
-    modal.classList.add('show');
-    modal.onclick = (event) => {
-        if (event.target === modal) closeComparisonModal();
-    };
-
-    // Default to the two most recent months, read chronologically:
-    // From = the older of the two, To = the newest.
-    document.getElementById('compareMonth1').value = months[1];
-    document.getElementById('compareMonth2').value = months[0];
-
-    setTimeout(() => updateComparison(), 50);
-}
-
-// Update comparison. Whatever the user picks, the older month is always the
-// baseline so an increase in spending always reads as an increase.
-function updateComparison() {
-    const selectedA = document.getElementById('compareMonth1').value;
-    const selectedB = document.getElementById('compareMonth2').value;
-
-    if (selectedA === selectedB) {
-        showNotification('Please select two different months', 'error');
-        return;
+    function defaultKeys() {
+        const keys = Store.monthKeys();
+        const cur = Store.currentMonthKey();
+        const a = keys.indexOf(cur) !== -1 ? cur : keys[0];
+        const prev = Store.shiftMonth(a, -1);
+        const b = keys.indexOf(prev) !== -1 ? prev : keys[1] || keys[0];
+        return { a: a, b: b, keys: keys };
     }
 
-    // Month keys are YYYY-MM, so string order is chronological order.
-    const earlierKey = selectedA < selectedB ? selectedA : selectedB;
-    const laterKey = selectedA < selectedB ? selectedB : selectedA;
-
-    const earlierData = monthlyData.get(earlierKey);
-    const laterData = monthlyData.get(laterKey);
-    if (!earlierData || !laterData) return;
-
-    const earlier = window.computeSpendingSummary(earlierData.transactions);
-    const later = window.computeSpendingSummary(laterData.transactions);
-
-    updateComparisonOverview(earlier, later, earlierData.monthName, laterData.monthName);
-    updateComparisonCharts(earlier, later, earlierData.monthName, laterData.monthName);
-    updateComparisonDetails(earlier, later, earlierData.monthName, laterData.monthName);
-}
-
-// Overview: older month, change indicator, newer month (chronological order).
-function updateComparisonOverview(earlier, later, earlierName, laterName) {
-    const diff = later.total - earlier.total;
-    const percentChange = earlier.total > 0 ? (diff / earlier.total) * 100 : 0;
-
-    let changeClass = '';
-    let arrow = COMPARISON_ARROW_FLAT;
-    if (diff > 0.005) {
-        changeClass = 'increase';
-        arrow = COMPARISON_ARROW_UP;
-    } else if (diff < -0.005) {
-        changeClass = 'decrease';
-        arrow = COMPARISON_ARROW_DOWN;
+    function monthOptions(keys, selected) {
+        const k = kit();
+        return keys.map((key) => '<option value="' + key + '"' + (key === selected ? ' selected' : '') + '>' + k.esc(Store.monthLabel(key)) + '</option>').join('');
     }
 
-    const html = `
-        <div class="overview-card">
-            <div class="overview-month">
-                <h4>${escapeHtml(earlierName)}</h4>
-                <div class="overview-amount">${formatMoney(earlier.total)}</div>
-                <div class="overview-transactions">${earlier.count} transactions</div>
-            </div>
-        </div>
+    function renderCompare(el) {
+        const k = kit();
+        const d = defaultKeys();
+        if (d.keys.length < 2) {
+            el.innerHTML = '<section class="card ins-card">' + k.emptyBlock('You need two months to compare', 'Import another month of transactions and you can see what changed, category by category.') + '</section>';
+            return;
+        }
+        if (!cmp.a || d.keys.indexOf(cmp.a) === -1) cmp.a = d.a;
+        if (!cmp.b || d.keys.indexOf(cmp.b) === -1) cmp.b = d.b;
 
-        <div class="overview-change ${changeClass}">
-            <div class="change-arrow">${arrow}</div>
-            <div class="change-amount">${diff > 0.005 ? '+' : diff < -0.005 ? '-' : ''}${formatMoney(diff)}</div>
-            <div class="change-percent">${Math.abs(percentChange).toFixed(1)}%</div>
-        </div>
+        const sa = Store.summary(cmp.a);
+        const sb = Store.summary(cmp.b);
+        const names = Array.from(new Set(Object.keys(sa.byCategory).concat(Object.keys(sb.byCategory))));
+        const rows = names.map((n) => ({ name: n, a: sa.byCategory[n] || 0, b: sb.byCategory[n] || 0 })).map((r) => Object.assign(r, { diff: r.a - r.b })).filter((r) => Math.abs(r.diff) >= 0.005);
+        const more = rows.filter((r) => r.diff > 0).sort((x, y) => y.diff - x.diff);
+        const less = rows.filter((r) => r.diff < 0).sort((x, y) => x.diff - y.diff);
+        const maxDiff = rows.reduce((mx, r) => Math.max(mx, Math.abs(r.diff)), 1);
+        const total = sa.spent - sb.spent;
+        const la = Store.monthLabel(cmp.a);
+        const lb = Store.monthLabel(cmp.b);
 
-        <div class="overview-card">
-            <div class="overview-month">
-                <h4>${escapeHtml(laterName)}</h4>
-                <div class="overview-amount">${formatMoney(later.total)}</div>
-                <div class="overview-transactions">${later.count} transactions</div>
-            </div>
-        </div>
-    `;
+        let summary;
+        if (cmp.a === cmp.b) summary = 'Pick two different months to see what changed.';
+        else if (Math.abs(total) < 0.005) summary = 'You spent the same in ' + k.esc(la) + ' as in ' + k.esc(lb) + '.';
+        else summary = 'You spent ' + k.m(Math.abs(total)) + (total > 0 ? ' more' : ' less') + ' in ' + k.esc(la) + ' than in ' + k.esc(lb) + '.';
 
-    document.getElementById('comparisonOverview').innerHTML = html;
-}
+        const group = (title, list, tone) => {
+            if (!list.length) return '';
+            return '<section class="card ins-card" aria-label="' + k.esc(title) + '"><div class="card-header"><h2 class="card-title">' + k.esc(title) + '</h2></div><ul class="ins-list">' + list.map((r) => {
+                const w = Math.max(3, (Math.abs(r.diff) / maxDiff) * 100).toFixed(1);
+                return '<li><a class="ins-row ins-compare-row" href="' + k.esc(k.txLink({ category: r.name, month: cmp.a })) + '">' + k.chip(r.name) +
+                    '<span class="ins-row-main"><span class="ins-row-title">' + k.esc(r.name) + '</span>' +
+                    '<span class="ins-bar ins-bar-' + tone + '" aria-hidden="true"><span style="width:' + w + '%"></span></span>' +
+                    '<span class="ins-row-sub">' + k.m(r.b) + ' in ' + k.esc(Store.monthLabel(cmp.b, { short: true })) + ', ' + k.m(r.a) + ' in ' + k.esc(Store.monthLabel(cmp.a, { short: true })) + '</span></span>' +
+                    '<span class="ins-row-trail">' + k.m(r.diff, { sign: true }) + '</span></a></li>';
+            }).join('') + '</ul></section>';
+        };
 
-// Categories present in either month, ordered by combined spend.
-function comparisonCategories(earlier, later) {
-    return [...new Set([...Object.keys(earlier.byCategory), ...Object.keys(later.byCategory)])]
-        .filter((cat) => (earlier.byCategory[cat] || 0) > 0 || (later.byCategory[cat] || 0) > 0)
-        .sort(
-            (a, b) =>
-                (later.byCategory[b] || 0) +
-                (earlier.byCategory[b] || 0) -
-                ((later.byCategory[a] || 0) + (earlier.byCategory[a] || 0))
-        );
-}
+        el.innerHTML = '<section class="card ins-card" aria-labelledby="insCmpTitle"><div class="card-header"><h2 class="card-title" id="insCmpTitle">Compare two months</h2></div>' +
+            '<div class="ins-cmp-pick"><div class="field"><label for="insCmpA">This month</label><select id="insCmpA" class="select">' + monthOptions(d.keys, cmp.a) + '</select></div>' +
+            '<div class="field"><label for="insCmpB">Compared with</label><select id="insCmpB" class="select">' + monthOptions(d.keys, cmp.b) + '</select></div></div>' +
+            '<p class="ins-cmp-summary" aria-live="polite">' + summary + '</p>' +
+            '<div class="ins-cmp-totals"><div><span class="stat-label">' + k.esc(la) + '</span><span class="ins-cmp-num">' + k.m(sa.spent) + '</span></div><div><span class="stat-label">' + k.esc(lb) + '</span><span class="ins-cmp-num">' + k.m(sb.spent) + '</span></div></div></section>' +
+            (rows.length ? group('Spent more', more, 'up') + group('Spent less', less, 'down') : '<section class="card ins-card">' + k.emptyBlock('No differences', 'These months have the same spending in every category.') + '</section>');
 
-// Update comparison charts (theme-aware colors resolved at render time)
-function updateComparisonCharts(earlier, later, earlierName, laterName) {
-    if (comparisonCharts.bar) comparisonCharts.bar.destroy();
-    if (comparisonCharts.radar) comparisonCharts.radar.destroy();
-
-    const categories = comparisonCategories(earlier, later);
-    const barCategories = categories.slice(0, 10);
-
-    const earlierColor = comparisonToken('--cat-2', '#8b5cf6');
-    const laterColor = comparisonToken('--brand', '#0891b2');
-    const textMuted = comparisonToken('--text-muted', '#55617a');
-    const gridColor = comparisonTokenAlpha('--border-strong', 0.45, '#d3dbe6');
-
-    const barCtx = document.getElementById('comparisonBarChart').getContext('2d');
-    comparisonCharts.bar = new Chart(barCtx, {
-        type: 'bar',
-        data: {
-            labels: barCategories,
-            datasets: [
-                {
-                    label: earlierName,
-                    data: barCategories.map((cat) => earlier.byCategory[cat] || 0),
-                    backgroundColor: comparisonTokenAlpha('--cat-2', 0.75, '#8b5cf6'),
-                    borderRadius: 5,
-                    maxBarThickness: 22,
-                },
-                {
-                    label: laterName,
-                    data: barCategories.map((cat) => later.byCategory[cat] || 0),
-                    backgroundColor: comparisonTokenAlpha('--brand', 0.8, '#0891b2'),
-                    borderRadius: 5,
-                    maxBarThickness: 22,
-                },
-            ],
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: textMuted, boxWidth: 12, boxHeight: 12, usePointStyle: true },
-                },
-            },
-            scales: {
-                x: {
-                    ticks: { color: textMuted, font: { size: 11 } },
-                    grid: { display: false },
-                },
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        color: textMuted,
-                        font: { size: 11 },
-                        callback: (value) => '$' + Number(value).toFixed(0),
-                    },
-                    grid: { color: gridColor },
-                },
-            },
-        },
-    });
-
-    // Radar needs at least 3 axes to be readable
-    const radarWrap = document.getElementById('comparisonRadarWrap');
-    if (categories.length < 3) {
-        radarWrap.style.display = 'none';
-        return;
+        const onSelect = () => {
+            cmp.a = el.querySelector('#insCmpA').value;
+            cmp.b = el.querySelector('#insCmpB').value;
+            k.rerender();
+            const again = el.querySelector('#insCmpA');
+            if (again) again.focus();
+        };
+        el.querySelector('#insCmpA').addEventListener('change', onSelect);
+        el.querySelector('#insCmpB').addEventListener('change', onSelect);
     }
-    radarWrap.style.display = '';
 
-    const radarCategories = categories.slice(0, 8);
-    const radarCtx = document.getElementById('comparisonRadarChart').getContext('2d');
-    comparisonCharts.radar = new Chart(radarCtx, {
-        type: 'radar',
-        data: {
-            labels: radarCategories,
-            datasets: [
-                {
-                    label: earlierName,
-                    data: radarCategories.map((cat) => earlier.byCategory[cat] || 0),
-                    borderColor: earlierColor,
-                    backgroundColor: comparisonTokenAlpha('--cat-2', 0.18, '#8b5cf6'),
-                    pointBackgroundColor: earlierColor,
-                    pointRadius: 2.5,
+    function recap(key, s, prev, biggest, subsMonthly) {
+        const k = kit();
+        const label = k.esc(Store.monthLabel(key, { monthOnly: true }));
+        let text = 'In ' + label + ' you spent ' + k.m(s.spent);
+        if (s.income > 0) {
+            text += ' and earned ' + k.m(s.income);
+            const net = s.income - s.spent;
+            text += net >= 0 ? ', so you kept ' + k.m(net) + ' (' + k.pct(net / s.income) + ').' : ', so you were ' + k.m(-net) + ' over.';
+        } else {
+            text += '.';
+        }
+        if (prev && prev.spent > 0) {
+            const info = k.changeInfo(s.spent, prev.spent);
+            const pl = k.esc(Store.monthLabel(Store.shiftMonth(key, -1), { monthOnly: true }));
+            if (info.dir === 'same') text += ' That is about the same as ' + pl + '.';
+            else text += ' That is ' + k.pct(Math.abs(info.ratio)) + (info.diff > 0 ? ' more' : ' less') + ' than ' + pl + '.';
+        }
+        if (biggest) text += ' Your biggest purchase was ' + k.m(biggest.spend) + ' at ' + k.esc(biggest.merchant) + '.';
+        if (subsMonthly > 0) text += ' Repeating charges add up to about ' + k.m(subsMonthly) + ' a month.';
+        return text;
+    }
+
+    function renderReview(el) {
+        const k = kit();
+        const keys = Store.monthKeys();
+        if (!keys.length) {
+            el.innerHTML = '';
+            return;
+        }
+        if (!reviewKey || keys.indexOf(reviewKey) === -1) {
+            const cur = Store.currentMonthKey();
+            reviewKey = keys.indexOf(cur) !== -1 ? cur : keys[0];
+        }
+        const key = reviewKey;
+        const s = Store.summary(key);
+        const prevKey = Store.shiftMonth(key, -1);
+        const prev = keys.indexOf(prevKey) !== -1 ? Store.summary(prevKey) : null;
+        const txs = Store.transactions({ monthKey: key }).filter((t) => t.spend > 0 && !t.isIncome && !t.isExcluded);
+        const biggest = txs.slice().sort((a, b) => b.spend - a.spend).slice(0, 5);
+        const cats = Object.keys(s.byCategory).filter((n) => s.byCategory[n] > 0).sort((a, b) => s.byCategory[b] - s.byCategory[a]).slice(0, 5);
+        const budgets = Store.budgetsFor(key);
+        const budgetNames = Object.keys(budgets);
+        const subsMonthly = typeof detectRecurring === 'function' ? recurringMonthlyTotal(detectRecurring()) : 0;
+        const net = s.income - s.spent;
+
+        let html = '<div class="ins-review-bar no-print"><div id="insReviewStepper"></div><button type="button" class="btn btn-primary" id="insPrint">Print or save as PDF</button></div>';
+        html += '<article class="ins-review" aria-labelledby="insReviewTitle">' +
+            '<header class="ins-review-head"><p class="ins-review-kicker">Month in review</p><h2 id="insReviewTitle" class="ins-review-title">' + k.esc(Store.monthLabel(key)) + '</h2></header>' +
+            '<p class="ins-review-recap">' + recap(key, s, prev, biggest[0], subsMonthly) + '</p>' +
+            '<div class="ins-review-stats">' +
+            '<div><span class="stat-label">Spent</span><span class="ins-review-num">' + k.m(s.spent) + '</span></div>' +
+            '<div><span class="stat-label">Income</span><span class="ins-review-num">' + k.m(s.income) + '</span></div>' +
+            '<div><span class="stat-label">' + (net >= 0 ? 'Saved' : 'Overspent') + '</span><span class="ins-review-num">' + k.m(Math.abs(net)) + '</span></div></div>';
+
+        html += '<section class="ins-review-block" aria-labelledby="insRevCats"><h3 id="insRevCats">Where it went</h3>';
+        html += cats.length ? '<ul class="ins-review-list">' + cats.map((n) => {
+            const share = s.spent > 0 ? s.byCategory[n] / s.spent : 0;
+            return '<li><span class="ins-review-name">' + k.esc(n) + '</span><span class="ins-bar" aria-hidden="true"><span style="width:' + Math.max(2, share * 100).toFixed(1) + '%;background:' + k.esc(k.catColorVar(n)) + '"></span></span><span class="ins-review-val">' + k.m(s.byCategory[n]) + ' <span class="muted">' + k.pct(share) + '</span></span></li>';
+        }).join('') + '</ul>' : '<p class="muted">No spending this month.</p>';
+        html += '</section>';
+
+        html += '<section class="ins-review-block" aria-labelledby="insRevBig"><h3 id="insRevBig">Biggest purchases</h3>';
+        html += biggest.length ? '<ul class="ins-review-list ins-review-plain">' + biggest.map((t) => '<li><span class="ins-review-name">' + k.esc(t.merchant) + '</span><span class="muted ins-review-date">' + k.esc(k.fmtDate(t.date)) + '</span><span class="ins-review-val">' + k.m(t.spend) + '</span></li>').join('') + '</ul>' : '<p class="muted">No purchases this month.</p>';
+        html += '</section>';
+
+        if (budgetNames.length) {
+            const rows = budgetNames.map((n) => ({ name: n, spent: s.byCategory[n] || 0, limit: budgets[n].effective })).sort((a, b) => b.spent / b.limit - a.spent / a.limit);
+            const within = rows.filter((r) => r.spent <= r.limit).length;
+            html += '<section class="ins-review-block" aria-labelledby="insRevBud"><h3 id="insRevBud">Budgets</h3><p>You stayed within ' + within + ' of ' + rows.length + (rows.length === 1 ? ' budget.' : ' budgets.') + '</p><ul class="ins-review-list ins-review-plain">' +
+                rows.map((r) => '<li><span class="ins-review-name">' + k.esc(r.name) + '</span><span class="muted ins-review-date">' + (r.spent <= r.limit ? 'Within budget' : 'Over by ' + k.esc(k.money(r.spent - r.limit))) + '</span><span class="ins-review-val">' + k.m(r.spent) + ' <span class="muted">of ' + k.m(r.limit) + '</span></span></li>').join('') + '</ul></section>';
+        }
+
+        if (subsMonthly > 0) {
+            html += '<section class="ins-review-block" aria-labelledby="insRevSub"><h3 id="insRevSub">Repeating charges</h3><p>About ' + k.m(subsMonthly) + ' a month, or ' + k.m(subsMonthly * 12) + ' a year.</p></section>';
+        }
+        html += '<footer class="ins-review-foot">Made with Sahab Budget</footer></article>';
+        el.innerHTML = html;
+
+        const host = el.querySelector('#insReviewStepper');
+        if (typeof UI !== 'undefined' && typeof UI.monthStepper === 'function') {
+            UI.monthStepper(host, {
+                value: key,
+                keys: keys,
+                onChange: (v) => {
+                    reviewKey = v;
+                    k.rerender();
                 },
-                {
-                    label: laterName,
-                    data: radarCategories.map((cat) => later.byCategory[cat] || 0),
-                    borderColor: laterColor,
-                    backgroundColor: comparisonTokenAlpha('--brand', 0.18, '#0891b2'),
-                    pointBackgroundColor: laterColor,
-                    pointRadius: 2.5,
-                },
-            ],
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: { color: textMuted, boxWidth: 12, boxHeight: 12, usePointStyle: true },
-                },
-            },
-            scales: {
-                r: {
-                    angleLines: { color: gridColor },
-                    grid: { color: gridColor },
-                    pointLabels: { color: textMuted, font: { size: 11 } },
-                    ticks: { display: false },
-                },
-            },
-        },
-    });
-}
+            });
+        } else {
+            host.innerHTML = '<label class="visually-hidden" for="insRevSel">Month</label><select id="insRevSel" class="select">' + monthOptions(keys, key) + '</select>';
+            host.querySelector('select').addEventListener('change', (e) => {
+                reviewKey = e.target.value;
+                k.rerender();
+            });
+        }
+        el.querySelector('#insPrint').addEventListener('click', () => window.print());
+    }
 
-// Detailed table: per-category change, biggest movers first.
-function updateComparisonDetails(earlier, later, earlierName, laterName) {
-    const categories = comparisonCategories(earlier, later).sort(
-        (a, b) =>
-            Math.abs((later.byCategory[b] || 0) - (earlier.byCategory[b] || 0)) -
-            Math.abs((later.byCategory[a] || 0) - (earlier.byCategory[a] || 0))
-    );
-
-    const rows = categories
-        .map((cat) => {
-            const earlierVal = earlier.byCategory[cat] || 0;
-            const laterVal = later.byCategory[cat] || 0;
-            const diff = laterVal - earlierVal;
-            const diffClass = diff > 0.005 ? 'negative' : diff < -0.005 ? 'positive' : '';
-            const diffLabel =
-                Math.abs(diff) < 0.005 ? '$0.00' : (diff > 0 ? '+' : '-') + formatMoney(diff);
-
-            return `
-            <tr>
-                <td class="cat-cell">
-                    ${getCategoryIconChip(cat, { size: 28, icon: 14 })}
-                    <span>${escapeHtml(cat)}</span>
-                </td>
-                <td class="amount">${formatMoney(earlierVal)}</td>
-                <td class="amount">${formatMoney(laterVal)}</td>
-                <td class="difference ${diffClass}">${diffLabel}</td>
-            </tr>
-        `;
-        })
-        .join('');
-
-    const html = `
-        <h3>By Category</h3>
-        <div class="table-scroll">
-            <table class="comparison-table">
-                <thead>
-                    <tr>
-                        <th class="cat-col">Category</th>
-                        <th>${escapeHtml(earlierName)}</th>
-                        <th>${escapeHtml(laterName)}</th>
-                        <th>Change</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows || '<tr><td colspan="4" class="table-empty">No spending in either month</td></tr>'}
-                </tbody>
-            </table>
-        </div>
-    `;
-
-    document.getElementById('comparisonDetails').innerHTML = html;
-}
-
-// Close comparison modal
-function closeComparisonModal() {
-    if (comparisonCharts.bar) comparisonCharts.bar.destroy();
-    if (comparisonCharts.radar) comparisonCharts.radar.destroy();
-    comparisonCharts = {};
-
-    document.getElementById('comparisonModal').classList.remove('show');
-}
+    window.Insights.register('compare', renderCompare);
+    window.Insights.register('review', renderReview);
+})();

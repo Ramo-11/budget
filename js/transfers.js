@@ -1,24 +1,19 @@
-// js/transfers.js - Cross-account transfer detection.
-// When you move money between your own accounts (e.g. pay a credit card from
-// checking), it appears as an expense in one account and a credit in another.
-// This finds those matched pairs so they can be flagged as internal transfers
-// and excluded from spending totals (double-counting). Detection is read-only;
-// the user confirms which pairs are transfers, and confirmations are persisted
-// per account so analysis can skip them.
-
 (function () {
-    const FLAG_PREFIX = 'sahabBudget_transferFlags__'; // + accountId -> [fingerprint]
+    const FLAG_PREFIX = 'sahabBudget_transferFlags__';
+    const DISMISS_KEY = 'sahabBudget_transferDismissed';
 
     function readAccountPayload(id) {
         try {
             const v = localStorage.getItem('sahabBudget_data__' + id);
             return v ? JSON.parse(v) : null;
-        } catch (e) { return null; }
+        } catch (e) {
+            return null;
+        }
     }
 
     function txDate(t) {
         const raw = t['Transaction Date'] || t['Posting Date'] || t['Post Date'] || t.Date || t.date;
-        return (typeof parseLocalDate === 'function') ? parseLocalDate(raw) : new Date(raw);
+        return typeof parseLocalDate === 'function' ? parseLocalDate(raw) : new Date(raw);
     }
 
     function fingerprint(t) {
@@ -29,20 +24,45 @@
         return key + '|' + desc + '|' + amt;
     }
 
+    function pairKey(fromId, from, toId, to) {
+        return fromId + '|' + fingerprint(from) + '>' + toId + '|' + fingerprint(to);
+    }
+
+    function readDismissed() {
+        try {
+            const v = localStorage.getItem(DISMISS_KEY);
+            const list = v ? JSON.parse(v) : [];
+            return new Set(Array.isArray(list) ? list : []);
+        } catch (e) {
+            return new Set();
+        }
+    }
+
+    function writeDismissed(set) {
+        try {
+            localStorage.setItem(DISMISS_KEY, JSON.stringify(Array.from(set)));
+        } catch (e) {
+            void e;
+        }
+    }
+
     window.getTransferFlags = function (accountId) {
         try {
             const v = localStorage.getItem(FLAG_PREFIX + accountId);
             return v ? new Set(JSON.parse(v)) : new Set();
-        } catch (e) { return new Set(); }
+        } catch (e) {
+            return new Set();
+        }
     };
 
     function saveTransferFlags(accountId, set) {
-        try { localStorage.setItem(FLAG_PREFIX + accountId, JSON.stringify(Array.from(set))); }
-        catch (e) { /* ignore */ }
+        try {
+            localStorage.setItem(FLAG_PREFIX + accountId, JSON.stringify(Array.from(set)));
+        } catch (e) {
+            void e;
+        }
     }
 
-    // True if a transaction in the active (or given) account is flagged as an
-    // internal transfer. Cheap enough to call during analysis.
     window.isFlaggedTransfer = function (transaction, accountId) {
         const id = accountId || (typeof getActiveAccountId === 'function' ? getActiveAccountId() : null);
         if (!id) return false;
@@ -60,21 +80,39 @@
         const b = window.getTransferFlags(pair.toAccountId);
         b.add(fingerprint(pair.to));
         saveTransferFlags(pair.toAccountId, b);
-        window.__transferFlagCache = null; // invalidate
+        window.__transferFlagCache = null;
     };
 
-    // Find candidate transfer pairs across all accounts.
-    // options: { toleranceDays=5 }
-    // Returns [{ amount, from:{tx}, to:{tx}, fromAccountId, fromAccountName,
-    //            toAccountId, toAccountName, dayGap, alreadyFlagged }]
+    window.unconfirmTransferPair = function (pair) {
+        const a = window.getTransferFlags(pair.fromAccountId);
+        a.delete(fingerprint(pair.from));
+        saveTransferFlags(pair.fromAccountId, a);
+        const b = window.getTransferFlags(pair.toAccountId);
+        b.delete(fingerprint(pair.to));
+        saveTransferFlags(pair.toAccountId, b);
+        window.__transferFlagCache = null;
+    };
+
+    window.dismissTransferPair = function (pair) {
+        const set = readDismissed();
+        set.add(pairKey(pair.fromAccountId, pair.from, pair.toAccountId, pair.to));
+        writeDismissed(set);
+    };
+
+    window.undismissTransferPair = function (pair) {
+        const set = readDismissed();
+        set.delete(pairKey(pair.fromAccountId, pair.from, pair.toAccountId, pair.to));
+        writeDismissed(set);
+    };
+
     window.findCrossAccountTransfers = function (options) {
         const opts = options || {};
         const tolDays = opts.toleranceDays || 5;
         if (typeof getAccounts !== 'function') return [];
         const accounts = getAccounts().filter((a) => !a.sample);
         if (accounts.length < 2) return [];
+        const dismissed = readDismissed();
 
-        // Build debit/credit lists per account
         const byAccount = accounts.map((acc) => {
             const payload = readAccountPayload(acc.id);
             const debits = [];
@@ -90,7 +128,7 @@
                     });
                 });
             }
-            return { acc: acc, debits: debits, credits: credits };
+            return { acc: acc, debits: debits, credits: credits, flags: window.getTransferFlags(acc.id) };
         });
 
         const pairs = [];
@@ -100,25 +138,29 @@
             for (let j = 0; j < byAccount.length; j++) {
                 if (i === j) continue;
                 byAccount[i].debits.forEach((d) => {
-                    // find a matching credit in account j
+                    if (d.amt < 1) return;
                     for (const c of byAccount[j].credits) {
                         const cid = byAccount[j].acc.id + '|' + fingerprint(c.t);
                         if (usedCredits.has(cid)) continue;
                         if (Math.abs(d.amt - c.amt) > 0.01) continue;
-                        if (d.amt < 1) continue;
                         const gap = Math.abs((d.date - c.date) / 86400000);
                         if (isNaN(gap) || gap > tolDays) continue;
                         usedCredits.add(cid);
+                        const key = pairKey(byAccount[i].acc.id, d.t, byAccount[j].acc.id, c.t);
                         pairs.push({
+                            key: key,
                             amount: d.amt,
                             from: d.t,
                             to: c.t,
+                            fromDate: d.date,
+                            toDate: c.date,
                             fromAccountId: byAccount[i].acc.id,
                             fromAccountName: byAccount[i].acc.name,
                             toAccountId: byAccount[j].acc.id,
                             toAccountName: byAccount[j].acc.name,
                             dayGap: Math.round(gap),
-                            alreadyFlagged: window.getTransferFlags(byAccount[i].acc.id).has(fingerprint(d.t)),
+                            alreadyFlagged: byAccount[i].flags.has(fingerprint(d.t)),
+                            dismissed: dismissed.has(key),
                         });
                         break;
                     }

@@ -1,9 +1,3 @@
-// js/accounts.js - Multiple fully-separate budget accounts (workspaces).
-// Each account has its own transactions, categories, rules, budgets and
-// income settings, stored under sahabBudget_data__<accountId>. Legacy single
-// blob (sahabBudget_data) is migrated into the first account on first run.
-// Must load BEFORE core.js/rules.js/analytics.js/settings.js.
-
 (function () {
     const ACCOUNTS_KEY = 'sahabBudget_accounts';
     const ACTIVE_KEY = 'sahabBudget_activeAccount';
@@ -15,7 +9,7 @@
         catch (e) { return fallback; }
     }
     function writeJSON(key, val) {
-        try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* quota */ }
+        try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { void e; }
     }
     function genId() {
         return 'acct_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
@@ -34,15 +28,15 @@
             saveAccounts(accounts);
             const legacy = localStorage.getItem(LEGACY_KEY);
             if (legacy != null) {
-                try { localStorage.setItem(dataKeyFor(id), legacy); } catch (e) { /* quota */ }
+                try { localStorage.setItem(dataKeyFor(id), legacy); } catch (e) { void e; }
             }
             active = id;
-            try { localStorage.setItem(ACTIVE_KEY, id); } catch (e) { /* ignore */ }
+            try { localStorage.setItem(ACTIVE_KEY, id); } catch (e) { void e; }
             return id;
         }
         if (!active || !accounts.some((a) => a.id === active)) {
             active = accounts[0].id;
-            try { localStorage.setItem(ACTIVE_KEY, active); } catch (e) { /* ignore */ }
+            try { localStorage.setItem(ACTIVE_KEY, active); } catch (e) { void e; }
         }
         return active;
     }
@@ -53,7 +47,7 @@
 
     function setActiveAccount(id) {
         if (!getAccounts().some((a) => a.id === id)) return;
-        try { localStorage.setItem(ACTIVE_KEY, id); } catch (e) { /* ignore */ }
+        try { localStorage.setItem(ACTIVE_KEY, id); } catch (e) { void e; }
     }
 
     function createAccount(name, opts) {
@@ -95,15 +89,12 @@
         if (accounts.length <= 1) return false;
         accounts = accounts.filter((a) => a.id !== id);
         saveAccounts(accounts);
-        try { localStorage.removeItem(dataKeyFor(id)); } catch (e) { /* ignore */ }
+        try { localStorage.removeItem(dataKeyFor(id)); } catch (e) { void e; }
         if (localStorage.getItem(ACTIVE_KEY) === id) {
-            try { localStorage.setItem(ACTIVE_KEY, accounts[0].id); } catch (e) { /* ignore */ }
+            try { localStorage.setItem(ACTIVE_KEY, accounts[0].id); } catch (e) { void e; }
         }
         return true;
     }
-
-    /* ---- Sample mode uses a dedicated throwaway account so real accounts are
-       never touched (fixes the old data-loss bug). ---- */
     const SAMPLE_ID = 'acct__sample';
     const PRE_SAMPLE_KEY = 'sahabBudget_preSampleAccount';
 
@@ -112,7 +103,7 @@
         if (localStorage.getItem('sahabBudget_sampleMode') !== 'true') {
             const cur = localStorage.getItem(ACTIVE_KEY);
             if (cur && cur !== SAMPLE_ID) {
-                try { localStorage.setItem(PRE_SAMPLE_KEY, cur); } catch (e) { /* ignore */ }
+                try { localStorage.setItem(PRE_SAMPLE_KEY, cur); } catch (e) { void e; }
             }
         }
         if (!accounts.some((a) => a.id === SAMPLE_ID)) {
@@ -120,24 +111,22 @@
             saveAccounts(accounts);
         }
         writeJSON(dataKeyFor(SAMPLE_ID), payload || {});
-        try { localStorage.setItem(ACTIVE_KEY, SAMPLE_ID); } catch (e) { /* ignore */ }
-        try { localStorage.setItem('sahabBudget_sampleMode', 'true'); } catch (e) { /* ignore */ }
+        try { localStorage.setItem(ACTIVE_KEY, SAMPLE_ID); } catch (e) { void e; }
+        try { localStorage.setItem('sahabBudget_sampleMode', 'true'); } catch (e) { void e; }
     }
 
     function endSampleMode() {
         const accounts = getAccounts().filter((a) => a.id !== SAMPLE_ID);
         saveAccounts(accounts);
-        try { localStorage.removeItem(dataKeyFor(SAMPLE_ID)); } catch (e) { /* ignore */ }
-        try { localStorage.removeItem('sahabBudget_sampleMode'); } catch (e) { /* ignore */ }
+        try { localStorage.removeItem(dataKeyFor(SAMPLE_ID)); } catch (e) { void e; }
+        try { localStorage.removeItem('sahabBudget_sampleMode'); } catch (e) { void e; }
         const prev = localStorage.getItem(PRE_SAMPLE_KEY);
-        try { localStorage.removeItem(PRE_SAMPLE_KEY); } catch (e) { /* ignore */ }
+        try { localStorage.removeItem(PRE_SAMPLE_KEY); } catch (e) { void e; }
         const target = (prev && accounts.some((a) => a.id === prev)) ? prev
             : (accounts[0] ? accounts[0].id : null);
-        if (target) { try { localStorage.setItem(ACTIVE_KEY, target); } catch (e) { /* ignore */ } }
+        if (target) { try { localStorage.setItem(ACTIVE_KEY, target); } catch (e) { void e; } }
         else { ensureInit(); }
     }
-
-    // Public API
     window.getAccounts = getAccounts;
     window.getActiveAccountId = getActiveAccountId;
     window.getActiveDataKey = getActiveDataKey;
@@ -149,11 +138,9 @@
     window.beginSampleMode = beginSampleMode;
     window.endSampleMode = endSampleMode;
     window.isSampleAccount = function (id) { return (id || getActiveAccountId()) === SAMPLE_ID; };
-
-    // Initialize immediately so getActiveDataKey() is valid before core.js loads.
     ensureInit();
 
-    /* ============================ Switcher UI ============================ */
+    const PENDING_UNDO_KEY = 'sahabBudget_pendingAccountUndo';
 
     function el(tag, cls, text) {
         const n = document.createElement(tag);
@@ -168,300 +155,249 @@
         return d;
     }
 
-    function switchTo(id) {
-        if (id === getActiveAccountId()) { closeMenu(); return; }
-        setActiveAccount(id);
-        window.location.reload();
+    function notify(message, options) {
+        if (window.UI) window.UI.toast(message, options);
     }
 
-    let menuOpen = false;
-    function closeMenu() {
-        const menu = document.getElementById('accountMenu');
-        if (menu) menu.classList.remove('open');
-        const sw = document.getElementById('accountSwitcher');
-        if (sw) sw.setAttribute('aria-expanded', 'false');
-        menuOpen = false;
-    }
-    function openMenu() {
-        buildMenu();
-        const menu = document.getElementById('accountMenu');
-        if (menu) menu.classList.add('open');
-        const sw = document.getElementById('accountSwitcher');
-        if (sw) sw.setAttribute('aria-expanded', 'true');
-        menuOpen = true;
+    function userAccounts() {
+        return getAccounts().filter((a) => !a.sample);
     }
 
-    function buildMenu() {
-        const menu = document.getElementById('accountMenu');
-        if (!menu) return;
-        menu.innerHTML = '';
-        const activeId = getActiveAccountId();
-        const list = el('div', 'account-menu-list');
-        getAccounts().forEach((acc) => {
-            const item = el('button', 'account-menu-item' + (acc.id === activeId ? ' active' : ''));
-            item.type = 'button';
-            item.appendChild(dot(acc.colorIndex));
-            item.appendChild(el('span', 'account-menu-name', acc.name));
-            if (acc.id === activeId) {
-                const chk = document.createElement('span');
-                chk.className = 'account-menu-check';
-                chk.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>';
-                item.appendChild(chk);
-            }
-            item.addEventListener('click', () => switchTo(acc.id));
-            list.appendChild(item);
-        });
-        menu.appendChild(list);
+    function openCreateAccount() {
+        const accounts = userAccounts();
+        const form = el('form', 'stack');
+        form.noValidate = true;
 
-        const footer = el('div', 'account-menu-footer');
-        const addBtn = el('button', 'account-menu-action');
-        addBtn.type = 'button';
-        addBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg><span>New account</span>';
-        addBtn.addEventListener('click', () => { closeMenu(); openCreateModal(); });
-        footer.appendChild(addBtn);
+        const nameField = el('div', 'field');
+        const nameLabel = el('label', null, 'Account name');
+        nameLabel.htmlFor = 'newAccountName';
+        const nameInput = el('input', 'input');
+        nameInput.id = 'newAccountName';
+        nameInput.type = 'text';
+        nameInput.maxLength = 40;
+        nameInput.placeholder = 'For example, Joint checking';
+        nameInput.autocomplete = 'off';
+        const nameError = el('div', 'field-error');
+        nameError.setAttribute('role', 'alert');
+        nameField.append(nameLabel, nameInput, nameError);
+        form.appendChild(nameField);
 
-        const manageBtn = el('button', 'account-menu-action');
-        manageBtn.type = 'button';
-        manageBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg><span>Manage accounts</span>';
-        manageBtn.addEventListener('click', () => { closeMenu(); openManageModal(); });
-        footer.appendChild(manageBtn);
-
-        menu.appendChild(footer);
-    }
-
-    function injectSwitcher() {
-        const brand = document.querySelector('.header-brand');
-        if (!brand || document.getElementById('accountSwitcher')) return;
-
-        const wrap = el('div', 'account-switcher-wrap');
-
-        const btn = el('button', 'account-switcher');
-        btn.id = 'accountSwitcher';
-        btn.type = 'button';
-        btn.setAttribute('aria-haspopup', 'true');
-        btn.setAttribute('aria-expanded', 'false');
-
-        const active = getAccountById(getActiveAccountId());
-        btn.appendChild(dot(active ? active.colorIndex : 1));
-        btn.appendChild(el('span', 'account-switcher-name', active ? active.name : 'My Budget'));
-        const caret = document.createElement('span');
-        caret.className = 'account-switcher-caret';
-        caret.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-        btn.appendChild(caret);
-        btn.addEventListener('click', (e) => { e.stopPropagation(); menuOpen ? closeMenu() : openMenu(); });
-
-        const menu = el('div', 'account-menu');
-        menu.id = 'accountMenu';
-        menu.addEventListener('click', (e) => e.stopPropagation());
-
-        wrap.appendChild(btn);
-        wrap.appendChild(menu);
-        brand.appendChild(wrap);
-
-        document.addEventListener('click', () => { if (menuOpen) closeMenu(); });
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && menuOpen) closeMenu(); });
-    }
-
-    /* ---- Lightweight modal helper (self-contained, themed) ---- */
-    function buildModal(title) {
-        const overlay = el('div', 'app-modal-overlay');
-        const modal = el('div', 'app-modal');
-        const header = el('div', 'app-modal-header');
-        header.appendChild(el('h2', 'app-modal-title', title));
-        const close = el('button', 'app-modal-close');
-        close.type = 'button';
-        close.setAttribute('aria-label', 'Close');
-        close.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-        header.appendChild(close);
-        modal.appendChild(header);
-        const body = el('div', 'app-modal-body');
-        modal.appendChild(body);
-        overlay.appendChild(modal);
-
-        function destroy() { overlay.remove(); }
-        close.addEventListener('click', destroy);
-        overlay.addEventListener('click', (e) => { if (e.target === overlay) destroy(); });
-        document.addEventListener('keydown', function onKey(e) {
-            if (e.key === 'Escape') { destroy(); document.removeEventListener('keydown', onKey); }
-        });
-        return { overlay, body, destroy };
-    }
-
-    function openCreateModal() {
-        const accounts = getAccounts();
-        const { overlay, body, destroy } = buildModal('New account');
-
-        const field = el('div', 'app-field');
-        field.appendChild(el('label', 'app-label', 'Account name'));
-        const input = document.createElement('input');
-        input.className = 'app-input';
-        input.type = 'text';
-        input.placeholder = 'e.g. Chase Credit Card';
-        input.maxLength = 40;
-        field.appendChild(input);
-        body.appendChild(field);
-
-        let copyControls = null;
+        let copySelect = null;
+        const checks = {};
         if (accounts.length) {
-            const copyWrap = el('div', 'app-field');
-            const copyToggleLabel = el('label', 'app-check');
-            const copyToggle = document.createElement('input');
-            copyToggle.type = 'checkbox';
-            copyToggleLabel.appendChild(copyToggle);
-            copyToggleLabel.appendChild(el('span', null, 'Copy setup from an existing account'));
-            copyWrap.appendChild(copyToggleLabel);
-
-            const details = el('div', 'app-copy-details');
-            details.style.display = 'none';
-
-            const srcField = el('div', 'app-field');
-            srcField.appendChild(el('label', 'app-label', 'Copy from'));
-            const select = document.createElement('select');
-            select.className = 'app-input';
+            const copyField = el('div', 'field');
+            const copyLabel = el('label', null, 'Copy setup from');
+            copyLabel.htmlFor = 'newAccountCopy';
+            copySelect = el('select', 'select');
+            copySelect.id = 'newAccountCopy';
+            const none = el('option', null, 'Start fresh');
+            none.value = '';
+            copySelect.appendChild(none);
             accounts.forEach((a) => {
-                const opt = document.createElement('option');
+                const opt = el('option', null, a.name);
                 opt.value = a.id;
-                opt.textContent = a.name;
-                select.appendChild(opt);
+                copySelect.appendChild(opt);
             });
-            select.value = getActiveAccountId();
-            srcField.appendChild(select);
-            details.appendChild(srcField);
+            copyField.append(copyLabel, copySelect, el('div', 'field-hint', 'Transactions are never copied. Each account keeps its own.'));
+            form.appendChild(copyField);
 
-            const opts = [
-                ['cats', 'Categories', true],
-                ['rules', 'Auto-categorization rules', true],
-                ['budgets', 'Budgets', false],
-            ];
-            const checks = {};
-            opts.forEach(([key, label, def]) => {
-                const l = el('label', 'app-check');
+            const group = el('div', 'account-form-copy');
+            group.hidden = true;
+            [['cats', 'Categories', true], ['rules', 'Auto-sort rules', true], ['budgets', 'Budgets', false]].forEach(([key, text, def]) => {
+                const l = el('label', 'check');
                 const c = document.createElement('input');
                 c.type = 'checkbox';
                 c.checked = def;
                 checks[key] = c;
-                l.appendChild(c);
-                l.appendChild(el('span', null, label));
-                details.appendChild(l);
+                l.append(c, el('span', null, text));
+                group.appendChild(l);
             });
-            details.appendChild(el('p', 'app-hint', 'Transactions are never copied. Each account keeps its own transactions.'));
-
-            copyToggle.addEventListener('change', () => {
-                details.style.display = copyToggle.checked ? 'block' : 'none';
-            });
-            copyWrap.appendChild(details);
-            body.appendChild(copyWrap);
-            copyControls = { copyToggle, select, checks };
+            form.appendChild(group);
+            copySelect.addEventListener('change', () => { group.hidden = !copySelect.value; });
         }
 
-        const actions = el('div', 'app-modal-actions');
-        const cancel = el('button', 'btn btn-secondary', 'Cancel');
-        cancel.type = 'button';
-        cancel.addEventListener('click', destroy);
-        const create = el('button', 'btn btn-primary', 'Create account');
-        create.type = 'button';
-        create.addEventListener('click', () => {
-            const name = input.value.trim();
-            if (!name) { input.focus(); input.classList.add('app-input-error'); return; }
+        function submit(ctx) {
+            const name = nameInput.value.trim();
+            if (!name) {
+                nameError.textContent = 'Give the account a name.';
+                nameInput.setAttribute('aria-invalid', 'true');
+                nameInput.focus();
+                return false;
+            }
             const opts = {};
-            if (copyControls && copyControls.copyToggle.checked) {
-                opts.copyFrom = copyControls.select.value;
-                opts.copyCategories = copyControls.checks.cats.checked;
-                opts.copyRules = copyControls.checks.rules.checked;
-                opts.copyBudgets = copyControls.checks.budgets.checked;
+            if (copySelect && copySelect.value) {
+                opts.copyFrom = copySelect.value;
+                opts.copyCategories = checks.cats.checked;
+                opts.copyRules = checks.rules.checked;
+                opts.copyBudgets = checks.budgets.checked;
             }
             const id = createAccount(name, opts);
             setActiveAccount(id);
+            ctx.setBusy(true);
             window.location.reload();
-        });
-        actions.appendChild(cancel);
-        actions.appendChild(create);
-        body.appendChild(actions);
+            return false;
+        }
 
-        document.body.appendChild(overlay);
-        setTimeout(() => input.focus(), 50);
+        nameInput.addEventListener('input', () => {
+            nameError.textContent = '';
+            nameInput.removeAttribute('aria-invalid');
+        });
+
+        const ctx = window.UI.sheet({
+            title: 'New account',
+            subtitle: 'Each account keeps its own transactions, budgets and rules.',
+            body: form,
+            size: 'sm',
+            initialFocus: '#newAccountName',
+            actions: [
+                { label: 'Cancel', variant: 'secondary' },
+                { label: 'Create account', variant: 'primary', closes: false, onClick: submit },
+            ],
+        });
+        form.addEventListener('submit', (e) => { e.preventDefault(); submit(ctx); });
     }
 
-    function openManageModal() {
-        const { overlay, body, destroy } = buildModal('Manage accounts');
-        const activeId = getActiveAccountId();
+    function stashUndo(entry, index, raw, wasActive) {
+        try {
+            sessionStorage.setItem(PENDING_UNDO_KEY, JSON.stringify({ entry, index, raw, wasActive }));
+        } catch (e) { void e; }
+    }
+
+    function restoreAccount(entry, index, raw, wasActive) {
+        const list = getAccounts().filter((a) => a.id !== entry.id);
+        list.splice(Math.min(Math.max(index, 0), list.length), 0, entry);
+        saveAccounts(list);
+        if (raw != null) { try { localStorage.setItem(dataKeyFor(entry.id), raw); } catch (e) { void e; } }
+        if (wasActive) setActiveAccount(entry.id);
+    }
+
+    async function removeAccountFlow(acc, ctx, rerender) {
+        const typed = await window.UI.prompt({
+            title: 'Delete "' + acc.name + '"?',
+            label: 'This removes all of its transactions, budgets and rules. Type the account name to confirm.',
+            placeholder: acc.name,
+            confirmLabel: 'Delete account',
+            validate: (v) => (v.trim().toLowerCase() === acc.name.trim().toLowerCase() ? null : 'The name does not match.'),
+        });
+        if (typed == null) return;
+        const all = getAccounts();
+        const index = all.findIndex((a) => a.id === acc.id);
+        const raw = localStorage.getItem(dataKeyFor(acc.id));
+        const wasActive = acc.id === getActiveAccountId();
+        if (!deleteAccount(acc.id)) {
+            notify('You need to keep at least one account.', { type: 'error' });
+            return;
+        }
+        if (wasActive) {
+            stashUndo(acc, index, raw, true);
+            window.location.reload();
+            return;
+        }
+        rerender();
+        notify('Deleted ' + acc.name, {
+            type: 'info',
+            action: {
+                label: 'Undo',
+                onClick: () => {
+                    restoreAccount(acc, index, raw, false);
+                    rerender();
+                    notify('Restored ' + acc.name);
+                },
+            },
+        });
+    }
+
+    function openManageAccounts() {
+        const body = el('div', 'stack');
+        let ctx = null;
 
         function render() {
             body.innerHTML = '';
-            const list = el('div', 'app-account-list');
-            const accounts = getAccounts();
+            const activeId = getActiveAccountId();
+            const accounts = userAccounts();
+            const list = el('div', 'list');
             accounts.forEach((acc) => {
-                const row = el('div', 'app-account-row');
-                row.appendChild(dot(acc.colorIndex));
-                const nameInput = document.createElement('input');
-                nameInput.className = 'app-input app-account-name';
-                nameInput.value = acc.name;
-                nameInput.maxLength = 40;
-                nameInput.addEventListener('change', () => {
-                    renameAccount(acc.id, nameInput.value);
-                    const sw = document.querySelector('#accountSwitcher .account-switcher-name');
-                    if (acc.id === activeId && sw) sw.textContent = nameInput.value.trim().slice(0, 40) || acc.name;
-                });
-                row.appendChild(nameInput);
+                const row = el('div', 'list-row list-row-plain');
+                const main = el('div', 'account-row-main');
+                main.appendChild(dot(acc.colorIndex));
+                main.appendChild(el('span', 'account-row-name', acc.name));
+                if (acc.id === activeId) main.appendChild(el('span', 'badge badge-brand', 'Active'));
+                row.appendChild(main);
 
-                if (acc.id === activeId) {
-                    row.appendChild(el('span', 'app-account-badge', 'Active'));
+                const actions = el('div', 'account-row-actions');
+                if (acc.id !== activeId) {
+                    const sw = el('button', 'btn btn-ghost btn-sm', 'Switch');
+                    sw.type = 'button';
+                    sw.addEventListener('click', () => { setActiveAccount(acc.id); window.location.reload(); });
+                    actions.appendChild(sw);
                 }
-
-                const del = el('button', 'app-icon-btn danger');
+                const rn = el('button', 'btn btn-ghost btn-sm', 'Rename');
+                rn.type = 'button';
+                rn.setAttribute('aria-label', 'Rename ' + acc.name);
+                rn.addEventListener('click', async () => {
+                    const v = await window.UI.prompt({
+                        title: 'Rename account',
+                        label: 'Account name',
+                        value: acc.name,
+                        confirmLabel: 'Save',
+                        validate: (x) => (x.trim() ? null : 'Give the account a name.'),
+                    });
+                    if (v == null) return;
+                    renameAccount(acc.id, v);
+                    render();
+                    if (window.Shell) window.Shell.refresh();
+                });
+                actions.appendChild(rn);
+                const del = el('button', 'btn btn-ghost btn-sm', 'Delete');
                 del.type = 'button';
-                del.setAttribute('aria-label', 'Delete account');
-                del.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+                del.setAttribute('aria-label', 'Delete ' + acc.name);
                 if (accounts.length <= 1) {
                     del.disabled = true;
-                    del.title = 'You must keep at least one account';
+                    del.title = 'Keep at least one account';
                 }
-                del.addEventListener('click', () => {
-                    const confirmRow = row.querySelector('.app-confirm');
-                    if (confirmRow) return;
-                    const c = el('div', 'app-confirm');
-                    c.appendChild(el('span', null, 'Delete "' + acc.name + '" and all its data?'));
-                    const yes = el('button', 'btn btn-danger btn-sm', 'Delete');
-                    yes.type = 'button';
-                    yes.addEventListener('click', () => {
-                        const wasActive = acc.id === activeId;
-                        deleteAccount(acc.id);
-                        if (wasActive) { window.location.reload(); return; }
-                        render();
-                    });
-                    const no = el('button', 'btn btn-secondary btn-sm', 'Cancel');
-                    no.type = 'button';
-                    no.addEventListener('click', () => c.remove());
-                    c.appendChild(yes);
-                    c.appendChild(no);
-                    row.appendChild(c);
-                });
-                row.appendChild(del);
+                del.addEventListener('click', () => removeAccountFlow(acc, ctx, () => { render(); if (window.Shell) window.Shell.refresh(); }));
+                actions.appendChild(del);
+                row.appendChild(actions);
                 list.appendChild(row);
             });
             body.appendChild(list);
-
-            const actions = el('div', 'app-modal-actions');
-            const addBtn = el('button', 'btn btn-secondary', 'New account');
-            addBtn.type = 'button';
-            addBtn.addEventListener('click', () => { destroy(); openCreateModal(); });
-            const done = el('button', 'btn btn-primary', 'Done');
-            done.type = 'button';
-            done.addEventListener('click', destroy);
-            actions.appendChild(addBtn);
-            actions.appendChild(done);
-            body.appendChild(actions);
         }
         render();
-        document.body.appendChild(overlay);
+
+        ctx = window.UI.sheet({
+            title: 'Accounts',
+            subtitle: 'Switch, rename or delete your budgets.',
+            body,
+            actions: [
+                { label: 'New account', variant: 'secondary', onClick: () => { setTimeout(openCreateAccount, 200); } },
+                { label: 'Done', variant: 'primary' },
+            ],
+        });
     }
 
-    window.openCreateAccountModal = openCreateModal;
-    window.openManageAccountsModal = openManageModal;
+    window.openCreateAccount = openCreateAccount;
+    window.openManageAccounts = openManageAccounts;
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', injectSwitcher);
-    } else {
-        injectSwitcher();
-    }
+    (function checkPendingAccountUndo() {
+        let raw = null;
+        try { raw = sessionStorage.getItem(PENDING_UNDO_KEY); } catch (e) { return; }
+        if (!raw) return;
+        try { sessionStorage.removeItem(PENDING_UNDO_KEY); } catch (e) { void e; }
+        let data;
+        try { data = JSON.parse(raw); } catch (e) { return; }
+        if (!data || !data.entry) return;
+        window.addEventListener('load', () => {
+            notify('Deleted ' + data.entry.name, {
+                type: 'info',
+                ms: 9000,
+                action: {
+                    label: 'Undo',
+                    onClick: () => {
+                        restoreAccount(data.entry, data.index, data.raw, data.wasActive);
+                        window.location.reload();
+                    },
+                },
+            });
+        });
+    })();
 })();

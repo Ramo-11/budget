@@ -1,295 +1,216 @@
-// js/sample-data.js - Sample Data Management
+(function () {
+    const SAMPLE_FLAG = 'sahabBudget_sampleMode';
+    const TOUR_SEEN = 'sahabBudget_welcomeSeen';
+    const TOUR_PENDING = 'sahabBudget_tourPending';
+    const TOAST_FLAG = 'sahabBudget_sampleToast';
 
-let isInSampleMode = false;
-let backupData = null;
-
-// Load sample data into a dedicated "Sample Data" account. Real accounts are
-// never modified, so exiting sample mode can never lose the user's own data.
-async function loadSampleData() {
-    try {
-        const response = await fetch('sample_data.json');
-        if (!response.ok) {
-            throw new Error(`Failed to fetch sample data: ${response.status}`);
+    function store(fn) {
+        try {
+            return fn();
+        } catch (e) {
+            return null;
         }
-        const importData = await response.json();
-        if (!importData.version || !importData.monthlyData) {
-            throw new Error('Invalid sample data format');
-        }
+    }
 
-        const payload = {
-            monthlyData: importData.monthlyData,
-            categoryConfig: importData.categoryConfig || {},
-            budgets: importData.budgets || {},
-            transactionOverrides: importData.transactionOverrides || {},
-            unifiedRules: importData.unifiedRules || [],
+    function toast(message, type) {
+        if (typeof UI !== 'undefined' && UI.toast) UI.toast(message, { type: type || 'info' });
+        else if (typeof showNotification === 'function') showNotification(message, type || 'info');
+    }
+
+    function h(tag, attrs, children) {
+        const el = document.createElement(tag);
+        Object.entries(attrs || {}).forEach(([k, v]) => {
+            if (v == null || v === false) return;
+            if (k === 'class') el.className = v;
+            else if (k === 'text') el.textContent = v;
+            else if (k === 'html') el.innerHTML = v;
+            else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+            else el.setAttribute(k, v === true ? '' : v);
+        });
+        [].concat(children || []).forEach((c) => {
+            if (c == null || c === false) return;
+            el.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+        });
+        return el;
+    }
+
+    function icon(name, size) {
+        return typeof UI !== 'undefined' && UI.icon ? UI.icon(name, size || 24) : '';
+    }
+
+    function isSampleMode() {
+        const flag = store(() => localStorage.getItem(SAMPLE_FLAG)) === 'true';
+        const onSample = typeof window.isSampleAccount !== 'function' || window.isSampleAccount();
+        return flag && onSample;
+    }
+
+    function shiftSampleToToday(data) {
+        const keys = (data.monthlyData || []).map((e) => e[0]).filter((k) => /^\d{4}-\d{2}$/.test(k)).sort();
+        if (!keys.length) return data;
+        const last = keys[keys.length - 1].split('-').map(Number);
+        const now = new Date();
+        const delta = (now.getFullYear() - last[0]) * 12 + (now.getMonth() + 1 - last[1]);
+        if (!delta) return data;
+        const shiftKey = (key) => {
+            const [y, m] = key.split('-').map(Number);
+            const d = new Date(y, m - 1 + delta, 1);
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
         };
-        if (importData.incomeSettings) payload.incomeSettings = importData.incomeSettings;
+        const shiftDate = (value) => {
+            const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''));
+            if (!m) return value;
+            const nk = shiftKey(m[1] + '-' + m[2]).split('-').map(Number);
+            const dim = new Date(nk[0], nk[1], 0).getDate();
+            return nk[0] + '-' + String(nk[1]).padStart(2, '0') + '-' + String(Math.min(Number(m[3]), dim)).padStart(2, '0');
+        };
+        const remap = (obj) => {
+            const out = {};
+            Object.keys(obj || {}).forEach((k) => { out[/^\d{4}-\d{2}$/.test(k) ? shiftKey(k) : k] = obj[k]; });
+            return out;
+        };
+        const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+        const monthlyData = data.monthlyData.map(([key, md]) => {
+            const nk = shiftKey(key);
+            const [y, m] = nk.split('-').map(Number);
+            return [nk, Object.assign({}, md, {
+                monthName: new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+                transactions: (md.transactions || [])
+                    .map((t) => Object.assign({}, t, { 'Transaction Date': shiftDate(t['Transaction Date']) }))
+                    .filter((t) => String(t['Transaction Date']) <= today),
+            })];
+        });
+        return Object.assign({}, data, { monthlyData: monthlyData, budgets: remap(data.budgets), transactionOverrides: remap(data.transactionOverrides) });
+    }
 
-        beginSampleMode(payload);
-        isInSampleMode = true;
-
-        showNotification('Sample data loaded! Redirecting to dashboard...', 'success');
-        setTimeout(() => {
+    async function loadSampleData() {
+        try {
+            const response = await fetch('sample_data.json');
+            if (!response.ok) throw new Error('The sample file could not be loaded.');
+            const data = shiftSampleToToday(await response.json());
+            if (!data || !data.version || !data.monthlyData) throw new Error('The sample file is not valid.');
+            const payload = {
+                monthlyData: data.monthlyData,
+                categoryConfig: data.categoryConfig || {},
+                budgets: data.budgets || {},
+                transactionOverrides: data.transactionOverrides || {},
+                unifiedRules: data.unifiedRules || []
+            };
+            if (data.incomeSettings) payload.incomeSettings = data.incomeSettings;
+            if (typeof beginSampleMode !== 'function') throw new Error('Sample mode is not available.');
+            beginSampleMode(payload);
+            store(() => sessionStorage.setItem(TOAST_FLAG, '1'));
             window.location.href = 'index.html';
-        }, 500);
-    } catch (error) {
-        console.error('Error loading sample data:', error);
-        showNotification('Error loading sample data: ' + error.message, 'error');
-    }
-}
-
-// Exit sample mode: removes only the sample account and returns to the
-// account that was active before sample mode was entered.
-function exitSampleMode() {
-    if (!isInSampleMode && localStorage.getItem('sahabBudget_sampleMode') !== 'true') {
-        showNotification('Not currently in sample mode', 'info');
-        return;
+        } catch (error) {
+            console.error(error);
+            toast('We could not load the sample data. ' + (error.message || ''), 'error');
+        }
     }
 
-    endSampleMode();
-    isInSampleMode = false;
-    location.reload();
-}
-
-// Toggle getting started section
-function toggleGettingStarted() {
-    const section = document.getElementById('gettingStartedSection');
-    if (!section) return;
-
-    section.classList.toggle('collapsed');
-
-    // Save the state to localStorage
-    if (section.classList.contains('collapsed')) {
-        localStorage.setItem('sahabBudget_hideGettingStarted', 'true');
-    } else {
-        localStorage.removeItem('sahabBudget_hideGettingStarted');
-    }
-}
-
-// Load the tutorial video on demand (click-to-load facade).
-// The video player is a third-party embed; we only inject it after an
-// explicit user action so its controls are not present until requested.
-function loadTutorialVideo() {
-    const wrapper = document.getElementById('videoWrapper');
-    if (!wrapper) return;
-
-    const iframe = document.createElement('iframe');
-    iframe.title = 'Sahab Budget tutorial video';
-    iframe.src = 'https://embed.app.guidde.com/playbooks/gBx67acerFe4SV2D78jUn9?mode=videoOnly&autoplay=true';
-    iframe.setAttribute('frameborder', '0');
-    iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
-    iframe.allowFullscreen = true;
-
-    wrapper.innerHTML = '';
-    wrapper.appendChild(iframe);
-}
-
-// Show help modal
-function showHelp() {
-    const modal = document.createElement('div');
-    modal.className = 'help-modal';
-
-    const isOnDashboard =
-        window.location.pathname.includes('index.html') ||
-        window.location.pathname === '/' ||
-        window.location.pathname === '';
-
-    modal.innerHTML = `
-        <div class="help-modal-content">
-            <div class="help-modal-header">
-                <h2>Help & Resources</h2>
-                <button class="help-close-btn" onclick="this.closest('.help-modal').remove()" aria-label="Close"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-            </div>
-            
-            <div class="help-options">
-                <div class="help-option-card" onclick="${
-                    isOnDashboard ? 'showGettingStarted()' : 'goToDashboardGettingStarted()'
-                }; this.closest('.help-modal').remove();">
-                    <h3>Watch Tutorial</h3>
-                    <p>Learn the basics in our quick video guide</p>
-                    <button class="btn btn-primary">Watch Now</button>
-                </div>
-                
-                <div class="help-option-card" onclick="loadSampleData(); this.closest('.help-modal').remove();">
-                    <h3>Try Sample Data</h3>
-                    <p>Explore features with demo transactions</p>
-                    <button class="btn btn-primary">Load Sample</button>
-                </div>
-                
-                <div class="help-option-card" onclick="window.location.href='about.html'; this.closest('.help-modal').remove();">
-                    <h3>User Guide</h3>
-                    <p>Detailed instructions and tips</p>
-                    <button class="btn btn-secondary">View Guide</button>
-                </div>
-                
-                ${
-                    localStorage.getItem('sahabBudget_sampleMode') === 'true'
-                        ? `
-                    <div class="help-option-card" onclick="exitSampleMode(); this.closest('.help-modal').remove();">
-                        <h3>Exit Sample Mode</h3>
-                        <p>Clear sample data and start fresh</p>
-                        <button class="btn btn-danger">Exit Sample Mode</button>
-                    </div>
-                `
-                        : ''
-                }
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-}
-
-// Navigate to dashboard and show getting started
-function goToDashboardGettingStarted() {
-    // Set a flag to show getting started when dashboard loads
-    localStorage.setItem('sahabBudget_showGettingStarted', 'true');
-    window.location.href = 'index.html';
-}
-
-// Watch tutorial
-function watchTutorial() {
-    // If not on dashboard, go to dashboard first
-    if (
-        !window.location.pathname.includes('index.html') &&
-        window.location.pathname !== '/' &&
-        window.location.pathname !== ''
-    ) {
-        // Set flag to show tutorial when dashboard loads
-        localStorage.setItem('sahabBudget_showTutorial', 'true');
+    function exitSampleMode() {
+        if (!isSampleMode()) {
+            toast('You are not looking at sample data.', 'info');
+            return;
+        }
+        if (typeof endSampleMode === 'function') endSampleMode();
         window.location.href = 'index.html';
-    } else {
-        showGettingStarted();
-        // Scroll to video
-        setTimeout(() => {
-            const videoWrapper = document.getElementById('videoWrapper');
-            if (videoWrapper) {
-                videoWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }, 300);
-    }
-}
-
-// Show getting started section
-function showGettingStarted() {
-    const section = document.getElementById('gettingStartedSection');
-
-    // Only proceed if the element exists (we're on dashboard)
-    if (!section) {
-        // If not on dashboard, redirect
-        goToDashboardGettingStarted();
-        return;
     }
 
-    section.classList.remove('collapsed');
-    localStorage.removeItem('sahabBudget_hideGettingStarted');
-
-    const btn = section.querySelector('.collapse-btn');
-    if (btn) {
-        btn.textContent = 'Hide Getting Started';
+    function showHelp() {
+        if (typeof UI === 'undefined' || !UI.sheet) {
+            window.location.href = 'about.html';
+            return null;
+        }
+        const body = h('div', { class: 'help-sheet' }, [
+            h('p', { class: 'help-lead', text: 'Sahab Budget turns your bank files into a clear picture of where your money goes. Everything stays in this browser.' }),
+            h('ol', { class: 'help-steps' }, [
+                h('li', {}, [h('strong', { text: 'Import. ' }), 'Download a CSV from your bank and drop it here.']),
+                h('li', {}, [h('strong', { text: 'Check categories. ' }), 'We sort what we can. Fix the rest and we remember.']),
+                h('li', {}, [h('strong', { text: 'Set budgets. ' }), 'Pick a monthly amount per category and watch your progress.'])
+            ]),
+            h('p', { class: 'help-hint' }, ['Press ', h('kbd', { class: 'kbd', text: '?' }), ' anywhere to see keyboard shortcuts.'])
+        ]);
+        return UI.sheet({
+            title: 'Help',
+            subtitle: 'The short version.',
+            body,
+            size: 'sm',
+            actions: [
+                { label: 'Try sample data', variant: 'ghost', onClick: () => loadSampleData() },
+                { label: 'Help and about', variant: 'secondary', onClick: () => { window.location.href = 'about.html'; }, closes: false },
+                { label: 'Done', variant: 'primary' }
+            ]
+        });
     }
 
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+    const TOUR_CARDS = [
+        { icon: 'upload', title: 'Import your bank file', text: 'Download a CSV from your bank and drop it anywhere in the app. It is read on this device and never uploaded.' },
+        { icon: 'tag', title: 'We sort it for you, and you can teach it', text: 'Purchases land in categories on their own. Change one and choose to do the same for that store next time.' },
+        { icon: 'target', title: 'Set budgets and goals', text: 'Pick a monthly amount for each category and set savings goals. You will see how you are doing at a glance.' }
+    ];
 
-// Check for saved preferences on load
-window.addEventListener('DOMContentLoaded', () => {
-    // Remove the early-hide class so normal CSS/JS takes over
-    document.documentElement.classList.remove('tutorial-hidden');
-    // Sample mode is only truly active when the dedicated sample account is the
-    // active one. Switching to a real account clears the stale banner + flag.
-    const flagSet = localStorage.getItem('sahabBudget_sampleMode') === 'true';
-    const onSampleAccount = (typeof window.isSampleAccount !== 'function') || window.isSampleAccount();
-    if (flagSet && !onSampleAccount) {
-        localStorage.removeItem('sahabBudget_sampleMode');
-    }
-    const inSample = flagSet && onSampleAccount;
-    if (inSample) {
-        isInSampleMode = true;
-        const sampleBanner = document.getElementById('sampleModeBanner');
-        if (sampleBanner) {
-            sampleBanner.style.display = 'block';
-        }
+    function startWelcomeTour() {
+        if (typeof UI === 'undefined' || !UI.sheet) return null;
+        store(() => localStorage.removeItem(TOUR_PENDING));
+        store(() => localStorage.setItem(TOUR_SEEN, '1'));
+        let index = 0;
+        let ctx = null;
+        const card = h('div', { class: 'tour-card' });
+        const dots = h('div', { class: 'tour-dots', role: 'group' });
+        const footer = h('div', { class: 'tour-footer' });
+        const body = h('div', { class: 'tour' }, [card, dots, footer]);
 
-        // Hide the sample data card if in sample mode
-        const sampleDataCard = document.querySelector('.sample-data-card');
-        if (sampleDataCard) {
-            sampleDataCard.style.display = 'none';
-        }
-
-        // Adjust grid and make tutorial card more compact
-        const gettingStartedGrid = document.querySelector('.getting-started-grid');
-        if (gettingStartedGrid) {
-            gettingStartedGrid.style.gridTemplateColumns = '1fr';
-        }
-
-        const tutorialCard = document.querySelector('.tutorial-card');
-        if (tutorialCard) {
-            tutorialCard.style.maxWidth = 'none';
-            tutorialCard.style.margin = '0 auto';
+        function draw() {
+            const c = TOUR_CARDS[index];
+            card.textContent = '';
+            card.appendChild(h('span', { class: 'tour-icon', html: icon(c.icon, 32), 'aria-hidden': 'true' }));
+            card.appendChild(h('h3', { class: 'tour-title', text: c.title }));
+            card.appendChild(h('p', { class: 'tour-text', text: c.text }));
+            dots.textContent = '';
+            dots.setAttribute('aria-label', 'Step ' + (index + 1) + ' of ' + TOUR_CARDS.length);
+            TOUR_CARDS.forEach((_, i) => dots.appendChild(h('span', { class: 'tour-dot' + (i === index ? ' is-active' : ''), 'aria-hidden': 'true' })));
+            footer.textContent = '';
+            const last = index === TOUR_CARDS.length - 1;
+            if (index > 0) footer.appendChild(h('button', { type: 'button', class: 'btn btn-ghost', text: 'Back', onclick: () => { index--; draw(); } }));
+            else footer.appendChild(h('button', { type: 'button', class: 'btn btn-ghost', text: 'Skip', onclick: () => ctx.close() }));
+            const next = h('button', { type: 'button', class: 'btn btn-primary', text: last ? 'Get started' : 'Next', onclick: () => { if (last) ctx.close(); else { index++; draw(); } } });
+            footer.appendChild(next);
+            next.focus();
         }
 
-        const videoWrapper = document.getElementById('videoWrapper');
-        if (videoWrapper) {
-            videoWrapper.style.paddingBottom = '100%';
-        }
-    } else if (monthlyData && monthlyData.size > 0) {
-        // User has their own data, so auto-hide the whole onboarding section.
-        // Tutorial remains accessible via Help icon -> "Watch Tutorial".
-        const section = document.getElementById('gettingStartedSection');
-        if (section) {
-            section.classList.add('collapsed');
-        }
-        localStorage.setItem('sahabBudget_hideGettingStarted', 'true');
-
-        // Also collapse the sample-data card for when user re-opens via Help.
-        const sampleDataCard = document.querySelector('.sample-data-card');
-        if (sampleDataCard) {
-            sampleDataCard.style.display = 'none';
-        }
-        const gettingStartedGrid = document.querySelector('.getting-started-grid');
-        if (gettingStartedGrid) {
-            gettingStartedGrid.style.gridTemplateColumns = '1fr';
-        }
-        const tutorialCard = document.querySelector('.tutorial-card');
-        if (tutorialCard) {
-            tutorialCard.style.maxWidth = 'none';
-            tutorialCard.style.margin = '0 auto';
-        }
-        const videoWrapper = document.getElementById('videoWrapper');
-        if (videoWrapper) {
-            videoWrapper.style.paddingBottom = '50%';
-        }
+        ctx = UI.sheet({ title: 'Welcome to Sahab Budget', subtitle: 'Three quick things to know.', body, size: 'sm', actions: [] });
+        draw();
+        return ctx;
     }
 
-    // Check if we need to temporarily show tutorial (from help modal navigation)
-    const showGettingStarted = localStorage.getItem('sahabBudget_showGettingStarted') === 'true';
-    const showTutorial = localStorage.getItem('sahabBudget_showTutorial') === 'true';
-    const showFromHelp = showGettingStarted || showTutorial;
-
-    // Clean up the navigation flags
-    localStorage.removeItem('sahabBudget_showGettingStarted');
-    localStorage.removeItem('sahabBudget_showTutorial');
-
-    const section = document.getElementById('gettingStartedSection');
-
-    if (showFromHelp && section) {
-        // User explicitly requested to see tutorial from help modal - show it temporarily
-        section.classList.remove('collapsed');
-
-        // Scroll to video if that was the request
-        if (showTutorial) {
-            setTimeout(() => {
-                const videoWrapper = document.getElementById('videoWrapper');
-                if (videoWrapper) {
-                    videoWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, 500);
-        }
-    } else if (localStorage.getItem('sahabBudget_hideGettingStarted') === 'true') {
-        // User previously chose to hide - keep it hidden
-        if (section) {
-            section.classList.add('collapsed');
-        }
+    function maybeStartWelcomeTour() {
+        if (document.body.getAttribute('data-page') !== 'home') return;
+        if (isSampleMode()) return;
+        if (store(() => localStorage.getItem(TOUR_SEEN))) return;
+        if (!store(() => localStorage.getItem(TOUR_PENDING))) return;
+        if (typeof Store !== 'undefined' && Store.hasData && !Store.hasData()) return;
+        startWelcomeTour();
     }
-});
+
+    function markTourPending() {
+        if (store(() => localStorage.getItem(TOUR_SEEN))) return;
+        store(() => localStorage.setItem(TOUR_PENDING, '1'));
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const flagSet = store(() => localStorage.getItem(SAMPLE_FLAG)) === 'true';
+        if (flagSet && !isSampleMode()) store(() => localStorage.removeItem(SAMPLE_FLAG));
+        if (store(() => sessionStorage.getItem(TOAST_FLAG))) {
+            store(() => sessionStorage.removeItem(TOAST_FLAG));
+            setTimeout(() => toast('Sample data loaded. Look around, then exit sample mode whenever you like.', 'success'), 300);
+        }
+        setTimeout(maybeStartWelcomeTour, 600);
+    });
+
+    window.loadSampleData = loadSampleData;
+    window.exitSampleMode = exitSampleMode;
+    window.isSampleMode = isSampleMode;
+    window.showHelp = showHelp;
+    window.startWelcomeTour = startWelcomeTour;
+    window.maybeStartWelcomeTour = maybeStartWelcomeTour;
+    window.markWelcomeTourPending = markTourPending;
+})();

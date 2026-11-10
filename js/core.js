@@ -9,97 +9,62 @@ let customRules = {
 let currentMonth = null;
 let monthlyData = new Map();
 let categoryConfig = {
-    Transfers: {
-        keywords: ['ZELLE', 'ONLINE TRANSFER', 'ACCT_XFER', 'WIRE', 'QUICKPAY', 'VENMO', 'CASHAPP'],
-        icon: '',
-    },
-    Banking: {
-        keywords: ['FEE', 'INTEREST', 'OVERDRAFT', 'SERVICE CHARGE', 'ATM'],
-        icon: '',
-    },
-    Groceries: {
-        keywords: ['COSTCO', 'WALMART', 'KROGER', 'WHOLE FOODS', 'TARGET', 'ALDI'],
-        icon: '',
-    },
-    Gas: {
-        keywords: ['BP', 'SHELL', 'EXXON', 'FUEL', 'GAS'],
-        icon: '',
-    },
-    Subscriptions: {
-        keywords: [
-            'GOOGLE',
-            'AWS',
-            'CHATGPT',
-            'APPLE',
-            'SPOTIFY',
-            'NETFLIX',
-            'DISNEY',
-            'PARAMOUNT',
-            'HULU',
-            'CANVA',
-            'MICROSOFT',
-            'ADOBE',
-        ],
-        icon: '',
-    },
-    'Coffee and Tea': {
-        keywords: ['CAFE', 'COFFEE', 'ESPRESSO', 'TEA HOUSE', 'JAVA'],
-        icon: '',
-    },
-    'Food & Drink': {
-        keywords: ['RESTAURANT', 'PIZZA', 'BURGER', 'GRILL', 'TACO', 'SUSHI', 'DINER'],
-        icon: '',
-    },
-    Shopping: {
-        keywords: ['AMAZON', 'AMZN', 'TARGET', 'WALMART', 'BEST BUY'],
-        icon: '',
-    },
-    Rent: {
-        keywords: ['RENT', 'APARTMENT', 'HOUSING'],
-        icon: '',
-    },
-    Insurance: {
-        keywords: ['INSURANCE', 'STATE FARM', 'ALLSTATE', 'GEICO'],
-        icon: '',
-    },
-    Internet: {
-        keywords: ['INTERNET', 'COMCAST', 'XFINITY', 'SPECTRUM', 'AT&T'],
-        icon: '',
-    },
-    Parking: {
-        keywords: ['PARKING', 'GARAGE', 'METER'],
-        icon: '',
-    },
-    Laundry: {
-        keywords: ['LAUNDRY', 'DRY CLEAN'],
-        icon: '',
-    },
-    Haircut: {
-        keywords: ['BARBER', 'HAIRCUT', 'SALON'],
-        icon: '',
-    },
-    Car: {
-        keywords: ['AUTO', 'CAR WASH', 'OIL', 'TIRE', 'MECHANIC', 'TOYOTA', 'HONDA'],
-        icon: '',
-    },
-    Phone: {
-        keywords: ['PHONE', 'MOBILE', 'WIRELESS', 'VERIZON', 'AT&T', 'VISIBLE'],
-        icon: '',
-    },
-    Entertainment: {
-        keywords: ['MOVIE', 'CINEMA', 'MUSIC', 'CONCERT', 'GAME', 'HBO'],
-        icon: '',
-    },
-    Income: {
-        keywords: [],
-        icon: '',
-        _isIncome: true,
-    },
-    Others: {
-        keywords: [],
-        icon: '',
-    },
+    "Transfers": { _isExcluded: true, keywords: ["ZELLE", "ONLINE TRANSFER", "ACCT_XFER", "WIRE", "QUICKPAY", "VENMO", "CASHAPP", "CASH APP", "BOOK TRANSFER", "REALTIME TRANSFER", "TRANSFER TO", "CARD ENDING", "CREDIT CARD PAY", "CRD EPAY", "ROBINHOOD", "PAYPAL TRANSFER"], icon: '' },
+    "Banking": { keywords: ["FEE", "INTEREST CHARGE", "OVERDRAFT", "SERVICE CHARGE", "ATM", "FOREIGN TRANSACTION", "CASH WITHDRAWAL"], icon: '' },
+    "Coffee and Tea": { keywords: ["CAFE", "COFFEE", "ESPRESSO", "TEA HOUSE", "JAVA", "STARBUCKS", "DUNKIN", "DUTCH BROS", "PEET", "PEETS", "CARIBOU", "TIM HORTONS", "QAHWAH", "BIGGBY", "PHILZ"], icon: '' },
+    "Food & Drink": { keywords: ["RESTAURANT", "PIZZA", "BURGER", "GRILL", "TACO", "SUSHI", "DINER", "UBER EATS", "DOORDASH", "GRUBHUB", "POSTMATES", "MCDONALD", "SUBWAY", "CHIPOTLE", "PANERA", "DOMINO", "PAPA JOHN", "WINGSTOP", "WENDY", "CHICK-FIL-A", "CHICK FIL A", "FIVE GUYS", "POPEYES", "KFC", "ARBY", "ARBYS", "SONIC", "SHAKE SHACK", "SHAWARMA", "PITA", "KEBAB", "HALAL GUYS", "STEAK", "HOT CHICKEN", "BBQ", "NOODLE", "PHO", "RAMEN", "BAKERY", "DONUT", "COOKIES", "ICE CREAM", "KITCHEN", "EATERY", "BISTRO", "TAVERN", "PUB"], icon: '' },
+    "Groceries": { keywords: ["COSTCO", "WALMART", "WAL-MART", "WAL MART", "KROGER", "WHOLE FOODS", "WHOLEFDS", "TARGET", "ALDI", "PUBLIX", "TRADER JOE", "SAFEWAY", "MEIJER", "H-E-B", "HEB", "SPROUTS", "FOOD LION", "GIANT EAGLE", "WEGMANS", "HY-VEE", "WINCO", "SAM'S CLUB", "SAMS CLUB", "FRESH THYME", "SUPERMARKET", "GROCERY", "HALAL MARKET", "INTERNATIONAL MARKET"], icon: '' },
+    "Gas": { keywords: ["BP", "AMOCO", "SHELL", "EXXON", "FUEL", "GAS", "CIRCLE K", "SPEEDWAY", "MARATHON", "CHEVRON", "MOBIL", "LOVE'S", "LOVES TRAVEL", "PILOT", "FLYING J", "MAPCO", "SUNOCO", "CITGO", "VALERO", "WAWA", "SHEETZ", "CASEY'S", "QUIKTRIP", "PHILLIPS 66", "THORNTONS", "KWIK TRIP", "RACETRAC"], icon: '' },
+    "Subscriptions": { keywords: ["GOOGLE", "AWS", "SQUARESPACE", "SQSP", "RENDER.COM", "CHATGPT", "OPENAI", "CLAUDE", "ANTHROPIC", "APPLE.COM", "ITUNES", "SPOTIFY", "NETFLIX", "DISNEY", "PARAMOUNT", "HULU", "HBO", "MAX.COM", "PEACOCK", "YOUTUBE", "AUDIBLE", "CANVA", "MICROSOFT", "ADOBE", "DROPBOX", "NOTION", "GITHUB", "PATREON", "PRIME VIDEO", "SIRIUSXM", "ICLOUD"], icon: '' },
+    "Shopping": { keywords: ["AMAZON", "AMZN", "TARGET", "WALMART", "BEST BUY", "APPLE STORE", "KOHL", "KOHLS", "MACY", "MACYS", "NORDSTROM", "IKEA", "HOME DEPOT", "LOWE", "LOWES", "ETSY", "EBAY", "TJ MAXX", "TJMAXX", "MARSHALLS", "ROSS STORES", "OLD NAVY", "NIKE", "WAYFAIR", "BED BATH", "DOLLAR TREE", "DOLLAR GENERAL", "FAMILY DOLLAR", "BURLINGTON", "SEPHORA", "ULTA", "THE UPS STORE", "FEDEX", "USPS", "STAPLES", "OFFICE DEPOT", "MICHAELS", "HOBBY LOBBY", "WALGREENS PHOTO"], icon: '' },
+    "Rent": { keywords: ["RENT", "APARTMENT", "HOUSING", "PROPERTY MGMT", "LEASING", "MORTGAGE"], icon: '' },
+    "Utilities": { keywords: ["ELECTRIC", "ENERGY", "POWER CO", "WATER", "SEWER", "UTILITY", "UTILITIES", "DUKE ENERGY", "DUKEENERGY", "CITIZENS ENERGY", "AES INDIANA", "VECTREN", "NIPSCO", "PG&E", "CON EDISON", "TRASH", "WASTE MANAGEMENT"], icon: '' },
+    "Insurance": { keywords: ["INSURANCE", "STATE FARM", "ALLSTATE", "GEICO", "PROGRESSIVE", "LIBERTY MUTUAL", "NATIONWIDE", "FARMERS INS", "USAA"], icon: '' },
+    "Internet": { keywords: ["INTERNET", "COMCAST", "XFINITY", "SPECTRUM", "AT&T", "METRONET", "FRONTIER COMM", "CENTURYLINK", "GOOGLE FIBER"], icon: '' },
+    "Phone": { keywords: ["PHONE", "MOBILE", "WIRELESS", "VERIZON", "VZWRLSS", "AT&T", "ATT", "T-MOBILE", "TMOBILE", "VISIBLE", "MINT MOBILE", "CRICKET", "BOOST MOBILE"], icon: '' },
+    "Transportation": { keywords: ["UBER", "LYFT", "LIME", "BIRD", "TOLL", "TOLLWAY", "E-ZPASS", "EZPASS", "IPASS", "METRO", "TRANSIT", "AMTRAK", "GREYHOUND"], icon: '' },
+    "Travel": { keywords: ["AIRBNB", "HOTEL", "HOLIDAY INN", "MARRIOTT", "HILTON", "HYATT", "HAMPTON INN", "EXPEDIA", "BOOKING.COM", "BKG HOTEL", "AIRLINE", "AIRLINES", "AIRWAYS", "AMERICAN AIR", "DELTA AIR", "UNITED AIR", "SOUTHWEST", "QATAR AIR", "EMIRATES", "TURKISH AIR", "ALASKA AIR", "SPIRIT AIR", "FRONTIER AIR", "JETBLUE", "HERTZ", "ENTERPRISE RENT", "AVIS", "BUDGET RENT"], icon: '' },
+    "Parking": { keywords: ["PARKING", "GARAGE", "METER", "PARKMOBILE", "SPOTHERO"], icon: '' },
+    "Laundry": { keywords: ["LAUNDRY", "DRY CLEAN", "LAUNDROMAT"], icon: '' },
+    "Haircut": { keywords: ["BARBER", "HAIRCUT", "SALON", "SUPERCUTS", "GREAT CLIPS", "SPORT CLIPS", "FANTASTIC SAMS"], icon: '' },
+    "Healthcare": { keywords: ["CVS", "WALGREENS", "PHARMACY", "DENTAL", "DENTIST", "DOCTOR", "CLINIC", "HOSPITAL", "MEDICAL", "HEALTH", "THERAPY", "COUNSELING", "OPTOMETR", "VISION", "LABCORP", "QUEST DIAG", "URGENT CARE"], icon: '' },
+    "Fitness": { keywords: ["GYM", "FITNESS", "PLANET FITNESS", "LA FITNESS", "YMCA", "ANYTIME FITNESS", "ORANGETHEORY", "CROSSFIT", "PELOTON", "CLASSPASS", "LIFE TIME"], icon: '' },
+    "Education": { keywords: ["EDUCATION", "SCHOOL", "TUITION", "UNIVERSITY", "COLLEGE", "ACADEMY", "UDEMY", "COURSERA", "SKILLSHARE", "TEXTBOOK"], icon: '' },
+    "Car": { keywords: ["AUTO", "CAR WASH", "OIL CHANGE", "TIRE", "MECHANIC", "TOYOTA", "HONDA", "AUTOZONE", "O'REILLY", "ADVANCE AUTO", "JIFFY LUBE", "VALVOLINE", "CARMAX", "BMV", "DMV", "NAPA"], icon: '' },
+    "Entertainment": { keywords: ["MOVIE", "CINEMA", "MUSIC", "CONCERT", "GAME", "AMC", "REGAL", "TICKETMASTER", "STUBHUB", "STEAM", "PLAYSTATION", "XBOX", "NINTENDO", "BOWLING", "MUSEUM", "ZOO"], icon: '' },
+    "Gifts & Donations": { keywords: ["DONATION", "DONATE", "CHARITY", "LAUNCHGOOD", "GOFUNDME", "MOSQUE", "MASJID", "ISLAMIC", "CHURCH", "ZAKAT", "SADAQA", "RED CROSS", "UNICEF"], icon: '' },
+    Income: { keywords: [], icon: '', _isIncome: true },
+    Others: { keywords: [], icon: '' },
 };
+window.DEFAULT_CATEGORY_CONFIG = JSON.parse(JSON.stringify(categoryConfig));
+
+function mergeDefaultCategoryWords() {
+    let addedWords = 0;
+    let addedCategories = 0;
+    const defaults = window.DEFAULT_CATEGORY_CONFIG || {};
+    Object.keys(defaults).forEach((name) => {
+        const def = defaults[name];
+        if (!categoryConfig[name]) {
+            const othersEntry = categoryConfig.Others;
+            delete categoryConfig.Others;
+            categoryConfig[name] = JSON.parse(JSON.stringify(def));
+            if (othersEntry) categoryConfig.Others = othersEntry;
+            addedCategories++;
+            addedWords += (def.keywords || []).length;
+            return;
+        }
+        const have = new Set((categoryConfig[name].keywords || []).map((k) => String(k).toUpperCase()));
+        (def.keywords || []).forEach((k) => {
+            if (!have.has(k)) {
+                if (!Array.isArray(categoryConfig[name].keywords)) categoryConfig[name].keywords = [];
+                categoryConfig[name].keywords.push(k);
+                addedWords++;
+            }
+        });
+    });
+    return { addedWords: addedWords, addedCategories: addedCategories };
+}
+window.mergeDefaultCategoryWords = mergeDefaultCategoryWords;
 
 let budgets = {};
 let charts = {};
@@ -140,10 +105,19 @@ function loadSavedData() {
             window.unifiedRules = data.unifiedRules || [];
             window.deletedTransactions = data.deletedTransactions || [];
             window.deletedFingerprints = data.deletedFingerprints || [];
+            window.transactionNotes = data.transactionNotes || {};
+            window.savingsGoals = Array.isArray(data.savingsGoals) ? data.savingsGoals : [];
+            window.appPreferences = data.appPreferences || {};
 
             // Load income settings
             if (data.incomeSettings) {
                 window.incomeSettings = { ...window.incomeSettings, ...data.incomeSettings };
+            }
+            if (!window.incomeSettings.transfersHiddenByDefault) {
+                if (categoryConfig.Transfers && categoryConfig.Transfers._isExcluded === undefined) {
+                    categoryConfig.Transfers._isExcluded = true;
+                }
+                window.incomeSettings.transfersHiddenByDefault = true;
             }
 
             // Initialize rules system if available
@@ -180,6 +154,9 @@ function saveData() {
             incomeSettings: window.incomeSettings || {},
             deletedTransactions: window.deletedTransactions || [],
             deletedFingerprints: window.deletedFingerprints || [],
+            transactionNotes: window.transactionNotes || {},
+            savingsGoals: window.savingsGoals || [],
+            appPreferences: window.appPreferences || {},
         };
         localStorage.setItem(getActiveDataKey(), JSON.stringify(data));
     } catch (error) {
@@ -444,6 +421,22 @@ function isDuplicateTransaction(newTransaction, existingTransactions) {
     });
 }
 
+function keywordMatches(upperDesc, keyword) {
+    const k = String(keyword || '').toUpperCase().trim();
+    if (!k) return false;
+    if (k.length >= 5) return upperDesc.includes(k);
+    let from = 0;
+    while (true) {
+        const i = upperDesc.indexOf(k, from);
+        if (i === -1) return false;
+        const before = i === 0 ? '' : upperDesc[i - 1];
+        const after = upperDesc[i + k.length] || '';
+        if (!/[A-Z0-9]/.test(before) && !/[A-Z0-9]/.test(after)) return true;
+        from = i + 1;
+    }
+}
+window.keywordMatches = keywordMatches;
+
 // Categorize transaction
 function categorizeTransaction(description, transactionId = null) {
     // First check if this specific transaction has an override
@@ -481,7 +474,7 @@ function categorizeTransaction(description, transactionId = null) {
 
         if (config.keywords && config.keywords.length > 0) {
             for (const keyword of config.keywords) {
-                if (upperDesc.includes(keyword.toUpperCase())) {
+                if (keywordMatches(upperDesc, keyword)) {
                     return category;
                 }
             }
@@ -500,7 +493,7 @@ function categorizeTransactionByKeywords(description) {
 
         if (config.keywords && config.keywords.length > 0) {
             for (const keyword of config.keywords) {
-                if (upperDesc.includes(keyword.toUpperCase())) {
+                if (keywordMatches(upperDesc, keyword)) {
                     return category;
                 }
             }

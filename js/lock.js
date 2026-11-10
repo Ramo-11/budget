@@ -1,10 +1,3 @@
-// js/lock.js - Optional app lock (PIN).
-// The PIN is never stored in plaintext: we store a SHA-256 hash of (salt + PIN).
-// When a PIN is set, a full-screen lock overlay is shown before the app is
-// usable. Unlocking is remembered for the browser session (re-locks on a fresh
-// session/tab-close). This protects the financial data on a shared device; it
-// is a privacy gate, not hardened cryptographic protection.
-
 (function () {
     const HASH_KEY = 'sahabBudget_pinHash';
     const SALT_KEY = 'sahabBudget_pinSalt';
@@ -32,6 +25,7 @@
         localStorage.setItem(SALT_KEY, salt);
         localStorage.setItem(HASH_KEY, hash);
         sessionStorage.setItem(SESSION_KEY, 'true');
+        window.dispatchEvent(new CustomEvent('app-lock-changed'));
     }
 
     async function verifyPin(pin) {
@@ -44,123 +38,178 @@
         localStorage.removeItem(HASH_KEY);
         localStorage.removeItem(SALT_KEY);
         sessionStorage.removeItem(SESSION_KEY);
+        window.dispatchEvent(new CustomEvent('app-lock-changed'));
     }
 
     function isUnlocked() {
-        return sessionStorage.getItem(SESSION_KEY) === 'true';
+        try { return sessionStorage.getItem(SESSION_KEY) === 'true'; } catch (e) { return false; }
     }
 
-    /* ---- Lock overlay shown before the app is usable ---- */
+    function icon(name, size) {
+        return typeof window.getIcon === 'function' ? window.getIcon(name, size) : '';
+    }
+
+    function setBackgroundInert(on) {
+        ['appShell', 'main'].forEach((id) => {
+            const n = document.getElementById(id);
+            if (!n) return;
+            if (on) { n.setAttribute('inert', ''); n.setAttribute('aria-hidden', 'true'); }
+            else { n.removeAttribute('inert'); n.removeAttribute('aria-hidden'); }
+        });
+    }
+
     function showLockScreen() {
         if (document.getElementById('appLockScreen')) return;
         const overlay = document.createElement('div');
         overlay.id = 'appLockScreen';
         overlay.className = 'app-lock-screen';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'appLockTitle');
         overlay.innerHTML =
-            '<div class="app-lock-card">' +
-            '<div class="app-lock-badge"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>' +
-            '<h2>Enter your PIN</h2>' +
+            '<form class="app-lock-card" id="appLockForm" novalidate>' +
+            '<div class="app-lock-badge">' + icon('lock', 28) + '</div>' +
+            '<h1 id="appLockTitle">Enter your PIN</h1>' +
+            '<p>Sahab Budget is locked on this device.</p>' +
+            '<div class="app-lock-form">' +
             '<div class="app-lock-input-wrap">' +
-            '<input id="appLockInput" class="app-input" type="password" inputmode="numeric" autocomplete="off" maxlength="12" aria-label="PIN" />' +
-            '<button type="button" class="app-lock-eye" aria-label="Show PIN"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>' +
+            '<input id="appLockInput" class="input" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="12" aria-label="PIN" aria-describedby="appLockError" />' +
+            '<button type="button" class="btn btn-ghost btn-icon btn-sm app-lock-eye" aria-label="Show PIN" aria-pressed="false">' + icon('eye', 18) + '</button>' +
             '</div>' +
-            '<div id="appLockError" class="app-lock-error"></div>' +
-            '<button id="appLockSubmit" class="btn btn-primary btn-lg" type="button">Unlock</button>' +
-            '</div>';
+            '<div id="appLockError" class="app-lock-error" role="alert"></div>' +
+            '<button id="appLockSubmit" class="btn btn-primary btn-lg btn-block" type="submit">Unlock</button>' +
+            '</div></form>';
         document.body.appendChild(overlay);
         document.documentElement.style.overflow = 'hidden';
+        setBackgroundInert(true);
 
+        const card = overlay.querySelector('.app-lock-card');
         const input = overlay.querySelector('#appLockInput');
         const err = overlay.querySelector('#appLockError');
         const eye = overlay.querySelector('.app-lock-eye');
         eye.addEventListener('click', () => {
-            input.type = input.type === 'password' ? 'text' : 'password';
+            const show = input.type === 'password';
+            input.type = show ? 'text' : 'password';
+            eye.setAttribute('aria-label', show ? 'Hide PIN' : 'Show PIN');
+            eye.setAttribute('aria-pressed', show ? 'true' : 'false');
+            eye.innerHTML = icon(show ? 'eye-off' : 'eye', 18);
             input.focus();
         });
-        async function attempt() {
-            const ok = await verifyPin(input.value);
+        input.addEventListener('input', () => {
+            input.value = input.value.replace(/\D/g, '');
+            err.textContent = '';
+            input.removeAttribute('aria-invalid');
+        });
+        card.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!input.value) {
+                err.textContent = 'Enter your PIN to continue.';
+                input.focus();
+                return;
+            }
+            let ok = false;
+            try { ok = await verifyPin(input.value); } catch (x) { ok = false; }
             if (ok) {
                 sessionStorage.setItem(SESSION_KEY, 'true');
                 document.documentElement.style.overflow = '';
+                setBackgroundInert(false);
                 overlay.remove();
+                window.dispatchEvent(new CustomEvent('budget:unlocked'));
             } else {
-                err.textContent = 'Incorrect PIN';
+                err.textContent = 'That PIN is not right. Try again.';
+                input.setAttribute('aria-invalid', 'true');
                 input.value = '';
                 input.focus();
-                overlay.querySelector('.app-lock-card').classList.remove('shake');
-                void overlay.offsetWidth;
-                overlay.querySelector('.app-lock-card').classList.add('shake');
+                card.classList.remove('shake');
+                void card.offsetWidth;
+                card.classList.add('shake');
             }
-        }
-        overlay.querySelector('#appLockSubmit').addEventListener('click', attempt);
-        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') attempt(); });
+        });
         setTimeout(() => input.focus(), 60);
     }
 
-    // Gate the app as early as possible when a PIN exists and this session
-    // hasn't unlocked yet.
     function maybeLock() {
         if (hasPin() && !isUnlocked()) showLockScreen();
     }
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', maybeLock);
-    } else {
-        maybeLock();
-    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', maybeLock);
+    else maybeLock();
 
-    /* ---- Settings modal (self-contained; opened from Settings) ---- */
     window.openAppLockSettings = function () {
-        const overlay = document.createElement('div');
-        overlay.className = 'app-modal-overlay';
+        if (!window.UI) return;
         const enabled = hasPin();
-        overlay.innerHTML =
-            '<div class="app-modal"><div class="app-modal-header">' +
-            '<h2 class="app-modal-title">App lock</h2>' +
-            '<button class="app-modal-close" type="button" aria-label="Close"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>' +
-            '</div><div class="app-modal-body" id="appLockBody"></div></div>';
-        const close = () => { overlay.remove(); };
-        overlay.querySelector('.app-modal-close').addEventListener('click', close);
-        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-        const body = overlay.querySelector('#appLockBody');
+        const body = document.createElement('form');
+        body.className = 'stack';
+        body.noValidate = true;
 
-        function renderEnable() {
-            body.innerHTML =
-                '<p class="app-hint" style="margin-bottom:14px">Require a PIN to open Sahab Budget on this device. Your PIN is stored only as a one-way hash.</p>' +
-                '<div class="app-field"><label class="app-label">New PIN (4 to 12 digits)</label><input id="lkNew" class="app-input" type="password" inputmode="numeric" maxlength="12"></div>' +
-                '<div class="app-field"><label class="app-label">Confirm PIN</label><input id="lkConfirm" class="app-input" type="password" inputmode="numeric" maxlength="12"></div>' +
-                '<div id="lkErr" class="app-lock-error"></div>' +
-                '<div class="app-modal-actions"><button class="btn btn-secondary" type="button" id="lkCancel">Cancel</button><button class="btn btn-primary" type="button" id="lkSave">Turn on lock</button></div>';
-            body.querySelector('#lkCancel').addEventListener('click', close);
-            body.querySelector('#lkSave').addEventListener('click', async () => {
-                const a = body.querySelector('#lkNew').value;
-                const b = body.querySelector('#lkConfirm').value;
-                const err = body.querySelector('#lkErr');
-                if (!/^\d{4,12}$/.test(a)) { err.textContent = 'PIN must be 4 to 12 digits'; return; }
-                if (a !== b) { err.textContent = 'PINs do not match'; return; }
-                await setPin(a);
-                close();
-                if (typeof showNotification === 'function') showNotification('App lock enabled', 'success');
-            });
+        function field(id, label, hint) {
+            const f = document.createElement('div');
+            f.className = 'field';
+            const l = document.createElement('label');
+            l.htmlFor = id;
+            l.textContent = label;
+            const i = document.createElement('input');
+            i.id = id;
+            i.className = 'input';
+            i.type = 'password';
+            i.inputMode = 'numeric';
+            i.maxLength = 12;
+            i.autocomplete = 'off';
+            f.append(l, i);
+            if (hint) {
+                const h = document.createElement('div');
+                h.className = 'field-hint';
+                h.textContent = hint;
+                f.appendChild(h);
+            }
+            body.appendChild(f);
+            return i;
         }
 
-        function renderDisable() {
-            body.innerHTML =
-                '<p class="app-hint" style="margin-bottom:14px">App lock is on. A PIN is required to open the app in a new session.</p>' +
-                '<div class="app-field"><label class="app-label">Enter current PIN to turn off</label><input id="lkCur" class="app-input" type="password" inputmode="numeric" maxlength="12"></div>' +
-                '<div id="lkErr" class="app-lock-error"></div>' +
-                '<div class="app-modal-actions"><button class="btn btn-secondary" type="button" id="lkCancel">Cancel</button><button class="btn btn-danger" type="button" id="lkOff">Turn off lock</button></div>';
-            body.querySelector('#lkCancel').addEventListener('click', close);
-            body.querySelector('#lkOff').addEventListener('click', async () => {
-                const cur = body.querySelector('#lkCur').value;
-                const err = body.querySelector('#lkErr');
-                if (!(await verifyPin(cur))) { err.textContent = 'Incorrect PIN'; return; }
+        const intro = document.createElement('p');
+        intro.className = 'muted text-sm';
+        intro.textContent = enabled
+            ? 'App lock is on. A PIN is needed to open the app in a new session.'
+            : 'Ask for a PIN when you open Sahab Budget on this device. The PIN is stored only as a one way hash.';
+        body.appendChild(intro);
+
+        let first;
+        let second = null;
+        if (enabled) first = field('lkCur', 'Current PIN', 'Enter it to turn the lock off.');
+        else {
+            first = field('lkNew', 'New PIN', '4 to 12 digits.');
+            second = field('lkConfirm', 'Confirm PIN');
+        }
+        const err = document.createElement('div');
+        err.className = 'field-error';
+        err.setAttribute('role', 'alert');
+        body.appendChild(err);
+
+        async function submit(ctx) {
+            err.textContent = '';
+            if (enabled) {
+                if (!(await verifyPin(first.value))) { err.textContent = 'That PIN is not right.'; first.focus(); return false; }
                 clearPin();
-                close();
-                if (typeof showNotification === 'function') showNotification('App lock disabled', 'info');
-            });
+                window.UI.toast('App lock turned off', { type: 'info' });
+                return true;
+            }
+            if (!/^\d{4,12}$/.test(first.value)) { err.textContent = 'Use 4 to 12 digits.'; first.focus(); return false; }
+            if (first.value !== second.value) { err.textContent = 'The two PINs do not match.'; second.focus(); return false; }
+            await setPin(first.value);
+            window.UI.toast('App lock turned on');
+            return true;
         }
 
-        if (enabled) renderDisable(); else renderEnable();
-        document.body.appendChild(overlay);
+        window.UI.sheet({
+            title: 'App lock',
+            body,
+            size: 'sm',
+            initialFocus: enabled ? '#lkCur' : '#lkNew',
+            onClose: () => { window.dispatchEvent(new CustomEvent('budget:lockchanged')); },
+            actions: [
+                { label: 'Cancel', variant: 'secondary' },
+                { label: enabled ? 'Turn off lock' : 'Turn on lock', variant: enabled ? 'danger-solid' : 'primary', onClick: submit },
+            ],
+        });
+        body.addEventListener('submit', (e) => e.preventDefault());
     };
 })();

@@ -1,381 +1,178 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-        <meta name="theme-color" content="#0f172a" />
-        <link rel="manifest" href="manifest.webmanifest" />
-        <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-title" content="Budget" />
-        <title>About - Sahab Budget</title>
-        <script>
-            (function () {
-                try {
-                    var p = localStorage.getItem('sahabBudget_theme') || 'system';
-                    var d = p === 'dark' || (p === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-                    document.documentElement.setAttribute('data-theme', d ? 'dark' : 'light');
-                } catch (e) {}
-            })();
-        </script>
-        <!-- Self-hosted Inter font (no external requests) -->
-        <link rel="stylesheet" href="css/fonts.css" />
-        <!-- CSS Files -->
-        <link rel="stylesheet" href="css/theme.css" />
-        <link rel="stylesheet" href="css/base.css" />
-        <link rel="stylesheet" href="css/guide.css" />
-        <link rel="stylesheet" href="css/about.css" />
-        <link rel="stylesheet" href="css/getting-started.css" />
-        <link rel="icon" href="/images/logo.png" type="image/x-icon" />
-    </head>
-    <body>
-        <div class="container">
-            <!-- Header -->
-            <div class="header">
-                <div class="header-inner">
-                    <div class="header-brand">
-                        <img
-                            src="/images/logo.png"
-                            alt="Sahab Solutions"
-                            class="header-logo"
-                        />
-                        <div>
-                            <h1 class="header-title">Help & About</h1>
-                            <p class="header-subtitle">
-                                Learn how to use Sahab Budget and understand your privacy
-                            </p>
-                        </div>
-                    </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b0c0f" media="(prefers-color-scheme: dark)" />
+  <meta name="description" content="How Sahab Budget works, how your data stays private, and how to get your bank file." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Budget" />
+  <title>Help and about | Sahab Budget</title>
+  <script>(function(){try{var p=localStorage.getItem('sahabBudget_theme')||'system';var d=p==='dark'||(p==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.setAttribute('data-theme',d?'dark':'light');var a=JSON.parse(localStorage.getItem('sahabBudget_hideAmounts')||'false');if(a)document.documentElement.classList.add('hide-amounts');}catch(e){}})();</script>
+  <link rel="icon" href="images/logo.png" type="image/png" />
+  <link rel="stylesheet" href="css/fonts.css" />
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/modals.css" />
+  <link rel="stylesheet" href="css/tx-sheet.css" />
+  <link rel="stylesheet" href="css/import.css" />
+  <link rel="stylesheet" href="css/getting-started.css" />
+  <link rel="stylesheet" href="css/about.css" />
+</head>
+<body data-page="about">
+  <div id="appShell"></div>
+  <main id="main" class="page about" tabindex="-1">
+    <header class="page-header">
+      <div>
+        <h1>Help and about</h1>
+        <p class="muted">Everything you need to get started and feel at ease.</p>
+      </div>
+    </header>
 
-                    <button class="menu-toggle" onclick="toggleMobileMenu()">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </button>
+    <nav class="about-toc" aria-label="On this page">
+      <a href="#what">What it is</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#bank-file">Get your bank file</a>
+      <a href="#faq">Questions</a>
+      <a href="#shortcuts">Shortcuts</a>
+    </nav>
 
-                    <div class="nav-buttons" id="mobileNav">
-                        <a href="index.html" class="nav-btn">Dashboard</a>
-                        <a href="analytics.html" class="nav-btn">Analytics</a>
-                        <a href="settings.html" class="nav-btn">Settings</a>
-                        <a href="about.html" class="nav-btn active">About</a>
-                        <button class="help-btn mobile-only" onclick="showHelp()" title="Help & Tutorial">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                            </svg>
-                            <span>Help</span>
-                        </button>
-                    </div>
+    <section class="about-section" id="what" aria-labelledby="what-title">
+      <h2 id="what-title">What Sahab Budget is</h2>
+      <p>Sahab Budget shows you where your money goes. You bring in a file from your bank, it sorts every purchase into a category, and you see a clear picture of each month. Then you can set budgets and savings goals and watch your progress.</p>
+      <ol class="about-steps">
+        <li><strong>Import.</strong> Download a CSV file from your bank and drop it into the app.</li>
+        <li><strong>Check.</strong> We sort what we can. Fix any that look wrong and we remember your choice.</li>
+        <li><strong>Plan.</strong> Set a monthly amount for each category and see how you are doing.</li>
+      </ol>
+      <div class="about-actions">
+        <a class="btn btn-primary" href="index.html">Go to Home</a>
+        <button type="button" class="btn btn-secondary" data-about="import">Import a file</button>
+        <button type="button" class="btn btn-ghost" data-about="sample">Try sample data</button>
+        <button type="button" class="btn btn-ghost" data-about="tour">Replay the welcome tour</button>
+      </div>
+    </section>
 
-                    <div class="header-actions">
-                        <button class="help-btn" onclick="showHelp()" title="Help & Tutorial">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                            </svg>
-                        </button>
-                    </div>
+    <section class="about-section" id="privacy" aria-labelledby="privacy-title">
+      <h2 id="privacy-title">Your privacy</h2>
+      <ul class="about-list">
+        <li><strong>Your data stays in this browser.</strong> Your transactions, budgets, and settings are saved on this device only.</li>
+        <li><strong>Nothing is uploaded.</strong> There is no account, no server holding your numbers, and no tracking. Your bank file is read on your device and never sent anywhere.</li>
+        <li><strong>It works without internet.</strong> After the first visit the app opens offline.</li>
+      </ul>
+      <h3>Back up and move to another device</h3>
+      <p>Because your data lives in this browser, make a backup now and then. Open <a href="settings.html#backup">Settings, Backup and restore</a>, download a backup file, and keep it somewhere safe. To move to a new phone or computer, open Sahab Budget there, go to the same place, and restore that file.</p>
+    </section>
 
-                    <div class="nav-overlay" id="navOverlay" onclick="toggleMobileMenu()"></div>
-                </div>
-            </div>
+    <section class="about-section" id="bank-file" aria-labelledby="bank-title">
+      <h2 id="bank-title">How to download a CSV from your bank</h2>
+      <p>Use your bank's website, since apps often do not offer downloads. Look for Download, Export, or Statements near your list of transactions, then choose CSV. It may be called a spreadsheet or comma separated file. A few months at a time works well. If you import the same days twice, repeats are skipped. Menu names change from time to time.</p>
+      <dl class="about-banks">
+        <div><dt>Chase</dt><dd>Open the account and choose the download option on the activity page. Pick CSV and a date range.</dd></div>
+        <div><dt>Bank of America</dt><dd>Open the account, choose Download above the transactions, pick a CSV or spreadsheet format and dates.</dd></div>
+        <div><dt>Wells Fargo</dt><dd>Open the account, choose Download Account Activity, pick Comma Separated and dates.</dd></div>
+        <div><dt>Capital One</dt><dd>Open the account, choose Download Transactions, pick CSV and dates.</dd></div>
+        <div><dt>Citi</dt><dd>Open the account, choose Download Transactions, pick CSV and dates.</dd></div>
+        <div><dt>Discover</dt><dd>Open Activity and Statements, choose Download, pick CSV and dates.</dd></div>
+        <div><dt>American Express</dt><dd>Open Statements and Activity, choose Download, pick CSV and the details to include.</dd></div>
+        <div><dt>U.S. Bank</dt><dd>Open the account, choose Download Transactions, pick CSV and dates.</dd></div>
+        <div><dt>PNC</dt><dd>Open the account, choose Download Activity, pick CSV and dates.</dd></div>
+        <div><dt>Credit unions and others</dt><dd>Look for Download or Export on the transaction list and pick CSV.</dd></div>
+      </dl>
+      <p class="about-note">If we do not recognize your bank's columns, the import screen asks you to point out the date, description, and amount, and remembers it for next time.</p>
+    </section>
 
-            <!-- Sample Mode Banner -->
-            <div class="sample-mode-banner" id="sampleModeBanner">
-                <div class="banner-content">
-                    <span>You're viewing sample data. Feel free to explore every feature.</span>
-                    <button class="btn btn-secondary btn-sm" onclick="exitSampleMode()">
-                        Exit Sample Mode
-                    </button>
-                </div>
-            </div>
+    <section class="about-section" id="faq" aria-labelledby="faq-title">
+      <h2 id="faq-title">Common questions</h2>
+      <div class="faq">
+        <details>
+          <summary>Why is a transaction in the wrong category?</summary>
+          <p>We guess from the store name, and sometimes the guess is off. Open the transaction and pick the right category. You can choose to do the same for every purchase from that store, now and in the future.</p>
+        </details>
+        <details>
+          <summary>How do auto-sort rules work?</summary>
+          <p>A rule is a set of words to match and a category. When a purchase contains those words, it goes into that category. Rules are created when you fix a category for a store, and you can add or edit them in <a href="settings.html#rules">Settings</a>. A rule can also hide matching purchases, such as card payments.</p>
+        </details>
+        <details>
+          <summary>What does "Hide from totals" mean?</summary>
+          <p>A hidden transaction stays in your list but is left out of your spending, income, and budget numbers. Use it for things like moving money between your own accounts, so it does not count twice.</p>
+        </details>
+        <details>
+          <summary>How do I track cash?</summary>
+          <p>Choose Add transaction, enter the date, what it was, the amount, and a category. Cash spending then counts like any other purchase.</p>
+        </details>
+        <details>
+          <summary>Can I use it offline and install it on my phone?</summary>
+          <p>Yes. After your first visit it works without internet. On iPhone, open it in Safari, tap Share, then Add to Home Screen. On Android, open the browser menu and choose Install app or Add to Home screen. On a computer, look for the install button in the address bar.</p>
+        </details>
+        <details>
+          <summary>What happens if I clear my browser data?</summary>
+          <p>Your budget lives in this browser, so clearing site data deletes it. Download a backup from <a href="settings.html#backup">Settings</a> first, and you can restore it any time.</p>
+        </details>
+      </div>
+    </section>
 
-            <div class="about-page">
-                <!-- Hero -->
-                <section class="about-hero">
-                    <span class="about-hero-badge">
-                        <img src="/images/logo.png" alt="" aria-hidden="true" />
-                    </span>
-                    <h1>Sahab Budget</h1>
-                    <p>
-                        Import your bank CSVs and instantly see where your money goes,
-                        sorted, tracked, and charted, all privately in your browser.
-                    </p>
-                    <div class="about-hero-actions">
-                        <a href="index.html" class="btn btn-primary">Open Dashboard</a>
-                        <button type="button" class="btn btn-secondary" onclick="loadSampleData()">
-                            Try Sample Data
-                        </button>
-                    </div>
-                </section>
+    <section class="about-section" id="shortcuts" aria-labelledby="shortcuts-title">
+      <h2 id="shortcuts-title">Keyboard shortcuts</h2>
+      <div class="table-wrap">
+        <table class="about-table">
+          <caption class="visually-hidden">Keyboard shortcuts</caption>
+          <thead><tr><th scope="col">Action</th><th scope="col">Keys</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Search and commands</th><td><kbd class="kbd">Ctrl or Cmd</kbd> + <kbd class="kbd">K</kbd>, or <kbd class="kbd">/</kbd></td></tr>
+            <tr><th scope="row">Go to Home</th><td><kbd class="kbd">g</kbd> then <kbd class="kbd">h</kbd></td></tr>
+            <tr><th scope="row">Go to Transactions</th><td><kbd class="kbd">g</kbd> then <kbd class="kbd">t</kbd></td></tr>
+            <tr><th scope="row">Go to Budgets</th><td><kbd class="kbd">g</kbd> then <kbd class="kbd">b</kbd></td></tr>
+            <tr><th scope="row">Go to Insights</th><td><kbd class="kbd">g</kbd> then <kbd class="kbd">i</kbd></td></tr>
+            <tr><th scope="row">Go to Settings</th><td><kbd class="kbd">g</kbd> then <kbd class="kbd">s</kbd></td></tr>
+            <tr><th scope="row">Add a transaction</th><td><kbd class="kbd">n</kbd></td></tr>
+            <tr><th scope="row">Import a file</th><td><kbd class="kbd">i</kbd></td></tr>
+            <tr><th scope="row">Show all shortcuts</th><td><kbd class="kbd">?</kbd></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-                <!-- How it works -->
-                <section class="about-block">
-                    <h2 class="about-block-title">How it works</h2>
-                    <div class="steps-grid">
-                        <div class="step-card">
-                            <span class="step-index">1</span>
-                            <span class="step-icon">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="17 8 12 3 7 8"></polyline>
-                                    <line x1="12" y1="3" x2="12" y2="15"></line>
-                                </svg>
-                            </span>
-                            <h3>Import your CSVs</h3>
-                            <p>Upload exports from any bank.</p>
-                        </div>
-                        <div class="step-card">
-                            <span class="step-index">2</span>
-                            <span class="step-icon">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                                    <line x1="7" y1="7" x2="7.01" y2="7"></line>
-                                </svg>
-                            </span>
-                            <h3>Auto-categorized</h3>
-                            <p>Transactions sorted for you.</p>
-                        </div>
-                        <div class="step-card">
-                            <span class="step-index">3</span>
-                            <span class="step-icon">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <circle cx="12" cy="12" r="6"></circle>
-                                    <circle cx="12" cy="12" r="2"></circle>
-                                </svg>
-                            </span>
-                            <h3>Set budgets</h3>
-                            <p>Add limits and monthly goals.</p>
-                        </div>
-                        <div class="step-card">
-                            <span class="step-index">4</span>
-                            <span class="step-icon">
-                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <line x1="18" y1="20" x2="18" y2="10"></line>
-                                    <line x1="12" y1="20" x2="12" y2="4"></line>
-                                    <line x1="6" y1="20" x2="6" y2="14"></line>
-                                </svg>
-                            </span>
-                            <h3>See the trends</h3>
-                            <p>Charts, comparisons, insights.</p>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Features -->
-                <section class="about-block">
-                    <h2 class="about-block-title">Everything it does</h2>
-                    <div class="feature-grid">
-                        <div class="feature-tile" style="--tile: var(--cat-1)">
-                            <span class="feature-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                    <line x1="12" y1="18" x2="12" y2="12"></line>
-                                    <line x1="9" y1="15" x2="15" y2="15"></line>
-                                </svg>
-                            </span>
-                            <span class="feature-name">CSV import + mapping</span>
-                        </div>
-                        <div class="feature-tile" style="--tile: var(--cat-2)">
-                            <span class="feature-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                                    <line x1="7" y1="7" x2="7.01" y2="7"></line>
-                                </svg>
-                            </span>
-                            <span class="feature-name">Auto-categorize + rules</span>
-                        </div>
-                        <div class="feature-tile" style="--tile: var(--cat-5)">
-                            <span class="feature-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <circle cx="12" cy="12" r="10"></circle>
-                                    <circle cx="12" cy="12" r="6"></circle>
-                                    <circle cx="12" cy="12" r="2"></circle>
-                                </svg>
-                            </span>
-                            <span class="feature-name">Budgets + goals</span>
-                        </div>
-                        <div class="feature-tile" style="--tile: var(--cat-11)">
-                            <span class="feature-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-                                    <polyline points="17 6 23 6 23 12"></polyline>
-                                </svg>
-                            </span>
-                            <span class="feature-name">Analytics + trends</span>
-                        </div>
-                        <div class="feature-tile" style="--tile: var(--cat-7)">
-                            <span class="feature-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <line x1="18" y1="20" x2="18" y2="10"></line>
-                                    <line x1="12" y1="20" x2="12" y2="4"></line>
-                                    <line x1="6" y1="20" x2="6" y2="14"></line>
-                                </svg>
-                            </span>
-                            <span class="feature-name">Month comparison</span>
-                        </div>
-                        <div class="feature-tile" style="--tile: var(--cat-9)">
-                            <span class="feature-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-                                    <polyline points="2 17 12 22 22 17"></polyline>
-                                    <polyline points="2 12 12 17 22 12"></polyline>
-                                </svg>
-                            </span>
-                            <span class="feature-name">Multiple accounts</span>
-                        </div>
-                        <div class="feature-tile" style="--tile: var(--cat-8)">
-                            <span class="feature-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polyline points="1 4 1 10 7 10"></polyline>
-                                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-                                </svg>
-                            </span>
-                            <span class="feature-name">Trash + restore</span>
-                        </div>
-                        <div class="feature-tile" style="--tile: var(--cat-14)">
-                            <span class="feature-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="7 10 12 15 17 10"></polyline>
-                                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                                </svg>
-                            </span>
-                            <span class="feature-name">Backup + restore</span>
-                        </div>
-                        <div class="feature-tile" style="--tile: var(--cat-6)">
-                            <span class="feature-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                                </svg>
-                            </span>
-                            <span class="feature-name">Light + dark</span>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Privacy -->
-                <section class="about-block">
-                    <h2 class="about-block-title">Your data stays private</h2>
-                    <div class="privacy-rows">
-                        <div class="privacy-row">
-                            <span class="privacy-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                                    <line x1="8" y1="21" x2="16" y2="21"></line>
-                                    <line x1="12" y1="17" x2="12" y2="21"></line>
-                                </svg>
-                            </span>
-                            <p>Everything lives in your browser's localStorage.</p>
-                        </div>
-                        <div class="privacy-row">
-                            <span class="privacy-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0 4 15h9a5 5 0 0 0 1.7-.3"></path>
-                                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                                </svg>
-                            </span>
-                            <p>Nothing is uploaded to any server of ours.</p>
-                        </div>
-                        <div class="privacy-row">
-                            <span class="privacy-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="7 10 12 15 17 10"></polyline>
-                                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                                </svg>
-                            </span>
-                            <p>Export a full backup anytime from Settings.</p>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- FAQ -->
-                <section class="about-block">
-                    <h2 class="about-block-title">Questions</h2>
-                    <div class="faq-list">
-                        <div class="faq-item">
-                            <button type="button" class="faq-q" aria-expanded="false">
-                                <span>Which banks are supported?</span>
-                                <svg class="faq-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
-                            </button>
-                            <div class="faq-a">
-                                <p>Any bank. Chase and First Financial auto-detect. Others use a quick column mapping you can save for next time.</p>
-                            </div>
-                        </div>
-                        <div class="faq-item">
-                            <button type="button" class="faq-q" aria-expanded="false">
-                                <span>Where is my data stored?</span>
-                                <svg class="faq-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
-                            </button>
-                            <div class="faq-a">
-                                <p>In your browser on this device. Clearing browser data removes it, so export a backup from Settings regularly.</p>
-                            </div>
-                        </div>
-                        <div class="faq-item">
-                            <button type="button" class="faq-q" aria-expanded="false">
-                                <span>Can I combine multiple accounts?</span>
-                                <svg class="faq-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
-                            </button>
-                            <div class="faq-a">
-                                <p>Yes. Upload CSVs from different banks and they merge and categorize together.</p>
-                            </div>
-                        </div>
-                        <div class="faq-item">
-                            <button type="button" class="faq-q" aria-expanded="false">
-                                <span>Is there a mobile app?</span>
-                                <svg class="faq-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
-                            </button>
-                            <div class="faq-a">
-                                <p>It runs in any mobile browser. Add it to your home screen for app-like access.</p>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Footer -->
-                <div class="about-foot">
-                    <p class="about-foot-title">Built by Sahab Solutions</p>
-                    <p class="about-foot-sub">Simple, private budget tracking.</p>
-                    <a href="https://sahab-solutions.com" target="_blank" rel="noopener" class="btn btn-primary">
-                        Visit Sahab Solutions
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <script>
-            // FAQ accordion (delegated toggle)
-            (function () {
-                document.addEventListener('click', function (e) {
-                    var q = e.target.closest('.faq-q');
-                    if (!q) return;
-                    var item = q.closest('.faq-item');
-                    var open = item.classList.toggle('open');
-                    q.setAttribute('aria-expanded', open ? 'true' : 'false');
-                });
-            })();
-        </script>
-        <script src="js/theme.js"></script>
-        <script src="js/icons.js"></script>
-        <script src="js/accounts.js"></script>
-        <script src="js/lock.js"></script>
-        <script src="js/core.js"></script>
-        <script src="js/getting-started.js"></script>
-        <script src="js/mobile.js"></script>
-        <script src="js/pwa.js"></script>
-    </body>
+    <footer class="about-credit">
+      <p>Made by <a href="https://sahab-solutions.com" target="_blank" rel="noopener noreferrer">Sahab Solutions<span class="visually-hidden"> (opens in a new tab)</span></a>.</p>
+    </footer>
+  </main>
+  <script src="js/vendor/papaparse.min.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/accounts.js"></script>
+  <script src="js/lock.js"></script>
+  <script src="js/undo.js"></script>
+  <script src="js/sync.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/rules.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/recurring.js"></script>
+  <script src="js/transfers.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/columnMapping.js"></script>
+  <script src="js/importer.js"></script>
+  <script src="js/getting-started.js"></script>
+  <script src="js/tx-sheet.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      if (window.Store) Store.init();
+      document.querySelectorAll('[data-about]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var a = b.getAttribute('data-about');
+          if (a === 'import' && window.openImport) window.openImport();
+          else if (a === 'sample' && window.loadSampleData) window.loadSampleData();
+          else if (a === 'tour' && window.startWelcomeTour) window.startWelcomeTour();
+        });
+      });
+    });
+  </script>
+  <script src="js/pwa.js"></script>
+</body>
 </html>

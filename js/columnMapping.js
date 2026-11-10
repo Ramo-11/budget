@@ -1,400 +1,336 @@
-// js/columnMapping.js - CSV Column Mapping for Unknown Bank Formats
+(function () {
+    const STORAGE_KEY = 'sahabBudget_bankMappings';
 
-// Store pending CSV data and parsed results for mapping
-window.pendingCsvData = null;
-window.pendingCsvFiles = null;
-window.savedBankMappings = {};
+    window.savedBankMappings = window.savedBankMappings || {};
 
-// Load saved bank mappings from localStorage
-function loadBankMappings() {
-    try {
-        const saved = localStorage.getItem('sahabBudget_bankMappings');
-        if (saved) {
-            window.savedBankMappings = JSON.parse(saved);
+    function loadBankMappings() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            window.savedBankMappings = saved ? JSON.parse(saved) || {} : {};
+        } catch (error) {
+            window.savedBankMappings = {};
         }
-    } catch (error) {
-        console.error('Error loading bank mappings:', error);
+        return window.savedBankMappings;
     }
-}
 
-// Save bank mappings to localStorage
-function saveBankMappings() {
-    try {
-        localStorage.setItem('sahabBudget_bankMappings', JSON.stringify(window.savedBankMappings));
-    } catch (error) {
-        console.error('Error saving bank mappings:', error);
-    }
-}
-
-// Known bank format detection patterns
-const knownBankFormats = {
-    chaseChecking: {
-        name: 'Chase Checking',
-        detect: (headers) => {
-            const h = headers.map(h => h.toLowerCase());
-            // Chase checking has: Details, Posting Date, Description, Amount, Type, Balance
-            return h.includes('posting date') &&
-                   h.includes('details') &&
-                   h.includes('type') &&
-                   h.includes('balance') &&
-                   h.includes('amount');
-        },
-        mapping: {
-            date: ['Posting Date'],
-            description: ['Description'],
-            amount: ['Amount']
-        },
-        negativeIsExpense: true
-    },
-    chase: {
-        name: 'Chase',
-        detect: (headers) => {
-            const h = headers.map(h => h.toLowerCase());
-            return (h.includes('transaction date') || h.includes('post date')) &&
-                   (h.includes('description') || h.includes('original description')) &&
-                   h.includes('amount');
-        },
-        mapping: {
-            date: ['Transaction Date', 'Post Date', 'Posting Date'],
-            description: ['Description', 'Original Description'],
-            amount: ['Amount']
-        },
-        negativeIsExpense: true
-    },
-    firstFinancial: {
-        name: 'First Financial',
-        detect: (headers) => {
-            const h = headers.map(h => h.toLowerCase());
-            return h.includes('posted_at') &&
-                   (h.includes('nickname') || h.includes('original_name')) &&
-                   h.includes('amount');
-        },
-        mapping: {
-            date: ['posted_at'],
-            description: ['nickname', 'original_name'],
-            amount: ['amount']
-        },
-        negativeIsExpense: false // First Financial uses positive for expenses
-    }
-};
-
-// Detect if CSV matches a known bank format
-function detectBankFormat(headers) {
-    // First check saved custom mappings (copy before sorting; .sort() mutates)
-    for (const [bankId, mapping] of Object.entries(window.savedBankMappings)) {
-        if (mapping.headers && arraysEqual(mapping.headers.slice().sort(), headers.slice().sort())) {
-            return {
-                type: 'custom',
-                name: mapping.bankName,
-                mapping: mapping
-            };
+    function saveBankMappings() {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(window.savedBankMappings));
+            return true;
+        } catch (error) {
+            return false;
         }
     }
 
-    // Check known formats
-    for (const [bankId, format] of Object.entries(knownBankFormats)) {
-        if (format.detect(headers)) {
-            return {
-                type: 'known',
-                name: format.name,
-                mapping: format.mapping,
-                negativeIsExpense: format.negativeIsExpense
-            };
+    function norm(h) {
+        return String(h == null ? '' : h).replace(/^﻿/, '').toLowerCase().replace(/[^a-z0-9_]+/g, ' ').trim();
+    }
+
+    function hasAll(headers, names) {
+        const set = headers.map(norm);
+        return names.every((n) => set.includes(n));
+    }
+
+    function hasAny(headers, names) {
+        const set = headers.map(norm);
+        return names.some((n) => set.includes(n));
+    }
+
+    const knownBankFormats = {
+        chaseChecking: {
+            name: 'Chase checking',
+            detect: (h) => hasAll(h, ['details', 'posting date', 'description', 'amount']),
+            mapping: { date: ['Posting Date'], description: ['Description'], amount: ['Amount'] },
+            negativeIsExpense: true
+        },
+        chase: {
+            name: 'Chase',
+            detect: (h) => hasAny(h, ['transaction date', 'post date']) && hasAny(h, ['description', 'original description']) && hasAll(h, ['amount']) && !hasAny(h, ['card no', 'posted date']),
+            mapping: { date: ['Transaction Date', 'Post Date', 'Posting Date'], description: ['Description', 'Original Description'], amount: ['Amount'] },
+            negativeIsExpense: true
+        },
+        capitalOne: {
+            name: 'Capital One',
+            detect: (h) => hasAll(h, ['transaction date', 'description', 'debit', 'credit']),
+            mapping: { date: ['Transaction Date'], description: ['Description'], debit: ['Debit'], credit: ['Credit'] },
+            negativeIsExpense: true
+        },
+        citi: {
+            name: 'Citi',
+            detect: (h) => hasAll(h, ['status', 'date', 'description', 'debit', 'credit']),
+            mapping: { date: ['Date'], description: ['Description'], debit: ['Debit'], credit: ['Credit'] },
+            negativeIsExpense: true
+        },
+        discover: {
+            name: 'Discover',
+            detect: (h) => hasAll(h, ['trans date', 'post date', 'description', 'amount']),
+            mapping: { date: ['Trans. Date'], description: ['Description'], amount: ['Amount'] },
+            negativeIsExpense: false
+        },
+        bankOfAmerica: {
+            name: 'Bank of America',
+            detect: (h) => hasAll(h, ['date', 'description', 'amount']) && hasAny(h, ['running bal', 'running balance']),
+            mapping: { date: ['Date'], description: ['Description'], amount: ['Amount'] },
+            negativeIsExpense: true
+        },
+        americanExpress: {
+            name: 'American Express',
+            detect: (h) => hasAll(h, ['date', 'description', 'amount']) && hasAny(h, ['card member', 'account', 'account number', 'extended details', 'appears on your statement as']),
+            mapping: { date: ['Date'], description: ['Description'], amount: ['Amount'] },
+            negativeIsExpense: false
+        },
+        usBank: {
+            name: 'U.S. Bank',
+            detect: (h) => hasAll(h, ['date', 'transaction', 'name', 'memo', 'amount']),
+            mapping: { date: ['Date'], description: ['Name', 'Memo'], amount: ['Amount'] },
+            negativeIsExpense: true
+        },
+        firstFinancial: {
+            name: 'First Financial',
+            detect: (h) => hasAll(h, ['posted_at', 'amount']) && hasAny(h, ['nickname', 'original_name']),
+            mapping: { date: ['posted_at'], description: ['nickname', 'original_name'], amount: ['amount'] },
+            negativeIsExpense: false,
+            passthrough: true
         }
-    }
-
-    return null;
-}
-
-// Helper to compare arrays
-function arraysEqual(a, b) {
-    if (a.length !== b.length) return false;
-    return a.every((val, i) => val === b[i]);
-}
-
-// Find the matching column from possible options
-function findColumn(headers, possibleNames) {
-    for (const name of possibleNames) {
-        const found = headers.find(h => h.toLowerCase() === name.toLowerCase());
-        if (found) return found;
-    }
-    return null;
-}
-
-// Show column mapping modal
-function showColumnMappingModal(parsedData, files) {
-    window.pendingCsvData = parsedData;
-    window.pendingCsvFiles = files;
-
-    const headers = parsedData.length > 0 ? Object.keys(parsedData[0]) : [];
-
-    // Populate preview table
-    const previewTable = document.getElementById('csvPreviewTable');
-    let tableHtml = '<thead><tr>';
-    headers.forEach(h => {
-        tableHtml += `<th>${escapeHtml(h)}</th>`;
-    });
-    tableHtml += '</tr></thead><tbody>';
-
-    // Show first 5 rows
-    const previewRows = parsedData.slice(0, 5);
-    previewRows.forEach(row => {
-        tableHtml += '<tr>';
-        headers.forEach(h => {
-            tableHtml += `<td>${escapeHtml(String(row[h] || ''))}</td>`;
-        });
-        tableHtml += '</tr>';
-    });
-    tableHtml += '</tbody>';
-    previewTable.innerHTML = tableHtml;
-
-    // Populate dropdowns
-    const dateSelect = document.getElementById('dateColumnSelect');
-    const descSelect = document.getElementById('descriptionColumnSelect');
-    const amountSelect = document.getElementById('amountColumnSelect');
-
-    [dateSelect, descSelect, amountSelect].forEach(select => {
-        select.innerHTML = '<option value="">-- Select column --</option>';
-        headers.forEach(h => {
-            select.innerHTML += `<option value="${escapeHtml(h)}">${escapeHtml(h)}</option>`;
-        });
-    });
-
-    // Try to auto-select likely columns based on common patterns
-    autoSelectColumns(headers, dateSelect, descSelect, amountSelect);
-
-    // Show modal
-    document.getElementById('columnMappingModal').classList.add('show');
-    document.getElementById('loading').style.display = 'none';
-}
-
-// Auto-select columns based on common naming patterns
-function autoSelectColumns(headers, dateSelect, descSelect, amountSelect) {
-    const lowerHeaders = headers.map(h => ({ original: h, lower: h.toLowerCase() }));
-
-    // Date patterns
-    const datePatterns = ['date', 'posted', 'trans', 'transaction'];
-    for (const header of lowerHeaders) {
-        if (datePatterns.some(p => header.lower.includes(p))) {
-            dateSelect.value = header.original;
-            break;
-        }
-    }
-
-    // Description patterns
-    const descPatterns = ['description', 'merchant', 'name', 'payee', 'memo', 'detail'];
-    for (const header of lowerHeaders) {
-        if (descPatterns.some(p => header.lower.includes(p))) {
-            descSelect.value = header.original;
-            break;
-        }
-    }
-
-    // Amount patterns
-    const amountPatterns = ['amount', 'debit', 'credit', 'sum', 'total', 'value'];
-    for (const header of lowerHeaders) {
-        if (amountPatterns.some(p => header.lower.includes(p))) {
-            amountSelect.value = header.original;
-            break;
-        }
-    }
-}
-
-// Cancel column mapping
-function cancelColumnMapping() {
-    document.getElementById('columnMappingModal').classList.remove('show');
-    window.pendingCsvData = null;
-    window.pendingCsvFiles = null;
-
-    // Reset file input
-    const fileInput = document.getElementById('csvFile');
-    if (fileInput) fileInput.value = '';
-}
-
-// Apply column mapping and process transactions
-function applyColumnMapping() {
-    const dateColumn = document.getElementById('dateColumnSelect').value;
-    const descColumn = document.getElementById('descriptionColumnSelect').value;
-    const amountColumn = document.getElementById('amountColumnSelect').value;
-    const negativeIsExpense = document.getElementById('amountNegativeExpense').checked;
-    const bankName = document.getElementById('bankNameInput').value.trim();
-
-    // Validate required fields
-    if (!dateColumn || !descColumn || !amountColumn) {
-        showNotification('Please select all required columns', 'error');
-        return;
-    }
-
-    // Save mapping if bank name provided
-    if (bankName) {
-        const headers = Object.keys(window.pendingCsvData[0]);
-        const mappingId = bankName.toLowerCase().replace(/\s+/g, '_');
-        window.savedBankMappings[mappingId] = {
-            bankName: bankName,
-            headers: headers,
-            dateColumn: dateColumn,
-            descriptionColumn: descColumn,
-            amountColumn: amountColumn,
-            negativeIsExpense: negativeIsExpense
-        };
-        saveBankMappings();
-    }
-
-    // Process transactions with the mapping
-    const mapping = {
-        dateColumn,
-        descriptionColumn: descColumn,
-        amountColumn,
-        negativeIsExpense
     };
 
-    processTransactionsWithMapping(window.pendingCsvData, mapping);
-
-    // Close modal
-    document.getElementById('columnMappingModal').classList.remove('show');
-    window.pendingCsvData = null;
-    window.pendingCsvFiles = null;
-}
-
-// Parse a CSV amount cell robustly. Handles "$1,234.56", "(45.00)" (negative),
-// "1.234,56" (decimal comma), "45.00-" (trailing minus), and plain numbers.
-// Returns NaN when the cell cannot be read as a number.
-function parseCsvAmount(value) {
-    if (typeof value === 'number') return isFinite(value) ? value : NaN;
-    if (value == null) return NaN;
-
-    let s = String(value).trim();
-    if (!s) return NaN;
-
-    let negative = false;
-    if (/^\(.*\)$/.test(s)) {
-        negative = true;
-        s = s.slice(1, -1);
-    }
-    if (s.startsWith('-')) {
-        negative = true;
-        s = s.slice(1);
-    }
-    if (s.endsWith('-')) {
-        negative = true;
-        s = s.slice(0, -1);
+    function cleanHeaders(headers) {
+        return (headers || [])
+            .map((h) => String(h == null ? '' : h).replace(/^﻿/, '').trim())
+            .filter((h) => h && !h.startsWith('__parsed'));
     }
 
-    // Strip currency symbols, spaces, and any other non-numeric characters
-    s = s.replace(/[^0-9.,]/g, '');
-    if (!s) return NaN;
-
-    const hasComma = s.includes(',');
-    const hasDot = s.includes('.');
-    if (hasComma && hasDot) {
-        // Whichever separator comes last is the decimal separator
-        if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
-            s = s.replace(/\./g, '').replace(',', '.');
-        } else {
-            s = s.replace(/,/g, '');
-        }
-    } else if (hasComma) {
-        const parts = s.split(',');
-        if (parts.length === 2 && parts[1].length !== 3) {
-            s = parts.join('.'); // decimal comma: 1234,56
-        } else {
-            s = parts.join(''); // thousands: 1,234 or 1,234,567
-        }
+    function arraysEqual(a, b) {
+        return a.length === b.length && a.every((v, i) => v === b[i]);
     }
 
-    const parsed = parseFloat(s);
-    if (!isFinite(parsed)) return NaN;
-    return negative ? -parsed : parsed;
-}
-
-// Process transactions using custom column mapping
-function processTransactionsWithMapping(transactions, mapping) {
-    const normalizedTransactions = [];
-    let unreadable = 0;
-
-    transactions.forEach(row => {
-        const dateValue = row[mapping.dateColumn];
-        const descValue = row[mapping.descriptionColumn];
-        let amountValue = parseCsvAmount(row[mapping.amountColumn]);
-
-        // Skip if missing required fields
-        if (!dateValue || !descValue) return;
-
-        // Do not silently drop rows: count unreadable amounts and report them
-        if (isNaN(amountValue)) {
-            unreadable++;
-            return;
+    function findColumn(headers, possibleNames) {
+        for (const name of possibleNames || []) {
+            const target = norm(name);
+            const found = headers.find((h) => norm(h) === target);
+            if (found) return found;
         }
-        if (amountValue === 0) return;
+        return null;
+    }
 
-        // Handle amount sign based on bank convention
-        if (mapping.negativeIsExpense) {
-            // Standard: negative = expense, positive = income
-            if (amountValue >= 0) return; // Skip income
-        } else {
-            // Reversed: positive = expense, negative = income
-            if (amountValue <= 0) return; // Skip income
-            amountValue = -Math.abs(amountValue); // Convert to negative for consistency
+    function detectBankFormat(headers) {
+        if (!headers || !headers.length) return null;
+        const clean = cleanHeaders(headers);
+        loadBankMappings();
+        for (const mapping of Object.values(window.savedBankMappings)) {
+            if (mapping && Array.isArray(mapping.headers) && arraysEqual(cleanHeaders(mapping.headers).sort(), clean.slice().sort())) {
+                return { type: 'custom', name: mapping.bankName, mapping };
+            }
         }
+        for (const format of Object.values(knownBankFormats)) {
+            if (format.detect(clean)) {
+                return {
+                    type: 'known',
+                    name: format.name,
+                    mapping: format.mapping,
+                    negativeIsExpense: format.negativeIsExpense,
+                    passthrough: !!format.passthrough
+                };
+            }
+        }
+        return null;
+    }
 
-        // Create normalized transaction
-        normalizedTransactions.push({
-            'Transaction Date': dateValue,
-            Description: String(descValue).toUpperCase(),
-            Amount: amountValue,
-            _originalFormat: 'CustomMapping',
-            _rawCsvData: { ...row }, // Store the original raw CSV row
+    function resolveMapping(detected, headers) {
+        if (!detected) return null;
+        const clean = cleanHeaders(headers);
+        if (detected.type === 'custom') {
+            const m = detected.mapping;
+            return {
+                dateColumn: m.dateColumn,
+                descriptionColumn: m.descriptionColumn,
+                amountColumn: m.amountColumn || null,
+                debitColumn: m.debitColumn || null,
+                creditColumn: m.creditColumn || null,
+                negativeIsExpense: m.negativeIsExpense !== false,
+                passthrough: false
+            };
+        }
+        const m = detected.mapping;
+        return {
+            dateColumn: findColumn(clean, m.date),
+            descriptionColumn: findColumn(clean, m.description),
+            amountColumn: m.amount ? findColumn(clean, m.amount) : null,
+            debitColumn: m.debit ? findColumn(clean, m.debit) : null,
+            creditColumn: m.credit ? findColumn(clean, m.credit) : null,
+            negativeIsExpense: detected.negativeIsExpense !== false,
+            passthrough: !!detected.passthrough
+        };
+    }
+
+    function pickColumn(clean, exact, contains, exclude) {
+        const skip = exclude || [];
+        const byExact = findColumn(clean, exact);
+        if (byExact && !skip.includes(byExact)) return byExact;
+        for (const part of contains || []) {
+            const found = clean.find((h) => !skip.includes(h) && norm(h).includes(part));
+            if (found) return found;
+        }
+        return null;
+    }
+
+    function guessMapping(headers, rows) {
+        const clean = cleanHeaders(headers);
+        const dateColumn = pickColumn(clean, ['transaction date', 'trans date', 'date', 'posting date', 'posted date', 'post date', 'posted at', 'posted_at'], ['date', 'posted', 'time']);
+        const used = [dateColumn];
+        const descriptionColumn = pickColumn(clean, ['description', 'original description', 'payee', 'merchant', 'name', 'transaction', 'memo', 'details'], ['descri', 'merchant', 'payee', 'name', 'memo', 'detail', 'narrat', 'reference'], used);
+        used.push(descriptionColumn);
+        const amountColumn = pickColumn(clean, ['amount', 'transaction amount', 'value'], ['amount', 'sum', 'total', 'value'], used);
+        const debitColumn = pickColumn(clean, ['debit', 'withdrawal', 'withdrawals', 'money out', 'paid out'], ['debit', 'withdraw', 'money out', 'paid out', 'charge'], used);
+        const creditColumn = pickColumn(clean, ['credit', 'deposit', 'deposits', 'money in', 'paid in'], ['credit', 'deposit', 'money in', 'paid in'], used);
+        const split = !amountColumn && !!debitColumn && !!creditColumn && debitColumn !== creditColumn;
+        let negativeIsExpense = true;
+        if (amountColumn && rows && rows.length) {
+            let neg = 0;
+            let pos = 0;
+            rows.slice(0, 300).forEach((row) => {
+                const v = parseCsvAmount(row[amountColumn]);
+                if (isNaN(v) || v === 0) return;
+                if (v < 0) neg++;
+                else pos++;
+            });
+            negativeIsExpense = neg > pos || (neg > 0 && neg >= pos * 0.6);
+            if (neg === 0 && pos > 0) negativeIsExpense = false;
+        }
+        return {
+            dateColumn,
+            descriptionColumn,
+            amountColumn: split ? null : amountColumn || debitColumn || null,
+            debitColumn: split ? debitColumn : null,
+            creditColumn: split ? creditColumn : null,
+            amountMode: split ? 'split' : 'single',
+            negativeIsExpense
+        };
+    }
+
+    function parseCsvAmount(value) {
+        if (typeof value === 'number') return isFinite(value) ? value : NaN;
+        if (value == null) return NaN;
+        let s = String(value).trim();
+        if (!s) return NaN;
+        let negative = false;
+        if (/^\(.*\)$/.test(s)) {
+            negative = true;
+            s = s.slice(1, -1);
+        }
+        if (s.startsWith('-')) {
+            negative = true;
+            s = s.slice(1);
+        }
+        if (s.endsWith('-')) {
+            negative = true;
+            s = s.slice(0, -1);
+        }
+        s = s.replace(/[^0-9.,]/g, '');
+        if (!s) return NaN;
+        const hasComma = s.includes(',');
+        const hasDot = s.includes('.');
+        if (hasComma && hasDot) {
+            if (s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g, '').replace(',', '.');
+            else s = s.replace(/,/g, '');
+        } else if (hasComma) {
+            const parts = s.split(',');
+            if (parts.length === 2 && parts[1].length !== 3) s = parts.join('.');
+            else s = parts.join('');
+        }
+        const parsed = parseFloat(s);
+        if (!isFinite(parsed)) return NaN;
+        return negative ? -parsed : parsed;
+    }
+
+    function isMappingUsable(mapping) {
+        if (!mapping || !mapping.dateColumn || !mapping.descriptionColumn) return false;
+        return !!mapping.amountColumn || (!!mapping.debitColumn && !!mapping.creditColumn);
+    }
+
+    function processTransactionsWithMapping(rows, mapping) {
+        const out = [];
+        const stats = { total: 0, missing: 0, unreadableAmounts: 0, unreadableDates: 0, zero: 0 };
+        if (!isMappingUsable(mapping)) return { rows: out, stats };
+        const split = !mapping.amountColumn && mapping.debitColumn && mapping.creditColumn;
+        (rows || []).forEach((row) => {
+            stats.total++;
+            const dateValue = row[mapping.dateColumn];
+            const descValue = row[mapping.descriptionColumn];
+            if (dateValue == null || String(dateValue).trim() === '' || descValue == null || String(descValue).trim() === '') {
+                stats.missing++;
+                return;
+            }
+            const date = typeof parseLocalDate === 'function' ? parseLocalDate(dateValue) : new Date(dateValue);
+            if (isNaN(date.getTime())) {
+                stats.unreadableDates++;
+                return;
+            }
+            let amount;
+            if (split) {
+                const debit = parseCsvAmount(row[mapping.debitColumn]);
+                const credit = parseCsvAmount(row[mapping.creditColumn]);
+                if (!isNaN(debit) && debit !== 0) amount = -Math.abs(debit);
+                else if (!isNaN(credit) && credit !== 0) amount = Math.abs(credit);
+                else if (isNaN(debit) && isNaN(credit)) {
+                    stats.unreadableAmounts++;
+                    return;
+                } else {
+                    stats.zero++;
+                    return;
+                }
+            } else {
+                amount = parseCsvAmount(row[mapping.amountColumn]);
+                if (isNaN(amount)) {
+                    stats.unreadableAmounts++;
+                    return;
+                }
+                if (amount === 0) {
+                    stats.zero++;
+                    return;
+                }
+                if (mapping.negativeIsExpense === false) amount = -amount;
+            }
+            out.push({
+                'Transaction Date': String(dateValue).trim(),
+                Description: String(descValue).trim().toUpperCase(),
+                Amount: amount,
+                _originalFormat: 'CustomMapping',
+                _rawCsvData: Object.assign({}, row),
+                _date: date
+            });
         });
-    });
-
-    if (normalizedTransactions.length === 0) {
-        const detail = unreadable > 0 ? ` (${unreadable} rows had unreadable amounts)` : '';
-        showNotification('No valid expense transactions found' + detail, 'error');
-        const fileInput = document.getElementById('csvFile');
-        if (fileInput) fileInput.value = '';
-        return;
+        return { rows: out, stats };
     }
 
-    // Use the existing splitByMonth function to process
-    const processResult = splitByMonth(normalizedTransactions);
-
-    saveData();
-
-    // Show result
-    let message = `Processed ${normalizedTransactions.length} transactions`;
-    if (processResult.rulesApplied > 0) {
-        message += ` (${processResult.rulesApplied} removed by custom rules)`;
+    function saveBankMapping(bankName, headers, mapping) {
+        const name = String(bankName || '').trim();
+        if (!name || !isMappingUsable(mapping)) return false;
+        loadBankMappings();
+        const id = name.toLowerCase().replace(/\s+/g, '_');
+        window.savedBankMappings[id] = {
+            bankName: name,
+            headers: cleanHeaders(headers),
+            dateColumn: mapping.dateColumn,
+            descriptionColumn: mapping.descriptionColumn,
+            amountColumn: mapping.amountColumn || '',
+            debitColumn: mapping.debitColumn || '',
+            creditColumn: mapping.creditColumn || '',
+            negativeIsExpense: mapping.negativeIsExpense !== false
+        };
+        return saveBankMappings();
     }
-    if (processResult.skipped > 0) {
-        message += ` (${processResult.skipped} skipped)`;
-    }
-    if (processResult.duplicates > 0) {
-        message += ` (${processResult.duplicates} duplicates skipped)`;
-    }
-    if (unreadable > 0) {
-        message += ` (${unreadable} rows had unreadable amounts)`;
-    }
-    if (processResult.added > 0) {
-        message += `: ${processResult.added} new expenses added`;
-    }
-    showNotification(message, 'success');
 
-    // Reload after short delay
-    setTimeout(() => {
-        window.location.href = 'index.html';
-    }, 1000);
-}
+    window.addEventListener('DOMContentLoaded', loadBankMappings);
 
-// Note: HTML escaping uses the canonical window.escapeHtml from utils.js
-// (it also encodes quotes, so it is safe inside attribute values).
-
-// Initialize on load
-window.addEventListener('DOMContentLoaded', () => {
-    loadBankMappings();
-});
-
-// Export for use in main.js
-window.detectBankFormat = detectBankFormat;
-window.showColumnMappingModal = showColumnMappingModal;
-window.findColumn = findColumn;
-window.parseCsvAmount = parseCsvAmount;
+    window.detectBankFormat = detectBankFormat;
+    window.findColumn = findColumn;
+    window.parseCsvAmount = parseCsvAmount;
+    window.cleanCsvHeaders = cleanHeaders;
+    window.resolveBankMapping = resolveMapping;
+    window.guessColumnMapping = guessMapping;
+    window.isBankMappingUsable = isMappingUsable;
+    window.processTransactionsWithMapping = processTransactionsWithMapping;
+    window.saveBankMapping = saveBankMapping;
+    window.loadBankMappings = loadBankMappings;
+})();
