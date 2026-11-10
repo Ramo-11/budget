@@ -53,6 +53,7 @@
         return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
     }
 
+    const NEVER_RECURRING = new Set(['Travel']);
     const VARIABLE_SPEND = new Set(['Gas', 'Groceries', 'Food & Drink', 'Coffee and Tea', 'Shopping', 'Transportation', 'Parking', 'Entertainment', 'Others']);
 
     function cadenceFor(gapDays) {
@@ -84,6 +85,7 @@
         const groups = new Map();
         all.forEach((t) => {
             if (t.isIncome || t.isTransfer || t.isExcluded || t.isRefund || t.amount >= 0) return;
+            if (NEVER_RECURRING.has(t.category)) return;
             if (isNaN(t.date)) return;
             const key = brandKey(t.description);
             if (!key || key.length < 3) return;
