@@ -84,7 +84,6 @@ window.incomeSettings = {
         'WIRE_INCOMING',
         'QUICKPAY_CREDIT',
         'ZELLE PAYMENT FROM',
-        'ONLINE TRANSFER FROM',
         'INTEREST PAID',
         'DIVIDEND',
         'TAX REFUND',
@@ -218,7 +217,6 @@ function splitByMonth(transactions) {
         'WIRE_INCOMING',
         'QUICKPAY_CREDIT',
         'ZELLE PAYMENT FROM',
-        'ONLINE TRANSFER FROM',
         'INTEREST PAID',
         'DIVIDEND',
         'TAX REFUND',
@@ -421,19 +419,25 @@ function isDuplicateTransaction(newTransaction, existingTransactions) {
     });
 }
 
-function keywordMatches(upperDesc, keyword) {
-    const k = String(keyword || '').toUpperCase().trim();
-    if (!k) return false;
-    if (k.length >= 5) return upperDesc.includes(k);
-    let from = 0;
-    while (true) {
-        const i = upperDesc.indexOf(k, from);
-        if (i === -1) return false;
-        const before = i === 0 ? '' : upperDesc[i - 1];
-        const after = upperDesc[i + k.length] || '';
-        if (!/[A-Z0-9]/.test(before) && !/[A-Z0-9]/.test(after)) return true;
-        from = i + 1;
+const matchTextCache = new Map();
+function normalizeMatchText(text) {
+    const src = String(text || '');
+    let out = matchTextCache.get(src);
+    if (out === undefined) {
+        out = ' ' + src.toUpperCase().replace(/&AMP;/g, '&').replace(/[^A-Z0-9&]+/g, ' ').trim() + ' ';
+        if (matchTextCache.size > 20000) matchTextCache.clear();
+        matchTextCache.set(src, out);
     }
+    return out;
+}
+window.normalizeMatchText = normalizeMatchText;
+
+function keywordMatches(upperDesc, keyword) {
+    const k = normalizeMatchText(keyword).trim();
+    if (!k) return false;
+    const d = normalizeMatchText(upperDesc);
+    if (k.length >= 5) return d.includes(k);
+    return d.includes(' ' + k + ' ');
 }
 window.keywordMatches = keywordMatches;
 

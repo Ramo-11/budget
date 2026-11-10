@@ -103,13 +103,16 @@ function ruleMatchesDescription(rule, description) {
     const text = String(description || '').toUpperCase();
     const pattern = String(rule.pattern || '').toUpperCase();
     if (!pattern || pattern.length > RULE_PATTERN_MAX_LENGTH) return false;
+    const norm = typeof normalizeMatchText === 'function' ? normalizeMatchText : (v) => ' ' + String(v).toUpperCase().trim() + ' ';
+    const nText = norm(text).trim();
+    const nPattern = norm(pattern).trim();
     switch (rule.matchType) {
         case 'startsWith':
-            return text.startsWith(pattern);
+            return text.startsWith(pattern) || (!!nPattern && nText.startsWith(nPattern));
         case 'endsWith':
-            return text.endsWith(pattern);
+            return text.endsWith(pattern) || (!!nPattern && nText.endsWith(nPattern));
         case 'exact':
-            return text === pattern;
+            return text === pattern || (!!nPattern && nText === nPattern);
         case 'regex': {
             const regex = getSafeRuleRegex(pattern);
             if (!regex) return false;
@@ -120,7 +123,7 @@ function ruleMatchesDescription(rule, description) {
             }
         }
         default:
-            return text.includes(pattern);
+            return text.includes(pattern) || (!!nPattern && nText.includes(nPattern));
     }
 }
 

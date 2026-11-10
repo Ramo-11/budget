@@ -437,14 +437,18 @@
         if (!loc || !categoryConfig[category]) return { changed: 0, rule: null };
         let changed = 0;
         let rule = null;
+        const flagsFor = categoryFlags(category);
         if (o.applyToSimilar) {
             const pattern = o.pattern || merchantPattern(loc.tx.Description || loc.tx.description);
             rule = upsertCategorizeRule(pattern, category);
             monthlyData.forEach((md, mk) => {
                 (md.transactions || []).forEach((t) => {
                     const d = String(t.Description || t.description || '').toUpperCase();
-                    if (d.includes(rule.pattern)) {
+                    const hit = typeof ruleMatchesDescription === 'function' ? ruleMatchesDescription(rule, d) : d.includes(rule.pattern);
+                    if (hit) {
                         ensureOverrides(mk)[t._id] = category;
+                        if (flagsFor.isIncome) setIncomeFlag(mk, t._id, true);
+                        else if (countsAsIncome(t)) setIncomeFlag(mk, t._id, false);
                         changed++;
                     }
                 });
@@ -455,9 +459,14 @@
         }
         const flags = categoryFlags(category);
         if (flags.isIncome) setIncomeFlag(loc.monthKey, id, true);
-        else if (incomeOverrideFor(id) === true) setIncomeFlag(loc.monthKey, id, false);
+        else if (countsAsIncome(loc.tx)) setIncomeFlag(loc.monthKey, id, false);
         persist('category');
         return { changed: changed, rule: rule };
+    }
+
+    function countsAsIncome(t) {
+        const o = incomeOverrideFor(t._id);
+        return o === true || (o === undefined && t._isIncome === true);
     }
 
     function setCategories(ids, category) {
@@ -470,7 +479,7 @@
                 if (!set.has(t._id)) return;
                 ensureOverrides(mk)[t._id] = category;
                 if (isIncomeCat) setIncomeFlag(mk, t._id, true);
-                else if (incomeOverrideFor(t._id) === true) setIncomeFlag(mk, t._id, false);
+                else if (countsAsIncome(t)) setIncomeFlag(mk, t._id, false);
                 changed++;
             });
         });
