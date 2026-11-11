@@ -308,6 +308,40 @@
             });
         }
 
+        const memberRow = el('div', 'txs-member-row');
+        body.appendChild(memberRow);
+
+        function renderMembership(t) {
+            memberRow.textContent = '';
+            if (t.isIncome || t.isTransfer || typeof window.openMembershipSheet !== 'function') {
+                memberRow.hidden = true;
+                return;
+            }
+            memberRow.hidden = false;
+            const owner = Store.subscriptions().find((s) => s.manual && Array.isArray(s.matchedIds) && s.matchedIds.includes(id));
+            const link = el('button', 'txs-member-link');
+            link.type = 'button';
+            if (owner) {
+                memberRow.appendChild(el('span', null, 'Part of membership ' + owner.label));
+                link.textContent = 'Edit';
+                link.setAttribute('aria-label', 'Edit membership ' + owner.label);
+                link.addEventListener('click', () => {
+                    if (ctx) ctx.close();
+                    window.openMembershipSheet({ id: owner.id, name: owner.label, amount: owner.avgAmount, cadence: owner.cadence, nextDate: owner.nextDate && owner.nextDate.getTime ? Store.isoDate(owner.nextDate) : owner.nextDate || '', category: owner.category, pattern: owner.pattern });
+                });
+            } else {
+                memberRow.appendChild(el('span', null, 'Charges like this one repeat?'));
+                link.textContent = 'Mark as membership';
+                link.addEventListener('click', () => {
+                    const cur = Store.transaction(id);
+                    if (!cur) return;
+                    if (ctx) ctx.close();
+                    window.openMembershipSheet({ name: cur.merchant, amount: cur.absAmount, cadence: 'monthly', category: cur.category, pattern: Store.merchantPattern(cur.description) });
+                });
+            }
+            memberRow.appendChild(link);
+        }
+
         const rawDet = el('details', 'txs-disclosure');
         rawDet.appendChild(el('summary', null, 'View original bank data'));
         const rawBody = el('div', 'txs-raw');
@@ -378,6 +412,7 @@
                 dateInput.value = t.dateKey;
                 kindSelect.value = t.isIncome ? 'income' : 'expense';
             }
+            renderMembership(t);
             if (initial || lastCategory !== t.category) renderRaw(t);
             lastCategory = t.category;
             if (ctx && ctx.setTitle) ctx.setTitle(t.merchant);

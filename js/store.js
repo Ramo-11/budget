@@ -744,7 +744,7 @@
         const horizon = new Date(now.getTime() + days * 86400000);
         return detectRecurring()
             .map((r) => {
-                if (!r.lastDate || isNaN(r.lastDate)) return null;
+                if (!r.manual && (!r.lastDate || isNaN(r.lastDate))) return null;
                 if (r.stopped === true) return null;
                 let due = r.nextDate instanceof Date && !isNaN(r.nextDate) ? new Date(r.nextDate) : null;
                 if (!due) {
@@ -755,7 +755,8 @@
                 due.setHours(0, 0, 0, 0);
                 return {
                     key: r.key,
-                    name: merchantName(r.label),
+                    manual: r.manual === true,
+                    name: r.manual ? r.label : merchantName(r.label),
                     category: r.category,
                     amount: r.lastAmount || r.avgAmount,
                     cadence: r.cadence || 'monthly',
@@ -765,6 +766,61 @@
             })
             .filter((b) => b && b.dueDate >= now && b.dueDate <= horizon)
             .sort((a, b) => a.dueDate - b.dueDate);
+    }
+
+    const SUB_CADENCES = ['weekly', 'every two weeks', 'monthly', 'every three months', 'every six months', 'yearly'];
+
+    function subPrefsRaw() {
+        if (!window.subscriptionPrefs || typeof window.subscriptionPrefs !== 'object') window.subscriptionPrefs = {};
+        const p = window.subscriptionPrefs;
+        if (!Array.isArray(p.dismissed)) p.dismissed = [];
+        if (!Array.isArray(p.manual)) p.manual = [];
+        return p;
+    }
+
+    function subscriptions(options) {
+        return typeof detectRecurring === 'function' ? detectRecurring(options || {}) : [];
+    }
+
+    function dismissSubscription(key) {
+        const p = subPrefsRaw();
+        if (key && !p.dismissed.includes(key)) p.dismissed.push(key);
+        persist('subscriptions');
+    }
+
+    function restoreSubscription(key) {
+        const p = subPrefsRaw();
+        p.dismissed = p.dismissed.filter((k) => k !== key);
+        persist('subscriptions');
+    }
+
+    function saveSubscription(input) {
+        const i = input || {};
+        const name = String(i.name || '').trim().slice(0, 80);
+        const amount = Math.round(Math.abs(Number(i.amount) || 0) * 100) / 100;
+        if (!name) return { ok: false, error: 'Give it a name.' };
+        if (!amount) return { ok: false, error: 'Enter how much it costs.' };
+        const cadence = SUB_CADENCES.includes(i.cadence) ? i.cadence : 'monthly';
+        const nextDate = i.nextDate && /^\d{4}-\d{2}-\d{2}$/.test(i.nextDate) ? i.nextDate : null;
+        const pattern = String(i.pattern || '').trim().toUpperCase().slice(0, 80);
+        const p = subPrefsRaw();
+        let sub = i.id ? p.manual.find((m) => m.id === i.id) : null;
+        if (!sub) {
+            sub = { id: 'sub_' + newId(), createdAt: new Date().toISOString() };
+            p.manual.push(sub);
+        }
+        Object.assign(sub, { name: name, amount: amount, cadence: cadence, nextDate: nextDate, pattern: pattern, category: i.category && categoryConfig[i.category] ? i.category : null });
+        if (i.replacesKey) p.dismissed = Array.from(new Set(p.dismissed.concat([i.replacesKey])));
+        persist('subscriptions');
+        return { ok: true, id: sub.id };
+    }
+
+    function deleteSubscription(id) {
+        const p = subPrefsRaw();
+        const before = p.manual.length;
+        p.manual = p.manual.filter((m) => m.id !== id);
+        persist('subscriptions');
+        return before !== p.manual.length;
     }
 
     function hasData() {
@@ -782,6 +838,7 @@
         trash, restoreFromTrash, purgeFromTrash, emptyTrash: emptyTrashAll,
         goals, saveGoal, deleteGoal, contributeToGoal,
         upcomingBills, hasData, isoDate,
+        subscriptions, dismissSubscription, restoreSubscription, saveSubscription, deleteSubscription,
     };
 
     window.Store = api;

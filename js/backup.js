@@ -127,6 +127,7 @@
             transactionNotes: window.transactionNotes || {},
             savingsGoals: window.savingsGoals || [],
             appPreferences: window.appPreferences || {},
+            subscriptionPrefs: window.subscriptionPrefs || {},
         };
     }
 

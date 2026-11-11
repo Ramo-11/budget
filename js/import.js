@@ -159,6 +159,32 @@ function sanitizeImportedNotes(raw) {
     return out;
 }
 
+const SUB_CADENCES = ['weekly', 'every two weeks', 'monthly', 'every three months', 'every six months', 'yearly'];
+
+function sanitizeImportedSubscriptionPrefs(raw) {
+    const out = { dismissed: [], manual: [] };
+    if (!importIsPlainObject(raw)) return out;
+    if (Array.isArray(raw.dismissed)) out.dismissed = raw.dismissed.filter((k) => typeof k === 'string' && k.length <= 120).slice(0, 500);
+    if (Array.isArray(raw.manual)) {
+        raw.manual.forEach((m) => {
+            if (!importIsPlainObject(m) || typeof m.name !== 'string' || !m.name.trim()) return;
+            const amount = Number(m.amount);
+            if (!Number.isFinite(amount) || amount <= 0) return;
+            out.manual.push({
+                id: typeof m.id === 'string' && m.id ? m.id.slice(0, 40) : 'sub_' + importNewId(),
+                name: m.name.trim().slice(0, 80),
+                amount: Math.round(amount * 100) / 100,
+                cadence: SUB_CADENCES.includes(m.cadence) ? m.cadence : 'monthly',
+                nextDate: typeof m.nextDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(m.nextDate) ? m.nextDate : null,
+                category: typeof m.category === 'string' ? m.category.slice(0, 80) : null,
+                pattern: typeof m.pattern === 'string' ? m.pattern.toUpperCase().slice(0, 80) : '',
+                createdAt: typeof m.createdAt === 'string' ? m.createdAt.slice(0, 40) : new Date().toISOString(),
+            });
+        });
+    }
+    return out;
+}
+
 function sanitizeImportedGoals(raw) {
     if (!Array.isArray(raw)) return [];
     const out = [];
@@ -253,6 +279,7 @@ function sanitizeImportedBackup(importData) {
         transactionNotes: sanitizeImportedNotes(importData.transactionNotes),
         savingsGoals: sanitizeImportedGoals(importData.savingsGoals),
         appPreferences: sanitizeImportedPreferences(importData.appPreferences),
+        subscriptionPrefs: sanitizeImportedSubscriptionPrefs(importData.subscriptionPrefs),
     };
 }
 
@@ -284,6 +311,7 @@ function applyImportedBackup(clean, mode) {
         window.transactionNotes = clean.transactionNotes;
         window.savingsGoals = clean.savingsGoals;
         window.appPreferences = Object.assign({}, window.appPreferences || {}, clean.appPreferences);
+        window.subscriptionPrefs = clean.subscriptionPrefs;
         window.merchantRules = {};
         if (clean.incomeSettings) {
             window.incomeSettings = Object.assign({}, window.incomeSettings || {}, clean.incomeSettings);
@@ -361,6 +389,10 @@ function applyImportedBackup(clean, mode) {
         clean.savingsGoals.forEach((goal) => {
             if (!window.savingsGoals.some((g) => g.id === goal.id)) window.savingsGoals.push(goal);
         });
+
+        const subs = window.subscriptionPrefs || (window.subscriptionPrefs = {});
+        subs.dismissed = Array.from(new Set((subs.dismissed || []).concat(clean.subscriptionPrefs.dismissed)));
+        subs.manual = (subs.manual || []).concat(clean.subscriptionPrefs.manual.filter((m) => !(subs.manual || []).some((x) => x.id === m.id)));
 
         clean.deletedFingerprints.forEach((fp) => {
             if (!window.deletedFingerprints.includes(fp)) window.deletedFingerprints.push(fp);

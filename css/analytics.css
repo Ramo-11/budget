@@ -183,3 +183,19 @@ button.ins-row { cursor: pointer; border-radius: var(--radius-md); padding-left:
   .ins-review-block, .ins-review-stats { break-inside: avoid; }
   .ins-bar, .ins-bar > span { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
+
+.ins-mem-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.ins-mem-title { margin: 0; font-size: var(--text-xl); font-weight: 600; letter-spacing: -0.02em; }
+.ins-mem-totals { margin: var(--space-1) 0 0; font-size: var(--text-sm); color: var(--text-muted); }
+.ins-mem-totals .money { color: var(--text); font-weight: 600; }
+.ins-mem-item { display: flex; align-items: center; gap: var(--space-2); }
+.ins-mem-link { flex: 1; min-width: 0; }
+a.ins-mem-link:hover { background: var(--surface-hover); }
+.ins-mem-sub { display: flex; flex-wrap: wrap; gap: 0 var(--space-2); font-size: var(--text-sm); color: var(--text-muted); line-height: 1.4; }
+.ins-mem-cat { color: var(--text-muted); }
+.ins-mem-badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.ins-mem-badge { font-size: var(--text-xs); }
+.ins-mem-muted { font-size: var(--text-xs); color: var(--text-muted); }
+.ins-mem-menu { min-width: 44px; min-height: 44px; flex-shrink: 0; font-weight: 600; letter-spacing: 0.05em; }
+.ins-mem-action { min-height: 44px; flex-shrink: 0; }
+.ins-mem-hidden summary { margin: 0; }

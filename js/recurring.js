@@ -17,7 +17,7 @@
             .trim();
     }
 
-    const GENERIC = new Set(['SUBSCRIPTION', 'MONTHLY', 'PREMIUM', 'PAYMENT', 'PLAN', 'BILL', 'MEMBERSHIP', 'ONLINE', 'THE', 'WWW', 'COM', 'INC', 'LLC', 'ANNUAL', 'YEARLY', 'SERVICE', 'SERVICES', 'FEE', 'DIGITAL']);
+    const GENERIC = new Set(['SUBSCRIPTION', 'MONTHLY', 'PREMIUM', 'PAYMENT', 'PLAN', 'BILL', 'MEMBERSHIP', 'ONLINE', 'THE', 'WWW', 'COM', 'INC', 'LLC', 'ANNUAL', 'YEARLY', 'SERVICE', 'SERVICES', 'FEE', 'DIGITAL', 'ZELLE', 'TO', 'FROM', 'PAYPAL', 'SQ', 'TST', 'PY', 'DD', 'SP', 'ACH', 'WEB', 'PMTS', 'CORP']);
 
     function brandKey(desc) {
         const tokens = merchantKey(desc).split(' ').filter(Boolean);
@@ -76,15 +76,84 @@
         return new Date(now.getFullYear(), now.getMonth(), now.getDate());
     }
 
+    const CADENCE_BY_NAME = {
+        weekly: { name: 'weekly', step: 7, perYear: 52 },
+        'every two weeks': { name: 'every two weeks', step: 14, perYear: 26 },
+        monthly: { name: 'monthly', step: 0, months: 1, perYear: 12 },
+        'every three months': { name: 'every three months', step: 0, months: 3, perYear: 4 },
+        'every six months': { name: 'every six months', step: 0, months: 6, perYear: 2 },
+        yearly: { name: 'yearly', step: 0, months: 12, perYear: 1 },
+    };
+
+    function subPrefs() {
+        const p = window.subscriptionPrefs || {};
+        return { dismissed: new Set(Array.isArray(p.dismissed) ? p.dismissed : []), manual: Array.isArray(p.manual) ? p.manual : [] };
+    }
+
+    function matchesPattern(t, pattern) {
+        if (!pattern) return false;
+        const norm = typeof normalizeMatchText === 'function' ? normalizeMatchText : (v) => ' ' + String(v).toUpperCase() + ' ';
+        const p = norm(pattern).trim();
+        return !!p && norm(t.description).includes(p);
+    }
+
+    function manualResults(all, today) {
+        return subPrefs().manual.map((m) => {
+            const cadence = CADENCE_BY_NAME[m.cadence] || CADENCE_BY_NAME.monthly;
+            const matches = all
+                .filter((t) => !t.isIncome && t.amount < 0 && matchesPattern(t, m.pattern))
+                .sort((a, b) => a.date - b.date);
+            const last = matches[matches.length - 1] || null;
+            let nextDate = null;
+            if (m.nextDate) nextDate = parseLocalDate(m.nextDate);
+            if (last && (!nextDate || nextDate <= last.date)) nextDate = addCadence(last.date, cadence);
+            if (!nextDate || isNaN(nextDate)) nextDate = today;
+            let guard = 0;
+            while (nextDate < today && guard < 800) {
+                nextDate = addCadence(nextDate, cadence);
+                guard++;
+            }
+            const amount = Number(m.amount) || (last ? last.absAmount : 0);
+            const monthly = (amount * cadence.perYear) / 12;
+            return {
+                key: 'manual:' + m.id,
+                id: m.id,
+                manual: true,
+                pattern: m.pattern || '',
+                label: m.name,
+                category: m.category || (last ? last.category : 'Subscriptions'),
+                occurrences: matches.length,
+                months: Array.from(new Set(matches.map((t) => t.monthKey))).sort(),
+                monthSpan: new Set(matches.map((t) => t.monthKey)).size,
+                avgAmount: amount,
+                lastAmount: last ? last.absAmount : amount,
+                lastDate: last ? last.date : null,
+                firstDate: matches.length ? matches[0].date : null,
+                cadence: cadence.name,
+                perYear: cadence.perYear,
+                monthly: monthly,
+                yearly: monthly * 12,
+                nextDate: nextDate,
+                stopped: false,
+                matchedIds: matches.map((t) => t.id),
+            };
+        });
+    }
+
     window.detectRecurring = function (options) {
         const opts = options || {};
         if (typeof Store === 'undefined' || typeof Store.allTransactions !== 'function') return [];
         const all = Store.allTransactions();
-        if (!all.length) return [];
+        const prefs = subPrefs();
+        const manual = manualResults(all, startOfToday());
+        if (!all.length) return manual;
+        const claimed = new Set();
+        manual.forEach((m) => m.matchedIds.forEach((id) => claimed.add(id)));
 
         const groups = new Map();
         all.forEach((t) => {
             if (t.isIncome || t.isTransfer || t.isExcluded || t.isRefund || t.amount >= 0) return;
+            if (claimed.has(t.id)) return;
             if (NEVER_RECURRING.has(t.category)) return;
             if (isNaN(t.date)) return;
             const key = brandKey(t.description);
@@ -102,7 +171,7 @@
                 clustered.push({
                     key: parts.length > 1 ? g.key + ' ' + Math.round(avgAmt) : g.key,
                     samples: items,
-                    label: titleCase(brandKey(latest.description) || latest.description),
+                    label: latest.merchant || titleCase(brandKey(latest.description) || latest.description),
                 });
             });
         });
@@ -135,6 +204,8 @@
             const mid = median(gaps);
             const cadence = cadenceFor(mid);
             if (!cadence) return;
+            if (VARIABLE_SPEND.has(latestCat) && samples.length < 3) return;
+            if (cadence.perYear < 12 && cadence.perYear > 1 && samples.length < 3) return;
             const regular = gaps.filter((gap) => Math.abs(gap - mid) <= Math.max(4, mid * 0.25)).length;
             if (regular / gaps.length < 0.7) return;
 
@@ -171,8 +242,13 @@
             });
         });
 
-        results.sort((a, b) => b.monthly - a.monthly);
-        return results;
+        const visible = results.filter((r) => {
+            r.dismissed = prefs.dismissed.has(r.key);
+            return opts.includeDismissed || !r.dismissed;
+        });
+        const merged = manual.concat(visible);
+        merged.sort((a, b) => b.monthly - a.monthly);
+        return merged;
     };
 
     window.recurringMonthlyTotal = function (list) {

@@ -5,7 +5,7 @@
         { value: 'trends', label: 'Trends' },
         { value: 'categories', label: 'Categories' },
         { value: 'merchants', label: 'Merchants' },
-        { value: 'subscriptions', label: 'Subscriptions' },
+        { value: 'subscriptions', label: 'Memberships' },
         { value: 'compare', label: 'Compare' },
         { value: 'review', label: 'Month in review' },
     ];
@@ -910,7 +910,8 @@
         Store.init();
         panel = document.getElementById('insPanel');
         const params = new URLSearchParams(window.location.search);
-        const wanted = params.get('tab');
+        let wanted = params.get('tab');
+        if (wanted === 'memberships') wanted = 'subscriptions';
         if (wanted && TABS.some((t) => t.value === wanted)) state.tab = wanted;
         loadState();
         buildTabs();
@@ -918,7 +919,8 @@
         renderPanel();
         Store.onChange(() => renderPanel());
         window.addEventListener('popstate', () => {
-            const t = new URLSearchParams(window.location.search).get('tab');
+            let t = new URLSearchParams(window.location.search).get('tab');
+            if (t === 'memberships') t = 'subscriptions';
             if (t && TABS.some((x) => x.value === t) && t !== state.tab) {
                 state.tab = t;
                 if (tabsControl) tabsControl.set(t);
@@ -941,6 +943,296 @@
         });
     }
 
+    const MEM_DAY = 86400000;
+    const CADENCE_WORDS = {
+        weekly: 'Every week',
+        'every two weeks': 'Every two weeks',
+        monthly: 'Every month',
+        'every three months': 'Every three months',
+        'every six months': 'Every six months',
+        yearly: 'Every year',
+    };
+    let memRows = [];
+    let memPairs = [];
+
+    function memToday() {
+        const n = new Date();
+        return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    }
+
+    function memStep(date, perYear) {
+        if (perYear === 52) return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 7);
+        if (perYear === 26) return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 14);
+        return new Date(date.getFullYear(), date.getMonth() + Math.round(12 / perYear), date.getDate());
+    }
+
+    function memUpcoming(list, days) {
+        const today = memToday();
+        const end = new Date(today.getTime() + (days - 1) * MEM_DAY);
+        const out = [];
+        list.forEach((r) => {
+            if (!r.nextDate) return;
+            let due = r.nextDate;
+            let guard = 0;
+            while (due <= end && guard < 40) {
+                out.push({ r: r, due: due });
+                due = memStep(due, r.perYear);
+                guard++;
+            }
+        });
+        out.sort((a, b) => a.due - b.due || b.r.avgAmount - a.r.avgAmount);
+        return out;
+    }
+
+    function memDayWord(n) {
+        if (n === 0) return 'Today';
+        if (n === 1) return 'Tomorrow';
+        return 'In ' + n + ' days';
+    }
+
+    function memStrip(bills) {
+        const today = memToday();
+        const byDay = {};
+        bills.forEach((b) => {
+            const key = Store.isoDate(b.due);
+            byDay[key] = (byDay[key] || 0) + 1;
+        });
+        const loc = Store.prefs().locale;
+        let cells = '';
+        for (let i = 0; i < 30; i++) {
+            const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
+            const n = byDay[Store.isoDate(d)] || 0;
+            cells += '<li class="ins-day' + (n ? ' has-bill' : '') + (i === 0 ? ' is-today' : '') + '"><span class="ins-day-w">' + esc(d.toLocaleDateString(loc, { weekday: 'narrow' })) + '</span><span class="ins-day-n">' + d.getDate() + '</span><span class="ins-day-dot"></span></li>';
+        }
+        return '<ol class="ins-strip" aria-hidden="true">' + cells + '</ol>';
+    }
+
+    function memName(r) {
+        return r.manual ? r.label : Store.merchantName(r.label);
+    }
+
+    function memRow(r, idx, opts) {
+        const name = memName(r);
+        const words = CADENCE_WORDS[r.cadence] || r.cadence;
+        let sub = '<span class="ins-mem-cat">' + esc(r.category || 'Subscriptions') + '</span><span>' + esc(words) + '</span>';
+        if (opts.hidden) {
+            sub += '<span>Last charged ' + esc(r.lastDate ? fmtDate(r.lastDate, true) : 'unknown') + '</span>';
+        } else if (opts.stopped) {
+            sub += '<span>Last charged ' + esc(r.lastDate ? fmtDate(r.lastDate, true) : 'unknown') + '</span>';
+        } else if (r.nextDate) {
+            sub += '<span>Next ' + esc(fmtDate(r.nextDate, true)) + '</span>';
+        }
+        let badges = '';
+        if (r.manual) {
+            badges += '<span class="badge ins-mem-badge">Added by you</span>';
+            if (!r.occurrences) badges += '<span class="ins-mem-muted">No charges matched yet</span>';
+        }
+        const amount = '<span class="ins-row-trail">' + m(r.manual ? r.avgAmount : r.lastAmount) + '</span>';
+        let action;
+        if (opts.hidden) {
+            action = '<button type="button" class="btn btn-ghost btn-sm ins-mem-action" data-mem="restore" data-i="' + idx + '" aria-label="Show ' + esc(name) + ' again">Show again</button>';
+        } else {
+            action = '<button type="button" class="btn btn-ghost btn-sm ins-mem-menu" data-mem="menu" data-i="' + idx + '" aria-haspopup="menu" aria-label="Options for ' + esc(name) + '">...</button>';
+        }
+        const main = '<span class="ins-row-main"><span class="ins-row-title">' + esc(name) + '</span><span class="ins-mem-sub">' + sub + '</span>' + (badges ? '<span class="ins-mem-badges">' + badges + '</span>' : '') + '</span>';
+        const body = chip(r.category) + main + amount;
+        const link = opts.hidden
+            ? '<div class="ins-row ins-mem-link">' + body + '</div>'
+            : '<a class="ins-row ins-mem-link" href="' + esc(txLink({ q: name })) + '">' + body + '</a>';
+        return '<li class="ins-mem-item">' + link + action + '</li>';
+    }
+
+    function memRealAccounts() {
+        if (typeof getAccounts !== 'function') return 0;
+        try {
+            return getAccounts().filter((a) => !a.sample).length;
+        } catch (e) {
+            return 0;
+        }
+    }
+
+    function memTransfersHtml() {
+        if (memRealAccounts() < 2 || typeof findCrossAccountTransfers !== 'function') {
+            memPairs = [];
+            return '';
+        }
+        const all = findCrossAccountTransfers();
+        memPairs = all.filter((p) => !p.alreadyFlagged && !p.dismissed);
+        const done = all.filter((p) => p.alreadyFlagged).length;
+        let html = '<section class="card ins-card" id="transfers" aria-labelledby="insTransTitle"><div class="card-header"><h2 class="card-title" id="insTransTitle">Transfers between your accounts</h2></div>' +
+            '<p class="ins-note">When you move money between your own accounts, it can show up twice: once as spending and once as income. Mark those as transfers and they are left out of your totals.</p>';
+        if (memPairs.length) {
+            html += '<ul class="ins-list">' + memPairs.map((p, i) => {
+                const gap = p.dayGap === 0 ? 'the same day' : p.dayGap === 1 ? 'a day later' : p.dayGap + ' days later';
+                return '<li class="ins-transfer"><div class="ins-transfer-text"><span class="ins-row-title">' + m(p.amount) + ' from ' + esc(p.fromAccountName) + ' to ' + esc(p.toAccountName) + '</span>' +
+                    '<span class="ins-row-sub">Left ' + esc(p.fromAccountName) + ' on ' + esc(fmtDate(p.fromDate, true)) + ' and arrived ' + gap + '. Did you move this money yourself?</span></div>' +
+                    '<div class="ins-transfer-actions"><button type="button" class="btn btn-primary btn-sm" data-transfer="confirm" data-i="' + i + '">Yes, it is a transfer</button>' +
+                    '<button type="button" class="btn btn-ghost btn-sm" data-transfer="dismiss" data-i="' + i + '">Not a transfer</button></div></li>';
+            }).join('') + '</ul>';
+        } else {
+            html += emptyBlock('Nothing to check', done ? done + (done === 1 ? ' transfer is' : ' transfers are') + ' already left out of your totals.' : 'No matching moves between your accounts were found.');
+        }
+        return html + '</section>';
+    }
+
+    function memToast(message, type, undo) {
+        if (typeof UI !== 'undefined' && UI.toast) UI.toast(message, { type: type, action: { label: 'Undo', onClick: undo } });
+    }
+
+    function memOpen(prefill) {
+        if (typeof window.openMembershipSheet === 'function') window.openMembershipSheet(prefill);
+        else if (typeof UI !== 'undefined' && UI.toast) UI.toast('Memberships are not available right now.', { type: 'error' });
+    }
+
+    function memLatestPattern(r) {
+        const base = Store.merchantName(r.label);
+        let found = null;
+        try {
+            found = Store.transactions({ includeTransfers: false }).find((t) => !t.isIncome && (Store.merchantName(t.description) === base || Store.merchantName(t.merchant) === base));
+        } catch (e) {
+            found = null;
+        }
+        if (found) {
+            const p = Store.merchantPattern(found.description);
+            if (p) return p;
+        }
+        return String(base || r.label || '').toUpperCase();
+    }
+
+    function memPrefill(r) {
+        if (r.manual) {
+            return { id: r.id, name: r.label, amount: r.avgAmount, cadence: r.cadence, nextDate: r.nextDate ? Store.isoDate(r.nextDate) : '', category: r.category, pattern: r.pattern };
+        }
+        return { name: Store.merchantName(r.label), amount: r.lastAmount, cadence: r.cadence, nextDate: r.nextDate ? Store.isoDate(r.nextDate) : '', category: r.category, pattern: memLatestPattern(r), replacesKey: r.key };
+    }
+
+    function memMenu(anchor, r) {
+        if (typeof UI === 'undefined' || !UI.menu) return;
+        const name = memName(r);
+        if (r.manual) {
+            UI.menu(anchor, [
+                { label: 'Edit', onClick: () => memOpen(memPrefill(r)) },
+                {
+                    label: 'Stop tracking',
+                    danger: true,
+                    onClick: () => {
+                        const saved = memPrefill(r);
+                        Store.deleteSubscription(r.id);
+                        memToast('Stopped tracking ' + name, 'success', () => {
+                            Store.saveSubscription({ name: saved.name, amount: saved.amount, cadence: saved.cadence, nextDate: saved.nextDate, category: saved.category, pattern: saved.pattern });
+                        });
+                    },
+                },
+            ]);
+            return;
+        }
+        UI.menu(anchor, [
+            { label: 'Edit details', onClick: () => memOpen(memPrefill(r)) },
+            {
+                label: 'Not a membership',
+                danger: true,
+                onClick: () => {
+                    Store.dismissSubscription(r.key);
+                    memToast(name + ' removed from memberships', 'success', () => Store.restoreSubscription(r.key));
+                },
+            },
+        ]);
+    }
+
+    function renderMemberships(el) {
+        const all = typeof Store.subscriptions === 'function' ? Store.subscriptions({ includeDismissed: true }) : [];
+        const hidden = all.filter((r) => !r.manual && r.dismissed);
+        const live = all.filter((r) => r.manual || !r.dismissed);
+        const active = live.filter((r) => !r.stopped);
+        const stopped = live.filter((r) => r.stopped);
+        const monthly = active.reduce((s, r) => s + (r.monthly || 0), 0);
+        const bills = memUpcoming(active, 30);
+        const today = memToday();
+        memRows = [];
+        const reg = (r) => memRows.push(r) - 1;
+
+        let html = '<div class="ins-mem-head"><div><h2 class="ins-mem-title">Memberships</h2>' +
+            '<p class="ins-mem-totals">' + (active.length ? m(monthly) + ' a month, ' + m(monthly * 12) + ' a year' : 'Nothing tracked yet') + '</p></div>' +
+            '<button type="button" class="btn btn-primary" data-mem="add">Add membership</button></div>';
+
+        if (!live.length) {
+            html += '<section class="card ins-card"><div class="ins-empty"><p class="ins-empty-title">No memberships yet</p>' +
+                '<p class="muted">We find memberships from charges that repeat on a steady schedule, like streaming or a gym. Import another month and they will show up here, or add one yourself.</p>' +
+                '<p><button type="button" class="btn btn-primary" data-mem="add">Add membership</button></p></div></section>';
+        } else {
+            html += '<section class="card ins-card" aria-labelledby="insBillsTitle"><div class="card-header"><h2 class="card-title" id="insBillsTitle">Coming up in the next 30 days</h2></div>' + memStrip(bills);
+            if (bills.length) {
+                html += '<ul class="ins-list">' + bills.map((b) => {
+                    const away = Math.round((b.due - today) / MEM_DAY);
+                    return '<li><div class="ins-row">' + chip(b.r.category) + '<span class="ins-row-main"><span class="ins-row-title">' + esc(memName(b.r)) + '</span><span class="ins-row-sub">' + esc(memDayWord(away)) + ', ' + esc(fmtDate(b.due, false)) + '</span></span><span class="ins-row-trail">' + m(b.r.avgAmount) + '</span></div></li>';
+                }).join('') + '</ul>';
+            } else {
+                html += '<p class="ins-note">No charges are expected in the next 30 days.</p>';
+            }
+            html += '</section>';
+
+            html += '<section class="card ins-card" aria-labelledby="insSubsTitle"><div class="card-header"><h2 class="card-title" id="insSubsTitle">Your memberships</h2></div>';
+            html += active.length ? '<ul class="ins-list">' + active.map((r) => memRow(r, reg(r), {})).join('') + '</ul>' : '<p class="ins-note">Everything we found looks like it has stopped.</p>';
+            html += '</section>';
+
+            if (stopped.length) {
+                html += '<section class="card ins-card" aria-labelledby="insStoppedTitle"><div class="card-header"><h2 class="card-title" id="insStoppedTitle">Looks like it stopped</h2></div>' +
+                    '<p class="ins-note">These used to repeat but have not been charged in a while. They are not counted in your totals.</p><ul class="ins-list">' + stopped.map((r) => memRow(r, reg(r), { stopped: true })).join('') + '</ul></section>';
+            }
+        }
+
+        if (hidden.length) {
+            html += '<section class="card ins-card"><details class="ins-details ins-mem-hidden"><summary>Hidden (' + hidden.length + ')</summary>' +
+                '<p class="ins-note">You marked these as not memberships. They are left out of your totals.</p><ul class="ins-list">' + hidden.map((r) => memRow(r, reg(r), { hidden: true })).join('') + '</ul></details></section>';
+        }
+
+        html += memTransfersHtml();
+        el.innerHTML = html;
+
+        el.onclick = (e) => {
+            const mem = e.target.closest('[data-mem]');
+            if (mem) {
+                const kind = mem.dataset.mem;
+                if (kind === 'add') {
+                    memOpen({});
+                    return;
+                }
+                const r = memRows[Number(mem.dataset.i)];
+                if (!r) return;
+                if (kind === 'menu') memMenu(mem, r);
+                else if (kind === 'restore') {
+                    Store.restoreSubscription(r.key);
+                    if (typeof UI !== 'undefined' && UI.toast) UI.toast(memName(r) + ' is back in memberships', { type: 'success' });
+                }
+                return;
+            }
+            const btn = e.target.closest('[data-transfer]');
+            if (!btn) return;
+            const pair = memPairs[Number(btn.dataset.i)];
+            if (!pair) return;
+            if (btn.dataset.transfer === 'confirm') {
+                confirmTransferPair(pair);
+                Store.persist('transfers');
+                memToast('Marked as a transfer', 'success', () => {
+                    unconfirmTransferPair(pair);
+                    Store.persist('transfers');
+                });
+            } else {
+                dismissTransferPair(pair);
+                Store.persist('transfers');
+                memToast('Got it, we will not ask again', 'info', () => {
+                    undismissTransferPair(pair);
+                    Store.persist('transfers');
+                });
+            }
+        };
+
+        if (window.location.hash === '#transfers') {
+            const t = el.querySelector('#transfers');
+            if (t && t.scrollIntoView) t.scrollIntoView({ block: 'start' });
+        }
+    }
+
     const Insights = {
         tabs: {
             overview: renderOverview,
@@ -948,6 +1240,7 @@
             trends: renderTrends,
             categories: renderCategories,
             merchants: renderMerchants,
+            subscriptions: renderMemberships,
         },
         register: function (name, fn) {
             Insights.tabs[name] = fn;

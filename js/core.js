@@ -107,6 +107,7 @@ function loadSavedData() {
             window.transactionNotes = data.transactionNotes || {};
             window.savingsGoals = Array.isArray(data.savingsGoals) ? data.savingsGoals : [];
             window.appPreferences = data.appPreferences || {};
+            window.subscriptionPrefs = data.subscriptionPrefs || {};
 
             // Load income settings
             if (data.incomeSettings) {
@@ -156,6 +157,7 @@ function saveData() {
             transactionNotes: window.transactionNotes || {},
             savingsGoals: window.savingsGoals || [],
             appPreferences: window.appPreferences || {},
+            subscriptionPrefs: window.subscriptionPrefs || {},
         };
         localStorage.setItem(getActiveDataKey(), JSON.stringify(data));
     } catch (error) {

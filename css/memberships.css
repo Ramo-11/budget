@@ -1,0 +1,8 @@
+.mem-form { display: flex; flex-direction: column; gap: var(--space-4); }
+.mem-label { font-size: var(--text-sm); font-weight: 500; color: var(--text-muted); display: block; margin-bottom: var(--space-1); }
+.mem-cat { width: 100%; justify-content: flex-start; gap: var(--space-3); min-height: 44px; }
+.mem-live { font-size: var(--text-sm); margin: var(--space-2) 0 0; }
+.mem-cat:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.txs-member-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 44px; font-size: var(--text-sm); color: var(--text-muted); }
+.txs-member-link { background: none; border: 0; padding: var(--space-2) 0; min-height: 44px; color: var(--brand); font: inherit; font-weight: 500; cursor: pointer; text-decoration: underline; }
+.txs-member-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }

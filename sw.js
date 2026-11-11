@@ -3,7 +3,7 @@
 // stale-while-revalidate for same-origin GETs so the app works fully offline
 // and updates in the background. Bump CACHE_VERSION to force a refresh.
 
-const CACHE_VERSION = 'sahab-budget-v6';
+const CACHE_VERSION = 'sahab-budget-v8';
 const SHELL = [
     'about.html',
     'analytics.html',
@@ -29,6 +29,7 @@ const SHELL = [
     'css/theme.css',
     'css/transactions.css',
     'css/tx-sheet.css',
+    'css/memberships.css',
     'js/accounts.js',
     'js/analytics.js',
     'js/backup.js',
@@ -55,6 +56,7 @@ const SHELL = [
     'js/transactions.js',
     'js/transfers.js',
     'js/tx-sheet.js',
+    'js/memberships.js',
     'js/ui.js',
     'js/undo.js',
     'js/utils.js',
